@@ -295,6 +295,8 @@ a:hover{text-decoration:underline}
 @media(max-width:640px){.elf-panel{right:12px;bottom:140px}}
 
 /* 登录页 */
+body.lock .topbar{display:none}
+body.lock .auth-wrap{min-height:88vh}
 .auth-wrap{min-height:64vh;display:flex;align-items:center;justify-content:center;padding:44px 0}
 .auth-card{width:100%;max-width:400px;padding:42px 36px 34px;text-align:center;background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow)}
 .auth-logo{font-size:46px;margin-bottom:4px}
