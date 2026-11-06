@@ -886,6 +886,85 @@ window.addEventListener('hashchange', route);
   document.querySelectorAll('#elfChips button').forEach(b => b.onclick = () => send(b.textContent));
 })();
 
+/* ---------- 超能力.包仔（豆包风悬浮助手） ---------- */
+(function initBao() {
+  const wrap = document.createElement('div');
+  wrap.innerHTML = `
+  <button id="baoBtn" title="超能力.包仔">🫘</button>
+  <div id="baoPanel" class="bao-panel">
+    <div class="elf-head"><b>🫘 超能力.包仔</b><small>豆包同款 · 站内向导</small><button class="bao-go" id="baoGo" title="去豆包官网聊">🚀 问豆包</button><button id="baoClose" title="关闭">✕</button></div>
+    <div class="elf-msgs" id="baoMsgs"></div>
+    <div class="elf-chips" id="baoChips"></div>
+    <div class="elf-input"><input id="baoText" placeholder="问包仔点什么吧…" maxlength="100"><button id="baoSend">发送</button></div>
+  </div>`;
+  document.body.appendChild(wrap);
+  const panel = $('#baoPanel'), msgs = $('#baoMsgs'), input = $('#baoText');
+  const DOUBAO = '<a href="https://www.doubao.com/chat/" target="_blank" rel="noopener">🚀 去豆包官网继续聊</a>';
+
+  const addMsg = (html, who) => {
+    const d = document.createElement('div');
+    d.className = 'elf-msg ' + who;
+    d.innerHTML = html;
+    msgs.appendChild(d);
+    msgs.scrollTop = msgs.scrollHeight;
+  };
+
+  function baoAnswer(q) {
+    const has = (...ks) => ks.some(k => q.toLowerCase().includes(k.toLowerCase()));
+    if (has('你好','在吗','hi','hello','嗨','哈喽','包仔'))
+      return '哈喽！我是<b>超能力.包仔</b> 🫘，豆包同款站内小助手～站内问题我包了，超纲的帮你转给正版豆包！';
+    if (has('豆包','ai','智能','大模型'))
+      return '我是包仔，驻守本站的豆包分身 🫘<br>想聊更深的（写作、代码、学习、脑洞…）？' + DOUBAO;
+    if (has('搜索','怎么找','查找','检索'))
+      return '首页顶部搜索框 🔍 输入关键词就能全文检索；也可以直接告诉我你想看什么主题，包仔帮你翻～';
+    if (has('工具','工具集','编程工具'))
+      return '「<a href="#/tools">工具集</a>」收录了 857 个精选在线工具 🧰，JSON、加解密、正则、压缩…随用随走！';
+    if (has('作品','海报','视频','解析','应用'))
+      return '「<a href="#/works">我的作品</a>」有站长自研的 AI 海报制作和影视解析 🎬，每个账号可免费体验 3 次～';
+    if (has('联系','微信','咨询','二维码','作者','博主','站长','客服'))
+      return '站长微信：<b>_Zc1908</b>（页脚可一键复制）📋 报上你的账号名，咨询/开通都快得很～';
+    if (has('登录','注册','游客'))
+      return '注册一个账号就能解锁全部功能 🔑 也可以选「游客登录」先进来逛逛～';
+    if (has('推荐','有哪些文章','有什么','哪些文章','内容','看看','介绍','文章')) {
+      const top = SORTED.slice(0, 3);
+      return '包仔推荐这几篇 👇<br>' + top.map(p => `<a href="#/post/${p.slug}">${p.cover} ${esc(p.title)}</a>`).join('<br>');
+    }
+    const kw = q.replace(/[吗呢啊呀吧？?！!，,。.、~～\s]/g, '');
+    if (kw.length >= 1) {
+      const hits = POSTS.filter(p => (p.title + p.summary + p.cat + p.tags.join('')).toLowerCase().includes(kw.toLowerCase())).slice(0, 3);
+      if (hits.length) return '帮你翻到这些 👇<br>' + hits.map(p => `<a href="#/post/${p.slug}">${p.cover} ${esc(p.title)}</a>`).join('<br>');
+    }
+    return '这题超纲啦 😆 包仔只熟站内事～<br>' + DOUBAO + '，正版豆包啥都会！';
+  }
+
+  function send(text) {
+    const q = (text || input.value).trim();
+    if (!q) return;
+    addMsg(esc(q), 'user');
+    input.value = '';
+    const tip = document.createElement('div');
+    tip.className = 'elf-msg bot elf-typing';
+    tip.textContent = '包仔正在输入…';
+    msgs.appendChild(tip);
+    msgs.scrollTop = msgs.scrollHeight;
+    setTimeout(() => { tip.remove(); addMsg(baoAnswer(q), 'bot'); }, 450);
+  }
+
+  $('#baoBtn').onclick = () => {
+    panel.classList.toggle('open');
+    if (panel.classList.contains('open') && !msgs.children.length) {
+      addMsg('你好呀，我是<b>超能力.包仔</b> 🫘！<br>站内问题随便问；想聊大天？点上面「🚀 问豆包」直达官网～', 'bot');
+    }
+  };
+  $('#baoClose').onclick = () => panel.classList.remove('open');
+  $('#baoGo').onclick = () => window.open('https://www.doubao.com/chat/', '_blank', 'noopener');
+  $('#baoSend').onclick = () => send();
+  input.onkeydown = e => { if (e.key === 'Enter') send(); };
+  const CHIPS = ['你能干什么？', '推荐文章', '工具集', '联系站长', '问豆包'];
+  $('#baoChips').innerHTML = CHIPS.map(c => `<button>${c}</button>`).join('');
+  document.querySelectorAll('#baoChips button').forEach(b => b.onclick = () => send(b.textContent));
+})();
+
 /* ---------- 启动 ---------- */
 $('#logoutBtn').onclick = () => { Auth.logout(); renderUserChip(); route(); };
 renderUserChip();
