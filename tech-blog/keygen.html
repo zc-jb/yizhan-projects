@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>开通码生成器 · 站长专用</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔑</text></svg>">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f1117;font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:#e6e8ee;padding:20px}
+.box{width:100%;max-width:420px;background:#171b26;border:1px solid #262c3d;border-radius:16px;padding:32px 28px;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+h1{font-size:22px;margin-bottom:6px}
+.tip{font-size:13px;color:#9aa1b2;margin-bottom:20px;line-height:1.7}
+label{display:block;font-size:13px;color:#9aa1b2;margin:14px 0 6px}
+input,select{width:100%;background:#0f1117;border:1px solid #262c3d;border-radius:10px;padding:11px 14px;color:#e6e8ee;font-size:14px;outline:none;font-family:inherit}
+input:focus,select:focus{border-color:#4d9fff}
+button.gen{width:100%;margin-top:20px;background:linear-gradient(120deg,#1e6fff,#8b5cf6);color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:700;cursor:pointer}
+button.gen:hover{opacity:.9}
+#out{margin-top:18px;display:flex;flex-direction:column;gap:10px}
+.row{display:flex;align-items:center;gap:10px;background:#0f1117;border:1px solid #262c3d;border-radius:10px;padding:10px 14px}
+.row b{font-size:16px;letter-spacing:1px;color:#4d9fff;font-variant-numeric:tabular-nums}
+.row span{flex:1;font-size:12px;color:#9aa1b2;text-align:right}
+.row button{border:1px solid #4d9fff;background:none;color:#4d9fff;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer}
+.err{color:#e5484d;font-size:13px}
+.back{display:block;text-align:center;margin-top:20px;font-size:13px;color:#4d9fff;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>🔑 开通码生成器</h1>
+  <p class="tip">站长专用 · 输入付款用户的<b>注册账号</b>（区分大小写，须与注册完全一致），生成的开通码<b>仅该账号可用</b>，一次性。</p>
+  <label>用户账号</label>
+  <input id="acc" placeholder="例如：payer02" maxlength="16" autocomplete="off">
+  <label>套餐</label>
+  <select id="plan">
+    <option value="6">单次 · ¥6</option>
+    <option value="18" selected>包周 · ¥18.88</option>
+    <option value="59">包月 · ¥59.99</option>
+    <option value="666">包年 · ¥666</option>
+  </select>
+  <button class="gen" id="gen">生成专属开通码</button>
+  <div id="out"></div>
+  <a class="back" href="./">← 返回技术驿站</a>
+</div>
+<script>
+const acc2 = n => { let h = 0; for (let i = 0; i < n.length; i++) h = (h + n.charCodeAt(i) * (i + 1)) % 676; return String.fromCharCode(65 + Math.floor(h / 26)) + String.fromCharCode(65 + (h % 26)); };
+document.getElementById('gen').onclick = () => {
+  const a = document.getElementById('acc').value.trim();
+  const out = document.getElementById('out');
+  if (!a) { out.innerHTML = '<p class="err">请输入用户账号</p>'; return; }
+  const p = document.getElementById('plan').value;
+  const X = acc2(a);
+  const d = String(100 + Math.floor(Math.random() * 900));
+  const c = (+d[0] + +d[1] + +d[2] + X.charCodeAt(0) + X.charCodeAt(1)) % 10;
+  const code = `YZ${p}-${X}${d}${c}`;
+  const row = document.createElement('div');
+  row.className = 'row';
+  row.innerHTML = `<b>${code}</b><span>${a.replace(/</g,'&lt;')} · ${p === '6' ? '单次' : p === '18' ? '包周' : p === '59' ? '包月' : '包年'}</span><button>复制</button>`;
+  row.querySelector('button').onclick = e => {
+    const done = () => { e.target.textContent = '已复制 ✓'; setTimeout(() => e.target.textContent = '复制', 1500); };
+    try { navigator.clipboard.writeText(code).then(done).catch(done); } catch (_) { done(); }
+  };
+  out.prepend(row);
+};
+</script>
+</body>
+</html>

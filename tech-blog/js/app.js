@@ -424,6 +424,20 @@ function parseCode(code) {
   if (sum !== +m[3]) return null;
   return CODE_PLAN[m[1]];
 }
+// 新版账号绑定码：YZ<套餐>-<2位账号码><3位数字><校验位>，校验位 = (3位数字之和 + 2位账号码ASCII) % 10
+const WORK_CODE_RE2 = /^YZ(6|18|59|666)-([A-Z]{2})(\d{3})(\d)$/;
+function acc2code(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h + name.charCodeAt(i) * (i + 1)) % 676;
+  return String.fromCharCode(65 + Math.floor(h / 26)) + String.fromCharCode(65 + (h % 26));
+}
+function parseCode2(code) {
+  const m = WORK_CODE_RE2.exec(code);
+  if (!m) return null;
+  const sum = (+m[3][0] + +m[3][1] + +m[3][2] + m[2].charCodeAt(0) + m[2].charCodeAt(1)) % 10;
+  if (sum !== +m[4]) return null;
+  return { plan: CODE_PLAN[m[1]], acc: m[2] };
+}
 // 免费体验次数与已开通套餐均按「当前登录账号」隔离存储
 const UKEY = () => 'blog-work-uses@' + (Auth.user() || 'anon');
 const PKEY = () => 'blog-work-plan@' + (Auth.user() || 'anon');
@@ -484,7 +498,7 @@ function showPayModal(w) {
     <div class="pay-manual">
       <div class="pay-step">① 扫码支付，<b>付款备注</b>填你的账号：<b>${esc(Auth.user() || '')}</b></div>
       <div class="pay-step">② 添加微信 <button type="button" class="pay-wx" id="payWxCopy" title="点击复制微信号">_Zc1908 📋</button> 发送<b>支付截图</b>，人工核实</div>
-      <div class="pay-step">③ 核实后发放<b>专属开通码</b>，在下方输入即可开通</div>
+      <div class="pay-step">③ 核实后发放<b>专属开通码</b>（仅限你的账号使用），在下方输入即可开通</div>
     </div>
     <div class="pay-redeem">
       <input id="redeemInput" placeholder="粘贴开通码后点击开通" maxlength="20">
@@ -508,10 +522,15 @@ function showPayModal(w) {
   };
   $('#redeemBtn').onclick = () => {
     const code = $('#redeemInput').value.trim().toUpperCase();
-    const type = parseCode(code);
-    if (!type) { toast('开通码无效，请核对后再试'); return; }
-    const owners = store.get('blog-code-owner', {});
-    if (owners[code] && owners[code] !== Auth.user()) { toast('该开通码与当前账号不匹配，无法使用'); return; }
+    let type = null;
+    const nb = parseCode2(code);
+    if (nb) {
+      if (nb.acc !== acc2code(Auth.user() || '')) { toast('该开通码不属于当前账号，无法使用'); return; }
+      type = nb.plan;
+    } else {
+      type = parseCode(code); // 旧版通用码，不绑定账号
+      if (!type) { toast('开通码无效，请核对后再试'); return; }
+    }
     const usedCodes = store.get('blog-used-codes', []);
     if (usedCodes.includes(code)) { toast('该开通码已被使用，每个码仅限一次'); return; }
     usedCodes.push(code);
