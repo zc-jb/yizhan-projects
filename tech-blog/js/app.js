@@ -419,7 +419,9 @@ function parseCode(code) {
   if (sum !== +m[3]) return null;
   return CODE_PLAN[m[1]];
 }
-const UKEY = 'blog-work-uses', PKEY = 'blog-work-plan';
+// 免费体验次数与已开通套餐均按「当前登录账号」隔离存储
+const UKEY = () => 'blog-work-uses@' + (Auth.user() || 'anon');
+const PKEY = () => 'blog-work-plan@' + (Auth.user() || 'anon');
 
 function toast(msg) {
   let t = document.getElementById('toast');
@@ -437,18 +439,18 @@ function goWork(url) {
 
 function openWork(w) {
   if (w.free) return goWork(w.url);
-  const plans = store.get(PKEY, {});
+  const plans = store.get(PKEY(), {});
   const p = plans[w.id];
   const now = Date.now();
   if (p && ((p.ms && p.until > now) || (!p.ms && p.credits > 0))) {
-    if (!p.ms) { p.credits--; store.set(PKEY, plans); toast('已扣减 1 次使用次数'); }
+    if (!p.ms) { p.credits--; store.set(PKEY(), plans); toast('已扣减 1 次使用次数'); }
     return goWork(w.url);
   }
-  const uses = store.get(UKEY, {});
+  const uses = store.get(UKEY(), {});
   const used = uses[w.id] || 0;
   if (used < 3) {
     uses[w.id] = used + 1;
-    store.set(UKEY, uses);
+    store.set(UKEY(), uses);
     toast(`免费体验第 ${used + 1}/3 次`);
     return goWork(w.url);
   }
@@ -465,15 +467,17 @@ function showPayModal(w) {
     <button class="pay-x" id="payX">✕</button>
     <h3>🔒 免费体验次数已用完</h3>
     <p class="muted">「${w.name}」已体验 3 次，请选择套餐继续畅用</p>
+    <p class="pay-acc">当前账号：<b>${esc(Auth.user() || '未登录')}</b>${Auth.isGuest() ? '（游客）' : ''} · 开通后仅该账号可享用</p>
     <div class="pay-plans">${WORK_PLANS.map((p, i) => `<label class="pay-plan${i === 1 ? ' hot' : ''}"><input type="radio" name="plan" value="${p.k}" ${i === 1 ? 'checked' : ''}>${i === 1 ? '<em>推荐</em>' : ''}<b>${p.n}</b><span class="pay-price">${p.p}</span><small>${p.d}</small></label>`).join('')}</div>
     <div class="pay-tabs"><button class="pay-tab on" data-m="wx">💚 微信支付</button><button class="pay-tab" data-m="ali">💙 支付宝</button></div>
     <div class="pay-qr" id="payQr">
       <img src="img/wechat-pay.png" alt="微信收款码">
       <p class="pay-warn">⚠️ 不支持退款，谢谢合作！！！</p>
     </div>
-    <button class="btn pay-getcode" id="getCodeBtn">✅ 我已完成支付，获取开通码</button>
+    <label class="pay-confirm"><input type="checkbox" id="paidCk"> 我已扫码并完成支付（未支付请勿勾选）</label>
+    <button class="btn pay-getcode" id="getCodeBtn" disabled>✅ 我已完成支付，获取开通码</button>
     <div class="pay-gencode" id="genCodeBox" style="display:none">
-      <div class="pay-gencode-label">你的专属开通码（仅可使用一次，请立即复制保存）</div>
+      <div class="pay-gencode-label">你的专属开通码（已绑定当前账号，仅可使用一次，请立即复制保存）</div>
       <div class="pay-gencode-row"><b id="genCodeText"></b><button class="pay-copy" id="copyCodeBtn">📋 复制</button></div>
     </div>
     <div class="pay-redeem">
@@ -493,7 +497,9 @@ function showPayModal(w) {
   });
   const selPlan = () => m.querySelector('input[name=plan]:checked').value;
   const PLAN_PREFIX = { once: '6', week: '18', month: '59', year: '666' };
+  $('#paidCk').onchange = e => { $('#getCodeBtn').disabled = !e.target.checked; };
   $('#getCodeBtn').onclick = () => {
+    if (!$('#paidCk').checked) { toast('请先完成支付并勾选确认'); return; }
     const plan = selPlan();
     const used = store.get('blog-used-codes', []);
     const issued = store.get('blog-issued-codes', []);
@@ -505,6 +511,9 @@ function showPayModal(w) {
     } while (used.includes(code) || issued.includes(code));
     issued.push(code);
     store.set('blog-issued-codes', issued);
+    const owners = store.get('blog-code-owner', {});
+    owners[code] = Auth.user();
+    store.set('blog-code-owner', owners);
     $('#genCodeText').textContent = code;
     $('#genCodeBox').style.display = 'block';
     $('#redeemInput').value = code;
@@ -527,17 +536,19 @@ function showPayModal(w) {
     const code = $('#redeemInput').value.trim().toUpperCase();
     const type = parseCode(code);
     if (!type) { toast('开通码无效，请核对后再试'); return; }
+    const owners = store.get('blog-code-owner', {});
+    if (owners[code] && owners[code] !== Auth.user()) { toast('该开通码与当前账号不匹配，无法使用'); return; }
     const usedCodes = store.get('blog-used-codes', []);
     if (usedCodes.includes(code)) { toast('该开通码已被使用，每个码仅限一次'); return; }
     usedCodes.push(code);
     store.set('blog-used-codes', usedCodes);
-    const plans = store.get(PKEY, {});
+    const plans = store.get(PKEY(), {});
     const now = Date.now();
     const pl = WORK_PLANS.find(x => x.k === type);
     const cur = plans[w.id] || { credits: 0 };
     if (pl.ms) plans[w.id] = { ms: pl.ms, until: Math.max(now, cur.until || 0) + pl.ms };
     else plans[w.id] = { ms: 0, credits: (cur.credits || 0) + 1 };
-    store.set(PKEY, plans);
+    store.set(PKEY(), plans);
     m.remove();
     toast(`🎉 ${pl.n}套餐开通成功，感谢支持！`);
     goWork(w.url);
@@ -592,8 +603,8 @@ function vWorks() {
   const LKEY = 'blog-work-likes', SKEY = 'blog-liked-works';
   const likes = store.get(LKEY, {});
   const liked = store.get(SKEY, []);
-  const uses = store.get(UKEY, {});
-  const plans = store.get(PKEY, {});
+  const uses = store.get(UKEY(), {});
+  const plans = store.get(PKEY(), {});
   const now = Date.now();
   const stateOf = w => {
     if (w.free) return '<span class="work-state free">永久免费</span>';
