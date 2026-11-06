@@ -315,8 +315,11 @@ a:hover{text-decoration:underline}
 @media(max-width:640px){.elf-panel{right:12px;bottom:140px}}
 
 /* 超能力.包仔（豆包风 · 左侧悬浮） */
-#baoBtn{position:fixed;left:22px;bottom:86px;width:52px;height:52px;border-radius:50%;border:none;font-size:26px;background:linear-gradient(135deg,#06b6d4,#3b82f6);box-shadow:0 6px 18px rgba(59,130,246,.45);cursor:pointer;z-index:70;animation:elfFloat 3s ease-in-out infinite;transition:transform .15s}
+#baoBtn{position:fixed;left:22px;bottom:86px;width:52px;height:52px;border-radius:50%;border:none;background:linear-gradient(135deg,#06b6d4,#3b82f6);box-shadow:0 6px 18px rgba(59,130,246,.45);cursor:pointer;z-index:70;animation:elfFloat 3s ease-in-out infinite;transition:transform .15s;display:flex;align-items:center;justify-content:center}
+#baoBtn svg{width:30px;height:30px}
 #baoBtn:hover{transform:scale(1.1)}
+.bao-ic{display:inline-flex;vertical-align:-3px;margin-right:2px}
+.bao-ic svg{width:19px;height:19px}
 .bao-panel{position:fixed;left:22px;bottom:150px;width:330px;max-width:calc(100vw - 44px);height:430px;max-height:62vh;background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 12px 40px rgba(20,30,60,.28);display:none;flex-direction:column;z-index:70;overflow:hidden}
 .bao-panel.open{display:flex}
 .bao-panel .elf-head{background:linear-gradient(135deg,#06b6d4,#3b82f6)}

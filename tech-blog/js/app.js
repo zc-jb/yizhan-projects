@@ -888,11 +888,12 @@ window.addEventListener('hashchange', route);
 
 /* ---------- 超能力.包仔（豆包风悬浮助手） ---------- */
 (function initBao() {
+  const BAO_ICON = '<svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="M24 9c7.7 0 13.5 5.4 13.5 13S31.7 39 24 39 10.5 33.6 10.5 22 16.3 9 24 9z" fill="#fff"/><circle cx="18.8" cy="21.5" r="2.3" fill="#3b82f6"/><circle cx="29.2" cy="21.5" r="2.3" fill="#3b82f6"/><path d="M19.5 27.5c1.5 1.7 3 2.5 4.5 2.5s3-.8 4.5-2.5" stroke="#3b82f6" stroke-width="2.1" stroke-linecap="round"/><path d="M24 9V4.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><circle cx="24" cy="3" r="1.9" fill="#fff"/></svg>';
   const wrap = document.createElement('div');
   wrap.innerHTML = `
-  <button id="baoBtn" title="超能力.包仔">🫘</button>
+  <button id="baoBtn" title="超能力.包仔">${BAO_ICON}</button>
   <div id="baoPanel" class="bao-panel">
-    <div class="elf-head"><b>🫘 超能力.包仔</b><small>豆包同款 · 站内向导</small><button class="bao-go" id="baoGo" title="去豆包官网聊">🚀 问豆包</button><button id="baoClose" title="关闭">✕</button></div>
+    <div class="elf-head"><b><span class="bao-ic">${BAO_ICON}</span> 超能力.包仔</b><small>豆包同款 · 站内向导</small><button class="bao-go" id="baoGo" title="去豆包官网聊">🚀 问豆包</button><button id="baoClose" title="关闭">✕</button></div>
     <div class="elf-msgs" id="baoMsgs"></div>
     <div class="elf-chips" id="baoChips"></div>
     <div class="elf-input"><input id="baoText" placeholder="问包仔点什么吧…" maxlength="100"><button id="baoSend">发送</button></div>
@@ -912,9 +913,9 @@ window.addEventListener('hashchange', route);
   function baoAnswer(q) {
     const has = (...ks) => ks.some(k => q.toLowerCase().includes(k.toLowerCase()));
     if (has('你好','在吗','hi','hello','嗨','哈喽','包仔'))
-      return '哈喽！我是<b>超能力.包仔</b> 🫘，豆包同款站内小助手～站内问题我包了，超纲的帮你转给正版豆包！';
+      return '哈喽！我是<b>超能力.包仔</b> 🌱，豆包同款站内小助手～站内问题我包了，超纲的帮你转给正版豆包！';
     if (has('豆包','ai','智能','大模型'))
-      return '我是包仔，驻守本站的豆包分身 🫘<br>想聊更深的（写作、代码、学习、脑洞…）？' + DOUBAO;
+      return '我是包仔，驻守本站的豆包分身 🌱<br>想聊更深的（写作、代码、学习、脑洞…）？' + DOUBAO;
     if (has('搜索','怎么找','查找','检索'))
       return '首页顶部搜索框 🔍 输入关键词就能全文检索；也可以直接告诉我你想看什么主题，包仔帮你翻～';
     if (has('工具','工具集','编程工具'))
@@ -953,7 +954,7 @@ window.addEventListener('hashchange', route);
   $('#baoBtn').onclick = () => {
     panel.classList.toggle('open');
     if (panel.classList.contains('open') && !msgs.children.length) {
-      addMsg('你好呀，我是<b>超能力.包仔</b> 🫘！<br>站内问题随便问；想聊大天？点上面「🚀 问豆包」直达官网～', 'bot');
+      addMsg('你好呀，我是<b>超能力.包仔</b> 🌱！<br>站内问题随便问；想聊大天？点上面「🚀 问豆包」直达官网～', 'bot');
     }
   };
   $('#baoClose').onclick = () => panel.classList.remove('open');
