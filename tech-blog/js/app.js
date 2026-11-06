@@ -665,8 +665,99 @@ function vAbout() {
   </div>`;
 }
 
+/* ---------- 登录认证 ---------- */
+const Auth = {
+  users() { return store.get('tb_users', []); },
+  user() { const s = store.get('tb_session', null); return s ? s.name : null; },
+  isGuest() { const s = store.get('tb_session', null); return !!(s && s.guest); },
+  login(name, pass) {
+    const u = this.users().find(x => x.name === name);
+    if (!u) return '账号不存在，请先注册';
+    if (u.pass !== pass) return '密码不正确，请重试';
+    store.set('tb_session', { name, guest: false });
+    return null;
+  },
+  register(name, pass) {
+    if (this.users().some(x => x.name === name)) return '该账号已被注册，请直接登录';
+    const us = this.users(); us.push({ name, pass });
+    store.set('tb_users', us);
+    store.set('tb_session', { name, guest: false });
+    return null;
+  },
+  guest() {
+    const name = '游客_' + Math.random().toString(36).slice(2, 6).toUpperCase();
+    store.set('tb_session', { name, guest: true });
+  },
+  logout() { try { localStorage.removeItem('tb_session'); } catch(e){} }
+};
+
+function vAuth() {
+  app.innerHTML = `
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-logo">⚡</div>
+      <h1 class="auth-title">欢迎回来，程序猿</h1>
+      <p class="auth-sub">登录或注册后，即可畅游「技术驿站」🚀</p>
+      <div class="auth-tabs">
+        <button class="auth-tab on" data-t="login">登 录</button>
+        <button class="auth-tab" data-t="reg">注 册</button>
+      </div>
+      <div class="auth-form">
+        <input id="auName" placeholder="👤 账号 / 昵称" maxlength="16" autocomplete="username">
+        <input id="auPass" type="password" placeholder="🔒 密码（至少 4 位）" maxlength="24">
+        <div class="auth-err" id="auErr"></div>
+        <button class="auth-btn" id="auGo">进入驿站</button>
+      </div>
+      <div class="auth-div"><span>或者</span></div>
+      <button class="auth-guest" id="auGuest">🚶 游客登录 · 随便逛逛</button>
+      <p class="auth-tip">游客模式无需账号，数据仅保存在本机浏览器中</p>
+    </div>
+  </div>`;
+  let mode = 'login';
+  const err = $('#auErr'), go = $('#auGo');
+  $$('.auth-tab').forEach(t => t.onclick = () => {
+    mode = t.dataset.t;
+    $$('.auth-tab').forEach(x => x.classList.toggle('on', x === t));
+    go.textContent = mode === 'login' ? '进入驿站' : '注册并进入';
+    err.textContent = '';
+  });
+  const fail = m => { err.textContent = m; err.classList.remove('shake'); void err.offsetWidth; err.classList.add('shake'); };
+  const submit = () => {
+    const name = $('#auName').value.trim(), pass = $('#auPass').value;
+    if (!name) return fail('请输入账号 / 昵称');
+    if (!pass || pass.length < 4) return fail('密码至少 4 位');
+    const e = mode === 'login' ? Auth.login(name, pass) : Auth.register(name, pass);
+    if (e) return fail(e);
+    afterLogin();
+  };
+  go.onclick = submit;
+  $('#auName').onkeydown = e => { if (e.key === 'Enter') submit(); };
+  $('#auPass').onkeydown = e => { if (e.key === 'Enter') submit(); };
+  $('#auGuest').onclick = () => { Auth.guest(); afterLogin(); };
+  setTimeout(() => $('#auName').focus(), 60);
+}
+
+function renderUserChip() {
+  const u = Auth.user(), chip = $('#userChip'), out = $('#logoutBtn');
+  if (!chip || !out) return;
+  if (u) {
+    chip.style.display = '';
+    chip.textContent = (Auth.isGuest() ? '🚶 ' : '👤 ') + u;
+    chip.title = Auth.isGuest() ? '游客模式' : '已登录账号';
+    out.style.display = '';
+  } else {
+    chip.style.display = 'none'; out.style.display = 'none';
+  }
+}
+
+function afterLogin() {
+  renderUserChip();
+  route();
+}
+
 /* ---------- 路由 ---------- */
 function route() {
+  if (!Auth.user()) { vAuth(); scrollTo(0, 0); return; }
   const h = location.hash.slice(2) || '';
   const [page, arg] = h.split('/');
   $$('#nav a').forEach(a => a.classList.toggle('on',
@@ -766,5 +857,9 @@ window.addEventListener('hashchange', route);
   $('#elfChips').innerHTML = CHIPS.map(c => `<button>${c}</button>`).join('');
   document.querySelectorAll('#elfChips button').forEach(b => b.onclick = () => send(b.textContent));
 })();
+
+/* ---------- 启动 ---------- */
+$('#logoutBtn').onclick = () => { Auth.logout(); renderUserChip(); route(); };
+renderUserChip();
 route();
 })();
