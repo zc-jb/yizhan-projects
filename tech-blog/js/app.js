@@ -221,6 +221,22 @@ function vPost(slug) {
     e.preventDefault();
     document.getElementById(a.dataset.anchor)?.scrollIntoView({behavior:'smooth'});
   });
+  // TOC 滚动高亮当前章节
+  const tocLinks = $$('.toc a[data-anchor]');
+  if (tocLinks.length) {
+    const spy = () => {
+      let cur = tocLinks[0];
+      tocLinks.forEach(a => {
+        const el = document.getElementById(a.dataset.anchor);
+        if (el && el.getBoundingClientRect().top < 120) cur = a;
+      });
+      tocLinks.forEach(a => a.classList.toggle('on', a === cur));
+    };
+    if (window.__tocSpy) window.removeEventListener('scroll', window.__tocSpy);
+    window.__tocSpy = spy;
+    window.addEventListener('scroll', spy, { passive: true });
+    spy();
+  }
   // 复制代码
   $$('.copy-btn').forEach(b => b.onclick = () => {
     const code = b.parentElement.querySelector('code').innerText;
