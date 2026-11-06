@@ -474,11 +474,10 @@ function showPayModal(w) {
       <img src="img/wechat-pay.png" alt="微信收款码">
       <p class="pay-warn">⚠️ 不支持退款，谢谢合作！！！</p>
     </div>
-    <label class="pay-confirm"><input type="checkbox" id="paidCk"> 我已扫码并完成支付（未支付请勿勾选）</label>
-    <button class="btn pay-getcode" id="getCodeBtn" disabled>✅ 我已完成支付，获取开通码</button>
-    <div class="pay-gencode" id="genCodeBox" style="display:none">
-      <div class="pay-gencode-label">你的专属开通码（已绑定当前账号，仅可使用一次，请立即复制保存）</div>
-      <div class="pay-gencode-row"><b id="genCodeText"></b><button class="pay-copy" id="copyCodeBtn">📋 复制</button></div>
+    <div class="pay-manual">
+      <div class="pay-step">① 扫码支付，<b>付款备注</b>填你的账号：<b>${esc(Auth.user() || '')}</b></div>
+      <div class="pay-step">② 添加微信 <button type="button" class="pay-wx" id="payWxCopy" title="点击复制微信号">_Zc1908 📋</button> 发送<b>支付截图</b>，人工核实</div>
+      <div class="pay-step">③ 核实后发放<b>专属开通码</b>，在下方输入即可开通</div>
     </div>
     <div class="pay-redeem">
       <input id="redeemInput" placeholder="粘贴开通码后点击开通" maxlength="20">
@@ -495,43 +494,11 @@ function showPayModal(w) {
       ? `<img src="img/wechat-pay.png" alt="微信收款码"><p class="pay-warn">⚠️ 不支持退款，谢谢合作！！！</p>`
       : `<img src="img/alipay-qr.png" alt="支付宝收款码"><p class="pay-warn">⚠️ 不支持退款，谢谢合作！！！</p>`;
   });
-  const selPlan = () => m.querySelector('input[name=plan]:checked').value;
-  const PLAN_PREFIX = { once: '6', week: '18', month: '59', year: '666' };
-  $('#paidCk').onchange = e => { $('#getCodeBtn').disabled = !e.target.checked; };
-  $('#getCodeBtn').onclick = () => {
-    if (!$('#paidCk').checked) { toast('请先完成支付并勾选确认'); return; }
-    const plan = selPlan();
-    const used = store.get('blog-used-codes', []);
-    const issued = store.get('blog-issued-codes', []);
-    let code;
-    do {
-      const d = String(100 + Math.floor(Math.random() * 900));
-      const sum = (+d[0] + +d[1] + +d[2]) % 10;
-      code = `YZ${PLAN_PREFIX[plan]}-${d}${sum}`;
-    } while (used.includes(code) || issued.includes(code));
-    issued.push(code);
-    store.set('blog-issued-codes', issued);
-    const owners = store.get('blog-code-owner', {});
-    owners[code] = Auth.user();
-    store.set('blog-code-owner', owners);
-    $('#genCodeText').textContent = code;
-    $('#genCodeBox').style.display = 'block';
-    $('#redeemInput').value = code;
-    $('#copyCodeBtn').onclick = () => {
-      const done = () => { $('#copyCodeBtn').textContent = '已复制 ✓'; setTimeout(() => { $('#copyCodeBtn').textContent = '📋 复制'; }, 1500); };
-      try { navigator.clipboard.writeText(code).then(done).catch(() => { fallbackCopy(code); done(); }); }
-      catch (_) { fallbackCopy(code); done(); }
-    };
-    $('#genCodeBox').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  $('#payWxCopy').onclick = () => {
+    const b = $('#payWxCopy');
+    const done = () => { b.textContent = '已复制 ✓'; setTimeout(() => { b.textContent = '_Zc1908 📋'; }, 1500); };
+    try { navigator.clipboard.writeText('_Zc1908').then(done).catch(done); } catch (_) { done(); }
   };
-  function fallbackCopy(t) {
-    const i = document.createElement('textarea');
-    i.value = t;
-    document.body.appendChild(i);
-    i.select();
-    try { document.execCommand('copy'); } catch (_) { }
-    i.remove();
-  }
   $('#redeemBtn').onclick = () => {
     const code = $('#redeemInput').value.trim().toUpperCase();
     const type = parseCode(code);
