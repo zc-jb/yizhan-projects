@@ -105,6 +105,11 @@ themeBtn.onclick = () => applyTheme(document.documentElement.dataset.theme === '
 
 /* ---------- 顶栏 ---------- */
 $('#menuBtn').onclick = () => $('#nav').classList.toggle('open');
+/* 实时中国本地时间 */
+const cnFmtT = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+const cnFmtD = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', year: 'numeric', month: 'numeric', day: 'numeric' });
+const tickCn = () => { const el = $('#cnTime'); if (el) { const n = new Date(); el.innerHTML = `<b>${cnFmtT.format(n)}</b><i>${cnFmtD.format(n)}</i>`; } };
+tickCn(); setInterval(tickCn, 1000);
 $('#postCount').textContent = POSTS.length;
 window.addEventListener('scroll', () => {
   const h = document.documentElement;
@@ -436,6 +441,8 @@ function goWork(url) {
   if (url.startsWith('http')) window.open(url, '_blank', 'noopener');
   else location.hash = url;
 }
+// 从作品页跳回后刷新剩余次数/套餐显示
+window.addEventListener('focus', () => { if (location.hash === '#/works' && Auth.user()) vWorks(); });
 
 function openWork(w) {
   if (w.free) return goWork(w.url);
@@ -565,6 +572,7 @@ function vTools() {
 function vWorks() {
   const works = [
     { id: 'poster', icon: '🎨', name: 'AI 海报制作', desc: '在线海报设计工具：30+ 套精美模板、画布拖拽编辑、AI 智能文案与配图、二维码生成、一键导出 PNG/JPG/PDF。', url: 'https://ai-poster-yizhan.netlify.app/', tag: '在线工具' },
+    { id: 'video', icon: '🎬', name: '影视快看 · 视频解析', desc: 'VIP 视频解析工具：粘贴各大平台视频链接一键解析，免会员在线观看，深色沉浸界面，手机端完美适配。', url: 'https://zc-jb.github.io/tech-blog/vip.html', tag: '在线工具' },
     { id: 'blog', icon: '⚡', name: '技术驿站', desc: '就是本站——专注实用技术的个人博客：11 篇技术长文、全文搜索、深色模式、评论互动、RSS 订阅。', url: '#/', tag: '个人博客', free: true },
   ];
   const LKEY = 'blog-work-likes', SKEY = 'blog-liked-works';
