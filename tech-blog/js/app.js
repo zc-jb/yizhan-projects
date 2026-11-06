@@ -757,8 +757,14 @@ function afterLogin() {
 
 /* ---------- 路由 ---------- */
 function route() {
-  if (!Auth.user()) { document.body.classList.add('lock'); vAuth(); scrollTo(0, 0); return; }
+  const tb = document.querySelector('.topbar');
+  if (!Auth.user()) {
+    document.body.classList.add('lock');
+    if (tb) tb.style.display = 'none';
+    vAuth(); scrollTo(0, 0); return;
+  }
   document.body.classList.remove('lock');
+  if (tb) tb.style.display = '';
   const h = location.hash.slice(2) || '';
   const [page, arg] = h.split('/');
   $$('#nav a').forEach(a => a.classList.toggle('on',
