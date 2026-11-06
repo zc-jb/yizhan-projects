@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+<channel>
+<title>技术驿站 · 全栈技术博客</title>
+<link>https://tech-blog-bek.pages.dev/</link>
+<description>分享前端、后端、运维、数据库、AI 等技术文章的个人博客</description>
+<language>zh-CN</language>
+<item><title>大语言模型（LLM）工作原理浅析</title><link>https://tech-blog-bek.pages.dev/#/post/ai-llm-intro</link><pubDate>Thu, 05 Nov 2026 08:00:00 GMT</pubDate><description>从 Token 到 Transformer，用通俗的方式讲清楚大模型是怎么思考的。</description></item>
+<item><title>JavaScript 异步编程完全指南</title><link>https://tech-blog-bek.pages.dev/#/post/js-async-guide</link><pubDate>Tue, 03 Nov 2026 08:00:00 GMT</pubDate><description>回调、Promise、async/await、事件循环，一篇文章打通 JS 异步。</description></item>
+<item><title>CSS 现代布局：Flex 与 Grid 实战手册</title><link>https://tech-blog-bek.pages.dev/#/post/css-flex-grid</link><pubDate>Wed, 28 Oct 2026 08:00:00 GMT</pubDate><description>用 Flex 和 Grid 两把利器搞定 99% 的页面布局。</description></item>
+<item><title>HTTP 与 HTTPS：一次请求背后的完整旅程</title><link>https://tech-blog-bek.pages.dev/#/post/http-https</link><pubDate>Thu, 22 Oct 2026 08:00:00 GMT</pubDate><description>从输入网址到页面渲染，TLS 握手怎么保护你的数据。</description></item>
+<item><title>Git 实战：常用命令与团队协作工作流</title><link>https://tech-blog-bek.pages.dev/#/post/git-workflow</link><pubDate>Thu, 15 Oct 2026 08:00:00 GMT</pubDate><description>clone 到 rebase，从单人开发到团队协作。</description></item>
+<item><title>Docker 入门：10 分钟容器化你的第一个应用</title><link>https://tech-blog-bek.pages.dev/#/post/docker-quickstart</link><pubDate>Thu, 08 Oct 2026 08:00:00 GMT</pubDate><description>应用+依赖+环境打包成镜像，一次构建到处运行。</description></item>
+<item><title>数据库索引原理：B+ 树为什么这么快</title><link>https://tech-blog-bek.pages.dev/#/post/db-index-btree</link><pubDate>Wed, 30 Sep 2026 08:00:00 GMT</pubDate><description>看懂 B+ 树结构，明白索引什么时候有用、什么时候拖慢。</description></item>
+<item><title>Python 快速上手：从零到写出第一个爬虫</title><link>https://tech-blog-bek.pages.dev/#/post/python-quickstart</link><pubDate>Mon, 21 Sep 2026 08:00:00 GMT</pubDate><description>语法速览 → 写脚本 → 抓取网页数据。</description></item>
+<item><title>20 个最常用的 Linux 命令（附实战场景）</title><link>https://tech-blog-bek.pages.dev/#/post/linux-top20</link><pubDate>Sat, 12 Sep 2026 08:00:00 GMT</pubDate><description>掌握这 20 个命令应付 90% 的服务器日常。</description></item>
+<item><title>算法复杂度：大 O 表示法一图流</title><link>https://tech-blog-bek.pages.dev/#/post/big-o-visual</link><pubDate>Wed, 02 Sep 2026 08:00:00 GMT</pubDate><description>用直觉理解时间复杂度，写出扛得住数据量的程序。</description></item>
+<item><title>微信小程序开发入门：从注册到上线全流程</title><link>https://tech-blog-bek.pages.dev/#/post/wechat-miniprogram</link><pubDate>Tue, 25 Aug 2026 08:00:00 GMT</pubDate><description>账号注册、目录结构、页面开发、审核发布完整路线图。</description></item>
+</channel>
+</rss>

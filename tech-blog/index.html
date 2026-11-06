@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>技术驿站 · 全栈技术博客</title>
+<meta name="description" content="分享前端、后端、运维、数据库、AI 等技术文章的个人博客">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="logo" href="#/">⚡ 技术驿站</a>
+    <nav id="nav">
+      <a href="#/" data-nav="home">首页</a>
+      <a href="#/archive" data-nav="archive">归档</a>
+      <a href="#/tags" data-nav="tags">技术</a>
+      <a href="#/guest" data-nav="guest">留言板</a>
+      <a href="#/tools" data-nav="tools">工具集</a>
+      <a href="#/works" data-nav="works">我的作品</a>
+      <a href="#/about" data-nav="about">关于</a>
+    </nav>
+    <div class="top-actions">
+      <button id="themeBtn" class="icon-btn" title="切换主题">🌙</button>
+      <button id="menuBtn" class="icon-btn only-mobile" title="菜单">☰</button>
+    </div>
+  </div>
+  <div id="progress"></div>
+</header>
+
+<main class="wrap" id="app"><!-- 由 app.js 渲染 --></main>
+
+<footer class="footer">
+  <div class="wrap footer-in">
+    <div class="f-brand">
+      <div class="f-logo">⚡ 技术驿站</div>
+      <p class="f-slogan">用代码记录成长 · 共 <span id="postCount"></span> 篇文章 · 持续更新中</p>
+    </div>
+    <div class="f-card">
+      <div class="f-card-head">💬 技术咨询</div>
+      <div class="f-card-body">
+        <div class="f-card-left">
+          <span class="f-wx-label">微信号（点击复制）</span>
+          <button class="f-wx-id" id="wxCopy" title="点击复制微信号">_Zc1908 📋</button>
+          <a class="qr-save" href="img/wechat-qr.png" download="技术咨询二维码.png">⬇ 保存二维码</a>
+        </div>
+        <a href="img/wechat-qr.png" download="技术咨询二维码.png" title="点击保存二维码"><img class="f-qr-img" src="img/wechat-qr.png" alt="技术咨询二维码"></a>
+      </div>
+    </div>
+  </div>
+  <div class="f-bottom">© 2026 技术驿站 · 把复杂的东西讲简单</div>
+</footer>
+<script>document.getElementById('wxCopy').onclick=function(){const b=this,t='_Zc1908';const ok=()=>{b.textContent='已复制 ✓';setTimeout(()=>b.textContent='_Zc1908 📋',1500)};const legacy=()=>{const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();try{document.execCommand('copy')}catch(e){}document.body.removeChild(ta);ok()};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(ok).catch(legacy)}else legacy()}</script>
+
+<button id="toTop" title="回到顶部">↑</button>
+
+<script src="js/posts.js"></script>
+<script src="js/nav-data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
