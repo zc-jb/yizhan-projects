@@ -21,7 +21,19 @@ window.Api = (function () {
   async function req(path, opts = {}) {
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers.Authorization = 'Bearer ' + token;
-    const r = await fetch('/api' + path, { ...opts, headers });
+    const url = '/api' + path;
+    let r;
+    try {
+      r = await fetch(url, { ...opts, headers });
+    } catch (e) {
+      /* 网络级失败（服务未启动/隧道抖动）：等一会重试一次 */
+      await new Promise(res => setTimeout(res, 800));
+      try {
+        r = await fetch(url, { ...opts, headers });
+      } catch (e2) {
+        throw new Error('无法连接服务器，请刷新页面重试（服务可能未启动）');
+      }
+    }
     let body = {};
     try { body = await r.json(); } catch (e) {}
     if (!r.ok) throw new Error(body.error || ('请求失败 ' + r.status));

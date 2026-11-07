@@ -1,7 +1,5 @@
 import mysql from 'mysql2/promise';
-import dotenv from 'dotenv';
-
-dotenv.config();
+import './env.js';
 
 const useSSL = process.env.DB_SSL === 'true';
 const sslConf = useSSL ? { minVersion: 'TLSv1.2' } : undefined;
@@ -79,6 +77,14 @@ const TABLES = [
     plan VARCHAR(10) NOT NULL,
     user_id INT NOT NULL,
     used_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  `CREATE TABLE IF NOT EXISTS issued_codes (
+    code VARCHAR(24) PRIMARY KEY,
+    username VARCHAR(32) NOT NULL,
+    plan VARCHAR(10) NOT NULL,
+    issued_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_issued_user (username)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 ];
 

@@ -436,6 +436,10 @@ async function openWork(w) {
   if (r && r.ok) {
     if (r.vip) toast('已扣减 1 次使用次数');
     else toast(`免费体验第 ${3 - (r.left ?? 0)}/3 次`);
+    /* 立即把卡片上的剩余次数改为最新值，再后台对齐服务端数据 */
+    const el = document.querySelector(`.work-card[data-id="${w.id}"] .work-state`);
+    if (el && !r.vip && r.left != null) el.textContent = `免费体验 ${r.left}/3 次`;
+    vWorks().catch(() => {});
     return goWork(w.url);
   }
   showPayModal(w);

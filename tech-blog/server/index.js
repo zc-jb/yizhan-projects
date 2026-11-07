@@ -1,18 +1,24 @@
 import express from 'express';
 import crypto from 'node:crypto';
 import path from 'node:path';
-import url from 'node:url';
-import dotenv from 'dotenv';
+import { ROOT } from './env.js';
 import { pool, initSchema, ensureDatabase } from './db.js';
+import { clientIp, limiter, sameOrigin, makeAdminGuard } from './guard.js';
 
-dotenv.config();
-
-const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
-const ROOT = path.resolve(__dirname, '..');
 const PORT = Number(process.env.PORT || 3000);
 
 const app = express();
+app.disable('x-powered-by');
 app.use(express.json({ limit: '200kb' }));
+
+/* ---- 防抓取：来源校验 + 分级限流 ---- */
+app.use('/api', sameOrigin);
+app.use('/api', limiter({ max: 180, windowMs: 60 * 1000 }));
+app.use('/api/auth/login', limiter({ max: 12, windowMs: 60 * 1000 }));
+app.use('/api/auth/register', limiter({ max: 8, windowMs: 60 * 1000 }));
+app.use('/api/auth/guest', limiter({ max: 20, windowMs: 60 * 1000 }));
+app.use('/api/admin', limiter({ max: 100, windowMs: 60 * 1000 }));
+app.use('/api/admin', (req, res, next) => { res.setHeader('X-Robots-Tag', 'noindex, nofollow'); next(); });
 
 /* 统一捕获异步异常，避免单个请求失败导致整个服务退出 */
 ['get', 'post', 'put', 'delete'].forEach(m => {
@@ -340,6 +346,206 @@ app.post('/api/works/:key/redeem', needLogin, async (req, res) => {
   res.json({ ok: true, plan: parsed.plan });
 });
 
+/* ---------------- 站长：签发开通码（服务端校验） ---------------- */
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
+const adminGuard = makeAdminGuard({ maxFails: 8, lockMs: 10 * 60 * 1000 });
+
+const needAdmin = (req, res, next) => {
+  if (!ADMIN_TOKEN) return res.status(503).json({ error: '未配置 ADMIN_TOKEN，发码功能不可用' });
+  const ip = clientIp(req);
+  if (adminGuard.locked(ip)) {
+    return res.status(429).json({ error: '口令错误次数过多，已临时锁定 10 分钟' });
+  }
+  const a = Buffer.from(String(req.headers['x-admin-token'] || ''));
+  const b = Buffer.from(ADMIN_TOKEN);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    const left = adminGuard.fail(ip);
+    return res.status(401).json({
+      error: left > 0 ? `站长口令不正确（还可尝试 ${left} 次）` : '站长口令错误次数过多，已临时锁定 10 分钟',
+    });
+  }
+  adminGuard.clear(ip);
+  next();
+};
+
+app.post('/api/admin/codes', needAdmin, async (req, res) => {
+  const name = String(req.body.username || '').trim();
+  const plan = String(req.body.plan || '');
+  if (!CODE_PLAN[plan]) return res.status(400).json({ error: '套餐无效，可选：6 / 18 / 59 / 666' });
+  if (!name) return res.status(400).json({ error: '请填写用户账号' });
+
+  const [u] = await pool.query('SELECT is_guest FROM users WHERE username = ?', [name]);
+  if (!u[0]) return res.status(404).json({ error: '该账号尚未注册，请让用户先注册再付款' });
+  if (u[0].is_guest) return res.status(400).json({ error: '游客账号不能开通套餐，请使用正式注册账号' });
+
+  const X = acc2code(name);
+  let code = '';
+  for (let i = 0; i < 20; i++) {
+    const d = String(100 + Math.floor(Math.random() * 900));
+    const sum = (+d[0] + +d[1] + +d[2] + X.charCodeAt(0) + X.charCodeAt(1)) % 10;
+    const c = `YZ${plan}-${X}${d}${sum}`;
+    const [used] = await pool.query('SELECT 1 FROM codes WHERE code = ?', [c]);
+    if (!used[0]) { code = c; break; }
+  }
+  if (!code) return res.status(500).json({ error: '生成失败，请重试' });
+
+  await pool.query('INSERT INTO issued_codes (code, username, plan) VALUES (?,?,?)', [code, name, CODE_PLAN[plan]]);
+  res.json({ ok: true, code, plan: CODE_PLAN[plan], username: name });
+});
+
+/* 套餐价格（用于统计收入） */
+const PRICES = { once: 6, week: 18.88, month: 59.99, year: 666 };
+const PLAN_LABEL = { once: '单次', week: '包周', month: '包月', year: '包年' };
+
+app.get('/api/admin/stats', needAdmin, async (req, res) => {
+  const one = async sql => (await pool.query(sql))[0][0];
+
+  const users = await one(`SELECT COUNT(*) AS total,
+      COALESCE(SUM(is_guest=0),0) AS regular, COALESCE(SUM(is_guest=1),0) AS guest,
+      COALESCE(SUM(created_at>=CURDATE()),0) AS today,
+      COALESCE(SUM(created_at>=CURDATE()-INTERVAL 7 DAY),0) AS week FROM users`);
+  const comments = await one(`SELECT COUNT(*) AS total,
+      COALESCE(SUM(created_at>=CURDATE()),0) AS today FROM comments`);
+  const issued = await one(`SELECT COUNT(*) AS total,
+      COALESCE(SUM(issued_at>=CURDATE()),0) AS today FROM issued_codes`);
+  const redeemed = await one(`SELECT COUNT(*) AS total,
+      COALESCE(SUM(used_at>=CURDATE()),0) AS today FROM codes`);
+  const active = await one(`SELECT COUNT(*) AS n FROM entitlements
+      WHERE plan<>'free' AND ((plan='once' AND remaining>0) OR (expires_at IS NOT NULL AND expires_at>NOW()))`);
+
+  const [byPlan] = await pool.query(`SELECT plan, COUNT(*) AS n FROM codes GROUP BY plan`);
+  const revenue = byPlan.reduce((s, r) => s + (PRICES[r.plan] || 0) * Number(r.n), 0);
+
+  const [userSeries] = await pool.query(
+    `SELECT DATE_FORMAT(DATE(created_at),'%Y-%m-%d') AS d, COUNT(*) AS n
+     FROM users WHERE created_at >= CURDATE()-INTERVAL 6 DAY GROUP BY d`
+  );
+  const [codeSeries] = await pool.query(
+    `SELECT DATE_FORMAT(DATE(used_at),'%Y-%m-%d') AS d, COUNT(*) AS n
+     FROM codes WHERE used_at >= CURDATE()-INTERVAL 6 DAY GROUP BY d`
+  );
+
+  const pad = n => String(n).padStart(2, '0');
+  const days = [];
+  const now = new Date();
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    days.push(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
+  }
+  const um = new Map(userSeries.map(r => [r.d, Number(r.n)]));
+  const cm = new Map(codeSeries.map(r => [r.d, Number(r.n)]));
+
+  const [recentIssued] = await pool.query(
+    `SELECT i.code, i.username, i.plan, i.issued_at,
+        (SELECT COUNT(*) FROM codes c WHERE c.code=i.code) AS used
+     FROM issued_codes i ORDER BY i.issued_at DESC, i.code DESC LIMIT 8`
+  );
+  const [recentRedeemed] = await pool.query(
+    `SELECT c.code, c.plan, c.used_at, u.username
+     FROM codes c JOIN users u ON u.id=c.user_id
+     ORDER BY c.used_at DESC LIMIT 8`
+  );
+
+  res.json({
+    users,
+    comments,
+    codes: { issued: Number(issued.total), issuedToday: Number(issued.today),
+             redeemed: Number(redeemed.total), redeemedToday: Number(redeemed.today),
+             unused: Math.max(0, Number(issued.total) - Number(redeemed.total)),
+             active: Number(active.n), revenue: Math.round(revenue * 100) / 100 },
+    byPlan: byPlan.map(r => ({ plan: r.plan, label: PLAN_LABEL[r.plan] || r.plan, n: Number(r.n), amount: (PRICES[r.plan] || 0) * Number(r.n) })),
+    series: days.map(d => ({ d, users: um.get(d) || 0, redeemed: cm.get(d) || 0 })),
+    recentIssued: recentIssued.map(r => ({ ...r, used: Number(r.used) })),
+    recentRedeemed,
+  });
+});
+
+app.get('/api/admin/users', needAdmin, async (req, res) => {
+  const q = String(req.query.q || '').trim();
+  if (!q) return res.json({ users: [] });
+  const [rows] = await pool.query(
+    `SELECT id, username, is_guest, created_at FROM users WHERE username LIKE ? ORDER BY id DESC LIMIT 10`,
+    ['%' + q + '%']
+  );
+  if (!rows.length) return res.json({ users: [] });
+
+  const ids = rows.map(r => r.id);
+  const names = rows.map(r => r.username);
+  const [ents] = await pool.query(
+    `SELECT user_id, work_key, plan, remaining, expires_at FROM entitlements WHERE user_id IN (?)`, [ids]
+  );
+  const [red] = await pool.query(
+    `SELECT user_id, COUNT(*) AS n FROM codes WHERE user_id IN (?) GROUP BY user_id`, [ids]
+  );
+  const [iss] = await pool.query(
+    `SELECT username, COUNT(*) AS n FROM issued_codes WHERE username IN (?) GROUP BY username`, [names]
+  );
+  const em = new Map(ents.map(e => [e.user_id, []]));
+  for (const e of ents) em.get(e.user_id).push(e);
+  const rm = new Map(red.map(r => [r.user_id, Number(r.n)]));
+  const im = new Map(iss.map(r => [r.username, Number(r.n)]));
+
+  res.json({
+    users: rows.map(u => ({
+      id: u.id,
+      username: u.username,
+      guest: !!u.is_guest,
+      created_at: u.created_at,
+      redeemed: rm.get(u.id) || 0,
+      issued: im.get(u.username) || 0,
+      entitlements: em.get(u.id) || [],
+    })),
+  });
+});
+
+/* 统计卡片下钻列表 */
+app.get('/api/admin/list', needAdmin, async (req, res) => {
+  const type = String(req.query.type || 'users');
+  const LIMIT = 100;
+
+  if (type === 'users' || type === 'users_today') {
+    const where = type === 'users_today' ? 'WHERE u.created_at >= CURDATE()' : '';
+    const [t] = await pool.query(`SELECT COUNT(*) AS n FROM users u ${where}`);
+    const [rows] = await pool.query(
+      `SELECT u.username, u.is_guest, u.created_at,
+         (SELECT COUNT(*) FROM codes c WHERE c.user_id = u.id) AS redeemed
+       FROM users u ${where} ORDER BY u.id DESC LIMIT ${LIMIT}`
+    );
+    return res.json({ type, total: Number(t[0].n), rows });
+  }
+
+  if (type === 'comments' || type === 'comments_today') {
+    const where = type === 'comments_today' ? 'WHERE created_at >= CURDATE()' : '';
+    const [t] = await pool.query(`SELECT COUNT(*) AS n FROM comments ${where}`);
+    const [rows] = await pool.query(
+      `SELECT username, body, scope, slug, created_at FROM comments ${where} ORDER BY id DESC LIMIT ${LIMIT}`
+    );
+    return res.json({ type, total: Number(t[0].n), rows });
+  }
+
+  if (type === 'issued') {
+    const [t] = await pool.query('SELECT COUNT(*) AS n FROM issued_codes');
+    const [rows] = await pool.query(
+      `SELECT i.code, i.username, i.plan, i.issued_at,
+         (SELECT c.used_at FROM codes c WHERE c.code = i.code LIMIT 1) AS used_at
+       FROM issued_codes i ORDER BY i.issued_at DESC, i.code DESC LIMIT ${LIMIT}`
+    );
+    return res.json({ type, total: Number(t[0].n), rows });
+  }
+
+  if (type === 'redeemed') {
+    const [t] = await pool.query('SELECT COUNT(*) AS n FROM codes');
+    const [rows] = await pool.query(
+      `SELECT c.code, c.plan, c.used_at, u.username
+       FROM codes c JOIN users u ON u.id = c.user_id
+       ORDER BY c.used_at DESC LIMIT ${LIMIT}`
+    );
+    return res.json({ type, total: Number(t[0].n), rows });
+  }
+
+  res.status(400).json({ error: '未知的列表类型' });
+});
+
 app.get('/api/work-likes', async (req, res) => {
   const [cnt] = await pool.query('SELECT work_key, COUNT(*) AS n FROM work_likes GROUP BY work_key');
   const out = {};
@@ -366,7 +572,14 @@ app.use('/css', express.static(path.join(ROOT, 'css')));
 app.use('/js', express.static(path.join(ROOT, 'js')));
 app.use('/img', express.static(path.join(ROOT, 'img')));
 app.get(['/', '/index.html'], (req, res) => res.sendFile(path.join(ROOT, 'index.html')));
-app.get('/keygen.html', (req, res) => res.sendFile(path.join(ROOT, 'keygen.html')));
+const noIndex = (req, res, next) => { res.setHeader('X-Robots-Tag', 'noindex, nofollow'); next(); };
+
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain').send('User-agent: *\nDisallow: /api/\nDisallow: /admin.html\nDisallow: /keygen.html\n');
+});
+app.get('/keygen.html', noIndex, (req, res) => res.sendFile(path.join(ROOT, 'keygen.html')));
+app.get('/admin.html', noIndex, (req, res) => res.sendFile(path.join(ROOT, 'admin.html')));
+app.get('/vip.html', (req, res) => res.sendFile(path.join(ROOT, 'vip.html')));
 app.get('/rss.xml', (req, res) => res.sendFile(path.join(ROOT, 'rss.xml')));
 
 app.use((req, res) => res.status(404).json({ error: 'Not Found' }));
@@ -388,5 +601,16 @@ app.use((err, req, res, next) => {
     console.error('  请检查 .env 中的 DB_HOST / DB_USER / DB_PASS / DB_NAME');
     process.exit(1);
   }
-  app.listen(PORT, () => console.log(`✔ 技术驿站已启动: http://localhost:${PORT}`));
+  const mode = process.env.DB_NAME === 'tech_blog' ? '正式服' : '测试服';
+  const server = app.listen(PORT, () => {
+    console.log(`✔ 技术驿站已启动（${mode}）: http://localhost:${PORT}  数据库: ${process.env.DB_NAME}`);
+  });
+  server.on('error', e => {
+    if (e.code === 'EADDRINUSE') {
+      console.error(`✖ 端口 ${PORT} 已被占用，${mode}可能已经在运行。`);
+      console.error(`  停止方法：PowerShell 执行  Get-NetTCPConnection -LocalPort ${PORT} -State Listen | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }`);
+      process.exit(1);
+    }
+    throw e;
+  });
 })();
