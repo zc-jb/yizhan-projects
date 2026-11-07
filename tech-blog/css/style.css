@@ -901,6 +901,15 @@ body.notice-open{overflow:hidden}
 }
 .rv-btn.pri:hover{transform:translateY(-1px)}
 html[data-theme="dark"] .rv-v.red{color:#ff7875}
+.rv-appeal{
+  display:none;margin-top:12px;padding:11px 14px;border-radius:10px;
+  font-size:13px;line-height:1.6;border:1px solid transparent;
+}
+.rv-appeal.on{display:block}
+.rv-appeal.pending{background:rgba(249,115,22,.1);border-color:rgba(249,115,22,.35);color:#e8710a}
+.rv-appeal.rejected{background:rgba(245,34,45,.08);border-color:rgba(245,34,45,.3);color:#f5222d}
+html[data-theme="dark"] .rv-appeal.pending{color:#ffb37a}
+html[data-theme="dark"] .rv-appeal.rejected{color:#ff9aa3}
 @media (max-width:480px){
   .rv-body{padding:4px 16px 18px}
   .rv-k{width:72px;font-size:13px}
@@ -939,6 +948,7 @@ body.appeal-open{overflow:hidden}
 .ap-sum b.red{color:#f5222d;font-weight:800}
 html[data-theme="dark"] .ap-sum b.red{color:#ff7875}
 .ap-sec{font-size:15px;font-weight:800;margin:18px 0 10px}
+.ap-req{color:#f5222d;margin-left:3px}
 .ap-chips{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .ap-chips button{
   height:40px;border-radius:9px;border:1px solid var(--line);background:transparent;color:var(--text);
@@ -955,21 +965,27 @@ html[data-theme="dark"] .ap-sum b.red{color:#ff7875}
 .ap-ta-wrap textarea:focus{border-color:var(--pri)}
 .ap-count{position:absolute;right:12px;bottom:10px;font-size:12px;color:var(--muted);pointer-events:none}
 .ap-upload{
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
-  min-height:122px;border:1.5px dashed var(--line);border-radius:12px;cursor:pointer;
-  color:var(--muted);transition:border-color .16s;background:transparent;
+  display:block;padding:12px;min-height:122px;border:1.5px dashed var(--line);border-radius:12px;
+  cursor:pointer;transition:border-color .16s;background:transparent;
 }
 .ap-upload:hover{border-color:var(--pri)}
+.ap-up-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:96px;color:var(--muted)}
 .ap-up-ico{font-size:26px;opacity:.8}
-.ap-upload b{font-size:13.5px;color:var(--text)}
-.ap-upload small{font-size:12.5px;color:var(--muted)}
-.ap-thumbs{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
-.ap-thumb{position:relative;width:64px;height:64px;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+.ap-up-empty b{font-size:13.5px;color:var(--text)}
+.ap-up-empty small{font-size:12.5px;color:var(--muted)}
+.ap-thumbs{display:flex;flex-wrap:wrap;gap:10px}
+.ap-thumb{position:relative;width:76px;height:76px;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
 .ap-thumb img{width:100%;height:100%;object-fit:cover;display:block}
 .ap-thumb button{
   position:absolute;top:2px;right:2px;width:18px;height:18px;border:none;border-radius:50%;
   background:rgba(0,0,0,.6);color:#fff;font-size:11px;line-height:1;cursor:pointer;
 }
+.ap-add{
+  width:76px;height:76px;border:1.5px dashed var(--line);border-radius:8px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:2px;color:var(--muted);font-size:20px;line-height:1;
+}
+.ap-add span{font-size:11px}
+.ap-add:hover{border-color:var(--pri);color:var(--text)}
 .ap-note{display:flex;gap:8px;align-items:flex-start;margin:16px 0 18px;font-size:12.5px;line-height:1.6;color:var(--muted)}
 .ap-note i{
   flex:none;width:16px;height:16px;border-radius:50%;border:1px solid #f59e0b;color:#f59e0b;

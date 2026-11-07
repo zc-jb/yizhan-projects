@@ -6,7 +6,7 @@
 <title>技术驿站 · 全栈技术博客</title>
 <meta name="description" content="分享前端、后端、运维、数据库、AI 等技术文章的个人博客">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
-<link rel="stylesheet" href="css/style.css?v=20261107x">
+<link rel="stylesheet" href="css/style.css?v=20261107z">
 </head>
 <body>
 <header class="topbar">
@@ -112,6 +112,7 @@
         <div class="rv-k">违规详情</div>
         <p id="rvDetail">您发布的内容包含违反社区规范的信息，经系统审核判定为违规行为，请遵守平台规则。</p>
       </div>
+      <div class="rv-appeal" id="rvAppealTip"></div>
       <div class="rv-tip"><span>!</span>如有异议可在7日内提交申诉</div>
       <div class="rv-actions">
         <button class="rv-btn ghost" id="noticeOk">我知道了</button>
@@ -144,14 +145,16 @@
         <textarea id="apText" maxlength="500" placeholder="请详细描述您的申诉理由，帮助我们更快核实处理…"></textarea>
         <span class="ap-count" id="apCount">0/500</span>
       </div>
-      <div class="ap-sec">上传凭证（选填）</div>
-      <label class="ap-upload" for="apFiles">
-        <span class="ap-up-ico">🖼</span>
-        <b>点击上传截图</b>
-        <small>支持多张图片上传，最多9张</small>
+      <div class="ap-sec">上传凭证<span class="ap-req">*</span></div>
+      <label class="ap-upload" id="apUploadBox" for="apFiles">
         <input type="file" id="apFiles" accept="image/*" multiple hidden>
+        <div class="ap-up-empty" id="apUpEmpty">
+          <span class="ap-up-ico">🖼</span>
+          <b>点击上传截图</b>
+          <small>必填，至少 1 张，最多 9 张</small>
+        </div>
+        <div class="ap-thumbs" id="apThumbs"></div>
       </label>
-      <div class="ap-thumbs" id="apThumbs"></div>
       <div class="ap-note"><i>!</i>提交申诉后，工作人员将在3个工作日内完成审核，结果将通过站内信通知您</div>
       <button class="ap-submit" id="apSubmit">提交申诉</button>
     </div>
@@ -216,6 +219,6 @@
 <script src="js/api.js?v=20261107e"></script>
 <script src="js/posts.js?v=20261107a"></script>
 <script src="js/nav-data.js?v=20261107a"></script>
-<script src="js/app.js?v=20261107x"></script>
+<script src="js/app.js?v=20261107z"></script>
 </body>
 </html>

@@ -146,6 +146,18 @@ const setNotice = d => {
   $('#rvDetail').textContent = m
     ? '该账号发布的内容包含违反社区规范的信息，经系统审核判定为违规行为，已限制其发布内容。'
     : `当前共有 ${d && d.count ? d.count : 0} 个账号处于禁言状态，社区秩序良好。`;
+  const tip = $('#rvAppealTip');
+  if (tip) {
+    tip.className = 'rv-appeal';
+    const ap = d && d.appeal;
+    if (m && ap && ap.status === 'pending') {
+      tip.classList.add('on', 'pending');
+      tip.textContent = '申诉审核中：您的申诉已提交，工作人员将在 3 个工作日内完成审核。';
+    } else if (m && ap && ap.status === 'rejected') {
+      tip.classList.add('on', 'rejected');
+      tip.textContent = `申诉未通过${ap.time ? `（${ap.time}）` : ''}：经复核违规行为成立，处罚继续有效。如已整改或补充材料，可再次提交申诉。`;
+    }
+  }
 };
 const openNotice = async () => {
   noticeOverlay.classList.add('on');
@@ -173,9 +185,13 @@ let apReason = '内容无违规';
 let apImages = [];
 
 const apRenderThumbs = () => {
+  const empty = $('#apUpEmpty');
+  if (empty) empty.style.display = apImages.length ? 'none' : '';
   $('#apThumbs').innerHTML = apImages.map((src, i) =>
     `<div class="ap-thumb"><img src="${src}" alt="凭证${i + 1}"><button data-del="${i}" title="移除">✕</button></div>`
-  ).join('');
+  ).join('') + (apImages.length && apImages.length < 9
+    ? '<div class="ap-add">＋<span>添加</span></div>'
+    : '');
 };
 
 const readImage = file => new Promise(resolve => {
@@ -210,7 +226,7 @@ const openAppeal = d => {
   $$('#apChips button').forEach(b => b.classList.toggle('on', b.dataset.reason === apReason));
   $('#apText').value = '';
   $('#apCount').textContent = '0/500';
-  $('#apThumbs').innerHTML = '';
+  apRenderThumbs();
   $('#apType').textContent = '内容违规';
   const punish = $('#apPunish');
   punish.textContent = '限制发布内容（评论/留言）';
@@ -236,6 +252,8 @@ if ($('#apText')) $('#apText').addEventListener('input', e => {
 if ($('#apThumbs')) $('#apThumbs').onclick = e => {
   const b = e.target.closest('button[data-del]');
   if (!b) return;
+  e.preventDefault();
+  e.stopPropagation();
   apImages.splice(Number(b.dataset.del), 1);
   apRenderThumbs();
 };
@@ -253,6 +271,7 @@ if ($('#apFiles')) $('#apFiles').onchange = async e => {
 if ($('#apSubmit')) $('#apSubmit').onclick = async () => {
   const content = $('#apText').value.trim();
   if (!content) { toast('请填写补充说明'); $('#apText').focus(); return; }
+  if (!apImages.length) { toast('请至少上传 1 张凭证'); return; }
   const btn = $('#apSubmit');
   btn.disabled = true;
   btn.textContent = '提交中…';

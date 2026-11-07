@@ -357,27 +357,40 @@ app.get('/api/notice', async (req, res) => {
   let it = null;
   let count = 0;
   if (req.user && req.user.muted) {
-    const [own] = await pool.query('SELECT username, muted_at FROM users WHERE id = ?', [req.user.id]);
+    const [own] = await pool.query('SELECT id, username, muted_at FROM users WHERE id = ?', [req.user.id]);
     it = own[0] || null;
   }
   if (!it) {
     const [rows] = await pool.query(
-      'SELECT username, muted_at FROM users WHERE muted = 1 ORDER BY muted_at DESC, id DESC LIMIT 1'
+      'SELECT id, username, muted_at FROM users WHERE muted = 1 ORDER BY muted_at DESC, id DESC LIMIT 1'
     );
     it = rows[0] || null;
   }
   const [cnt] = await pool.query('SELECT COUNT(*) AS n FROM users WHERE muted = 1');
   count = Number(cnt[0].n);
-  const d = it && it.muted_at ? new Date(it.muted_at) : null;
   const pad = n => String(n).padStart(2, '0');
+  const fmt = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  let appeal = null;
+  if (it) {
+    const [ap] = await pool.query(
+      'SELECT status, handled_at FROM appeals WHERE user_id = ? ORDER BY id DESC LIMIT 1',
+      [it.id]
+    );
+    if (ap[0]) {
+      appeal = {
+        status: ap[0].status,
+        time: ap[0].handled_at ? fmt(new Date(ap[0].handled_at)) : '',
+      };
+    }
+  }
+  const d = it && it.muted_at ? new Date(it.muted_at) : null;
   res.json({
     muted: it ? {
       name: maskName(it.username),
-      time: d
-        ? `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-        : '',
+      time: d ? fmt(d) : '',
     } : null,
     count,
+    appeal,
   });
 });
 
@@ -391,6 +404,7 @@ app.post('/api/appeals', limiter({ max: 10, windowMs: 60 * 1000 }), async (req, 
   if (!content) return res.status(400).json({ error: '请填写补充说明' });
   if (content.length > 500) return res.status(400).json({ error: '补充说明不能超过 500 字' });
   if (images.length > 9) return res.status(400).json({ error: '最多上传 9 张凭证' });
+  if (!images.length) return res.status(400).json({ error: '请至少上传 1 张凭证' });
   const badImg = images.some(x => typeof x !== 'string' || !/^data:image\/(png|jpeg|jpg|webp);base64,/.test(x));
   if (badImg) return res.status(400).json({ error: '凭证图片格式不支持' });
 
