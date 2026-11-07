@@ -285,6 +285,26 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .tbl .mini.ok:hover{background:rgba(46,230,168,.16)}
 .tbl .mini:disabled{opacity:.5;cursor:default}
 
+/* ---------- 申诉处理 ---------- */
+.appeal-box{padding:12px 15px;border-bottom:1px solid var(--line);background:rgba(10,19,32,.5)}
+.appeal-empty{font-size:12px;color:var(--dim2)}
+.appeal-cap{font-size:12px;color:var(--dim);font-weight:700;margin-bottom:8px;letter-spacing:.3px}
+.appeal-card{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:var(--card2)}
+.appeal-hd{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.appeal-hd b{color:var(--txt);font-size:12.5px}
+.appeal-hd time{margin-left:auto;color:var(--dim2);font-size:11px}
+.appeal-line{font-size:12px;line-height:1.6;color:var(--dim);margin-top:2px}
+.appeal-line span{color:var(--dim2)}
+.appeal-imgs{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
+.appeal-imgs img{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
+.appeal-acts{display:flex;gap:8px;margin-top:8px}
+.appeal-acts .mini{padding:4px 12px;font-size:11px;border-radius:7px;font-family:inherit;cursor:pointer}
+.appeal-acts .mini.ok{border:1px solid rgba(46,230,168,.45);background:rgba(46,230,168,.08);color:#8ff5d4}
+.appeal-acts .mini.ok:hover{background:rgba(46,230,168,.16)}
+.appeal-acts .mini.warn{border:1px solid rgba(255,93,108,.5);background:rgba(255,93,108,.08);color:#ff9aa3}
+.appeal-acts .mini.warn:hover{background:rgba(255,93,108,.16)}
+.appeal-acts .mini:disabled{opacity:.5;cursor:default}
+
 /* ---------- 悬浮数据报表 ---------- */
 .fab{
   position:fixed;right:22px;bottom:26px;z-index:60;display:inline-flex;align-items:center;gap:8px;
@@ -930,23 +950,53 @@ async function openList(type, title) {
   mType = type;
   mTitle = title;
   mQuery = '';
+  const users = isUserList(type);
   $('#mTitle').textContent = title;
-  $('#mBody').innerHTML = (isUserList(type) ? mSearchBar() : '') + '<div class="empty">加载中…</div>';
+  $('#mBody').innerHTML = (users ? appealBox() : '') + (users ? mSearchBar() : '') + '<div class="empty">加载中…</div>';
   $('#modal').classList.add('on');
   bindMSearch();
   loadList();
 }
 
+const appealBox = () => '<div class="appeal-box" id="appealBox"><div class="appeal-empty">加载待处理申诉…</div></div>';
+
+async function loadAppeals() {
+  const box = $('#appealBox');
+  if (!box) return;
+  try {
+    const d = await api('/api/admin/appeals?status=pending');
+    if (!d.list || !d.list.length) {
+      box.innerHTML = '<div class="appeal-empty">暂无待处理申诉</div>';
+      return;
+    }
+    box.innerHTML = `<div class="appeal-cap">待处理申诉（${d.list.length}）</div>` + d.list.map(a => `
+      <div class="appeal-card">
+        <div class="appeal-hd"><b>${esc(a.username)}</b><span class="pill off">禁言中</span><time>${day(a.created_at)}</time></div>
+        <div class="appeal-line"><span>申诉理由：</span>${esc(a.reason)}</div>
+        <div class="appeal-line"><span>补充说明：</span>${esc(a.content)}</div>
+        ${a.images && a.images.length ? `<div class="appeal-imgs">${a.images.map(src => `<a href="${src}" target="_blank" rel="noopener"><img src="${src}" alt="凭证"></a>`).join('')}</div>` : ''}
+        <div class="appeal-acts">
+          <button class="mini ok" data-appeal="approve" data-id="${a.id}">通过并解禁</button>
+          <button class="mini warn" data-appeal="reject" data-id="${a.id}">驳回</button>
+        </div>
+      </div>`).join('');
+  } catch (e) {
+    box.innerHTML = `<div class="appeal-empty">${esc(e.message)}</div>`;
+  }
+}
+
 async function loadList() {
   const users = isUserList(mType);
-  $('#mBody').innerHTML = (users ? mSearchBar() : '') + '<div class="empty">加载中…</div>';
+  const box = users ? appealBox() : '';
+  $('#mBody').innerHTML = box + (users ? mSearchBar() : '') + '<div class="empty">加载中…</div>';
   bindMSearch();
   try {
     const d = await api('/api/admin/list?type=' + mType + (users && mQuery ? '&q=' + encodeURIComponent(mQuery) : ''));
     $('#mTitle').textContent = `${mTitle}（共 ${d.total} 条）`;
     if (!d.rows || !d.rows.length) {
-      $('#mBody').innerHTML = (users ? mSearchBar() : '') + '<div class="empty">没有匹配的数据</div>';
+      $('#mBody').innerHTML = box + (users ? mSearchBar() : '') + '<div class="empty">没有匹配的数据</div>';
       bindMSearch();
+      if (users) loadAppeals();
       return;
     }
     const t = LIST_TPL[mType] || LIST_TPL.comments;
@@ -962,14 +1012,16 @@ async function loadList() {
           <td>${r.redeemed} 张</td>
         </tr>`).join('')
       : d.rows.map(r => `<tr>${t.row(r).map(c => `<td>${c}</td>`).join('')}</tr>`).join('');
-    $('#mBody').innerHTML = (users ? mSearchBar() : '') +
+    $('#mBody').innerHTML = box + (users ? mSearchBar() : '') +
       `<table class="tbl"><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead>
        <tbody>${body}</tbody></table>` +
       (d.total > d.rows.length ? `<div class="empty">仅显示最近 ${d.rows.length} 条</div>` : '');
     bindMSearch();
+    if (users) loadAppeals();
   } catch (e) {
-    $('#mBody').innerHTML = (users ? mSearchBar() : '') + `<div class="empty">${esc(e.message)}</div>`;
+    $('#mBody').innerHTML = box + (users ? mSearchBar() : '') + `<div class="empty">${esc(e.message)}</div>`;
     bindMSearch();
+    if (users) loadAppeals();
   }
 }
 
@@ -979,6 +1031,24 @@ $('#stats').addEventListener('click', e => {
 });
 
 $('#mBody').addEventListener('click', async e => {
+  const ab = e.target.closest('[data-appeal]');
+  if (ab) {
+    const aid = Number(ab.dataset.id);
+    const action = ab.dataset.appeal;
+    ab.disabled = true;
+    ab.textContent = '处理中…';
+    try {
+      await api('/api/admin/appeals/' + aid, { method: 'POST', body: { action } });
+      loadAppeals();
+      loadList();
+      searchUsers($('#q').value.trim());
+    } catch (err) {
+      ab.disabled = false;
+      ab.textContent = '失败';
+      ab.title = err.message;
+    }
+    return;
+  }
   const btn = e.target.closest('[data-mute]');
   if (!btn) return;
   const id = Number(btn.dataset.id);

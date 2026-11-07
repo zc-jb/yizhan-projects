@@ -131,8 +131,145 @@ const scrollToConsult = () => {
 };
 const railGo = $('#railGo');
 if (railGo) railGo.onclick = scrollToConsult;
-const railRule = $('#railRule');
-if (railRule) railRule.onclick = scrollToConsult;
+
+/* ---------- 违规告知通知（取管理台禁言账号） ---------- */
+const noticeOverlay = $('#noticeOverlay');
+let noticeData = null;
+const setNotice = d => {
+  const m = d && d.muted;
+  $('#rvType').textContent = m ? '内容违规' : '暂无违规记录';
+  $('#rvAccount').textContent = m ? m.name : '暂无禁言账号';
+  $('#rvTime').textContent = m ? (m.time || '较早记录') : '—';
+  const punish = $('#rvPunish');
+  punish.textContent = m ? '限制发布内容（评论/留言）' : '无';
+  punish.classList.toggle('red', !!m);
+  $('#rvDetail').textContent = m
+    ? '该账号发布的内容包含违反社区规范的信息，经系统审核判定为违规行为，已限制其发布内容。'
+    : `当前共有 ${d && d.count ? d.count : 0} 个账号处于禁言状态，社区秩序良好。`;
+};
+const openNotice = async () => {
+  noticeOverlay.classList.add('on');
+  document.body.classList.add('notice-open');
+  noticeData = await Api.notice();
+  setNotice(noticeData);
+};
+const closeNotice = () => {
+  noticeOverlay.classList.remove('on');
+  document.body.classList.remove('notice-open');
+};
+if ($('#railNotice')) $('#railNotice').onclick = openNotice;
+if (noticeOverlay) {
+  noticeOverlay.addEventListener('click', e => { if (!e.target.closest('.rv-modal')) closeNotice(); });
+  $('#noticeClose').onclick = closeNotice;
+  $('#noticeOk').onclick = closeNotice;
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && noticeOverlay.classList.contains('on')) closeNotice();
+  });
+}
+
+/* ---------- 违规申诉 ---------- */
+const appealOverlay = $('#appealOverlay');
+let apReason = '内容无违规';
+let apImages = [];
+
+const apRenderThumbs = () => {
+  $('#apThumbs').innerHTML = apImages.map((src, i) =>
+    `<div class="ap-thumb"><img src="${src}" alt="凭证${i + 1}"><button data-del="${i}" title="移除">✕</button></div>`
+  ).join('');
+};
+
+const readImage = file => new Promise(resolve => {
+  if (!file.type.startsWith('image/')) return resolve('');
+  const fr = new FileReader();
+  fr.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 900;
+      let w = img.width, h = img.height;
+      if (w > max || h > max) {
+        const s = Math.min(max / w, max / h);
+        w = Math.round(w * s); h = Math.round(h * s);
+      }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(c.toDataURL('image/jpeg', 0.72));
+    };
+    img.onerror = () => resolve('');
+    img.src = fr.result;
+  };
+  fr.onerror = () => resolve('');
+  fr.readAsDataURL(file);
+});
+
+const openAppeal = d => {
+  if (!d || !d.muted) { toast('当前没有需要申诉的禁言账号'); return; }
+  closeNotice();
+  apReason = '内容无违规';
+  apImages = [];
+  $$('#apChips button').forEach(b => b.classList.toggle('on', b.dataset.reason === apReason));
+  $('#apText').value = '';
+  $('#apCount').textContent = '0/500';
+  $('#apThumbs').innerHTML = '';
+  $('#apType').textContent = '内容违规';
+  const punish = $('#apPunish');
+  punish.textContent = '限制发布内容（评论/留言）';
+  punish.classList.add('red');
+  $('#apTime').textContent = d.muted.time || '较早记录';
+  appealOverlay.classList.add('on');
+  document.body.classList.add('appeal-open');
+};
+const closeAppeal = () => {
+  appealOverlay.classList.remove('on');
+  document.body.classList.remove('appeal-open');
+};
+if ($('#noticeAppeal')) $('#noticeAppeal').onclick = () => openAppeal(noticeData);
+if ($('#apChips')) $('#apChips').onclick = e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  apReason = b.dataset.reason;
+  $$('#apChips button').forEach(x => x.classList.toggle('on', x === b));
+};
+if ($('#apText')) $('#apText').addEventListener('input', e => {
+  $('#apCount').textContent = e.target.value.length + '/500';
+});
+if ($('#apThumbs')) $('#apThumbs').onclick = e => {
+  const b = e.target.closest('button[data-del]');
+  if (!b) return;
+  apImages.splice(Number(b.dataset.del), 1);
+  apRenderThumbs();
+};
+if ($('#apFiles')) $('#apFiles').onchange = async e => {
+  const room = 9 - apImages.length;
+  const files = [...e.target.files].slice(0, room);
+  if (e.target.files.length > room) toast('最多上传 9 张凭证');
+  for (const f of files) {
+    const src = await readImage(f);
+    if (src) apImages.push(src);
+  }
+  e.target.value = '';
+  apRenderThumbs();
+};
+if ($('#apSubmit')) $('#apSubmit').onclick = async () => {
+  const content = $('#apText').value.trim();
+  if (!content) { toast('请填写补充说明'); $('#apText').focus(); return; }
+  const btn = $('#apSubmit');
+  btn.disabled = true;
+  btn.textContent = '提交中…';
+  const r = await Api.submitAppeal({ reason: apReason, content, images: apImages });
+  btn.disabled = false;
+  btn.textContent = '提交申诉';
+  if (r.error) { toast(r.error); return; }
+  closeAppeal();
+  toast('申诉已提交，工作人员将在 3 个工作日内审核');
+};
+if ($('#appealClose')) $('#appealClose').onclick = closeAppeal;
+if (appealOverlay) {
+  appealOverlay.addEventListener('click', e => { if (!e.target.closest('.ap-modal')) closeAppeal(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && appealOverlay.classList.contains('on')) closeAppeal();
+  });
+}
 
 /* ---------- 技术交流面板（真实留言数据） ---------- */
 const tpOverlay = $('#techOverlay');

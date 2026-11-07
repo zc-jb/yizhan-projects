@@ -6,7 +6,7 @@
 <title>技术驿站 · 全栈技术博客</title>
 <meta name="description" content="分享前端、后端、运维、数据库、AI 等技术文章的个人博客">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
-<link rel="stylesheet" href="css/style.css?v=20261107v">
+<link rel="stylesheet" href="css/style.css?v=20261107x">
 </head>
 <body>
 <header class="topbar">
@@ -45,7 +45,7 @@
 </aside>
 
 <aside class="side-rail right" aria-label="违规告知">
-  <div class="rail-card warn">
+  <div class="rail-card warn" id="railNotice">
     <div class="rail-head"><span class="rail-ico">⚠️</span><b>违规告知</b></div>
     <p class="rail-desc">原创内容受保护，请尊重创作，转载请注明出处。</p>
     <ul class="rail-list">
@@ -53,7 +53,7 @@
       <li>转载请标注原文链接</li>
       <li>侵权请联系删除</li>
     </ul>
-    <button class="rail-btn ghost warm" id="railRule">联系处理 →</button>
+    <button class="rail-btn ghost warm" id="railRule">查看处罚通知 →</button>
   </div>
 </aside>
 
@@ -93,6 +93,68 @@
       </div>
       <div class="tp-side-note">数据来自站点留言板，实时同步。</div>
     </aside>
+  </div>
+</div>
+
+<div class="rv-overlay" id="noticeOverlay">
+  <div class="rv-modal" role="dialog" aria-modal="true" aria-label="违规告知通知">
+    <div class="rv-head">
+      <span class="rv-ico">!</span>
+      <b>违规告知通知</b>
+      <button class="rv-close" id="noticeClose" title="关闭">✕</button>
+    </div>
+    <div class="rv-body">
+      <div class="rv-row"><span class="rv-k">违规类型</span><span class="rv-v" id="rvType">内容违规</span></div>
+      <div class="rv-row"><span class="rv-k">违规时间</span><span class="rv-v" id="rvTime">—</span></div>
+      <div class="rv-row"><span class="rv-k">违规账号</span><span class="rv-v" id="rvAccount">—</span></div>
+      <div class="rv-row"><span class="rv-k">处罚措施</span><span class="rv-v red" id="rvPunish">—</span></div>
+      <div class="rv-detail">
+        <div class="rv-k">违规详情</div>
+        <p id="rvDetail">您发布的内容包含违反社区规范的信息，经系统审核判定为违规行为，请遵守平台规则。</p>
+      </div>
+      <div class="rv-tip"><span>!</span>如有异议可在7日内提交申诉</div>
+      <div class="rv-actions">
+        <button class="rv-btn ghost" id="noticeOk">我知道了</button>
+        <button class="rv-btn pri" id="noticeAppeal">前往申诉</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="ap-overlay" id="appealOverlay">
+  <div class="ap-modal" role="dialog" aria-modal="true" aria-label="违规申诉">
+    <div class="ap-head"><b>违规申诉</b><button class="ap-close" id="appealClose" title="关闭">✕</button></div>
+    <div class="ap-body">
+      <div class="ap-sum">
+        <div><span>违规类型</span><b id="apType">内容违规</b></div>
+        <div><span>处罚措施</span><b class="red" id="apPunish">—</b></div>
+        <div><span>违规时间</span><b id="apTime">—</b></div>
+      </div>
+      <div class="ap-sec">申诉理由</div>
+      <div class="ap-chips" id="apChips">
+        <button class="on" data-reason="内容无违规">内容无违规</button>
+        <button data-reason="误判申诉">误判申诉</button>
+        <button data-reason="恶意举报">恶意举报</button>
+        <button data-reason="已删除/整改">已删除/整改</button>
+        <button data-reason="账号被盗用">账号被盗用</button>
+        <button data-reason="其他原因">其他原因</button>
+      </div>
+      <div class="ap-sec">补充说明</div>
+      <div class="ap-ta-wrap">
+        <textarea id="apText" maxlength="500" placeholder="请详细描述您的申诉理由，帮助我们更快核实处理…"></textarea>
+        <span class="ap-count" id="apCount">0/500</span>
+      </div>
+      <div class="ap-sec">上传凭证（选填）</div>
+      <label class="ap-upload" for="apFiles">
+        <span class="ap-up-ico">🖼</span>
+        <b>点击上传截图</b>
+        <small>支持多张图片上传，最多9张</small>
+        <input type="file" id="apFiles" accept="image/*" multiple hidden>
+      </label>
+      <div class="ap-thumbs" id="apThumbs"></div>
+      <div class="ap-note"><i>!</i>提交申诉后，工作人员将在3个工作日内完成审核，结果将通过站内信通知您</div>
+      <button class="ap-submit" id="apSubmit">提交申诉</button>
+    </div>
   </div>
 </div>
 
@@ -151,9 +213,9 @@
 <button class="tech-fab" id="techFab">💬 技术交流</button>
 <button id="toTop" title="回到顶部">↑</button>
 
-<script src="js/api.js?v=20261107c"></script>
+<script src="js/api.js?v=20261107e"></script>
 <script src="js/posts.js?v=20261107a"></script>
 <script src="js/nav-data.js?v=20261107a"></script>
-<script src="js/app.js?v=20261107u"></script>
+<script src="js/app.js?v=20261107x"></script>
 </body>
 </html>

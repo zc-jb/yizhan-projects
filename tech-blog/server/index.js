@@ -9,7 +9,7 @@ const PORT = Number(process.env.PORT || 3000);
 
 const app = express();
 app.disable('x-powered-by');
-app.use(express.json({ limit: '200kb' }));
+app.use(express.json({ limit: '4mb' }));
 
 /* ---- 防抓取：来源校验 + 分级限流 ---- */
 app.use('/api', sameOrigin);
@@ -347,6 +347,73 @@ app.post('/api/works/:key/redeem', needLogin, async (req, res) => {
   res.json({ ok: true, plan: parsed.plan });
 });
 
+/* ---------------- 违规告知（取管理台禁言账号） ---------------- */
+const maskName = n => {
+  const s = String(n || '');
+  if (s.length <= 2) return (s.slice(0, 1) || '匿名') + '***';
+  return s.slice(0, 3) + '***';
+};
+app.get('/api/notice', async (req, res) => {
+  let it = null;
+  let count = 0;
+  if (req.user && req.user.muted) {
+    const [own] = await pool.query('SELECT username, muted_at FROM users WHERE id = ?', [req.user.id]);
+    it = own[0] || null;
+  }
+  if (!it) {
+    const [rows] = await pool.query(
+      'SELECT username, muted_at FROM users WHERE muted = 1 ORDER BY muted_at DESC, id DESC LIMIT 1'
+    );
+    it = rows[0] || null;
+  }
+  const [cnt] = await pool.query('SELECT COUNT(*) AS n FROM users WHERE muted = 1');
+  count = Number(cnt[0].n);
+  const d = it && it.muted_at ? new Date(it.muted_at) : null;
+  const pad = n => String(n).padStart(2, '0');
+  res.json({
+    muted: it ? {
+      name: maskName(it.username),
+      time: d
+        ? `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+        : '',
+    } : null,
+    count,
+  });
+});
+
+/* ---------------- 违规申诉 ---------------- */
+const APPEAL_REASONS = ['内容无违规', '误判申诉', '恶意举报', '已删除/整改', '账号被盗用', '其他原因'];
+app.post('/api/appeals', limiter({ max: 10, windowMs: 60 * 1000 }), async (req, res) => {
+  const reason = String(req.body.reason || '').trim();
+  const content = String(req.body.content || '').trim();
+  const images = Array.isArray(req.body.images) ? req.body.images : [];
+  if (!APPEAL_REASONS.includes(reason)) return res.status(400).json({ error: '请选择申诉理由' });
+  if (!content) return res.status(400).json({ error: '请填写补充说明' });
+  if (content.length > 500) return res.status(400).json({ error: '补充说明不能超过 500 字' });
+  if (images.length > 9) return res.status(400).json({ error: '最多上传 9 张凭证' });
+  const badImg = images.some(x => typeof x !== 'string' || !/^data:image\/(png|jpeg|jpg|webp);base64,/.test(x));
+  if (badImg) return res.status(400).json({ error: '凭证图片格式不支持' });
+
+  let target = null;
+  if (req.user && req.user.muted) target = { id: req.user.id, username: req.user.name };
+  else {
+    const [rows] = await pool.query(
+      'SELECT id, username FROM users WHERE muted = 1 ORDER BY muted_at DESC, id DESC LIMIT 1'
+    );
+    target = rows[0] || null;
+  }
+  if (!target) return res.status(400).json({ error: '当前没有需要申诉的禁言账号' });
+
+  const [dup] = await pool.query("SELECT id FROM appeals WHERE user_id = ? AND status = 'pending'", [target.id]);
+  if (dup[0]) return res.status(409).json({ error: '该账号已有待审核的申诉，请耐心等待' });
+
+  const [r] = await pool.query(
+    'INSERT INTO appeals (user_id, username, reason, content, images) VALUES (?,?,?,?,?)',
+    [target.id, target.username, reason, content, images.length ? JSON.stringify(images) : null]
+  );
+  res.json({ ok: true, id: r.insertId });
+});
+
 /* ---------------- 站长：签发开通码（服务端校验） ---------------- */
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 const adminGuard = makeAdminGuard({ maxFails: 8, lockMs: 10 * 60 * 1000 });
@@ -595,8 +662,46 @@ app.post('/api/admin/users/:id/mute', needAdmin, async (req, res) => {
   const muted = req.body && req.body.muted ? 1 : 0;
   const [u] = await pool.query('SELECT username FROM users WHERE id = ?', [id]);
   if (!u[0]) return res.status(404).json({ error: '账号不存在' });
-  await pool.query('UPDATE users SET muted = ? WHERE id = ?', [muted, id]);
+  await pool.query(
+    'UPDATE users SET muted = ?, muted_at = ? WHERE id = ?',
+    [muted, muted ? new Date() : null, id]
+  );
   res.json({ ok: true, id, username: u[0].username, muted: !!muted });
+});
+
+/* 违规申诉列表 / 审核（通过即解除禁言） */
+app.get('/api/admin/appeals', needAdmin, async (req, res) => {
+  const status = req.query.status === 'all' ? 'all' : 'pending';
+  const where = status === 'all' ? '' : "WHERE a.status = 'pending'";
+  const [rows] = await pool.query(
+    `SELECT a.id, a.user_id, a.username, a.reason, a.content, a.images, a.status, a.created_at,
+            u.muted, u.muted_at
+       FROM appeals a JOIN users u ON u.id = a.user_id
+       ${where} ORDER BY a.id DESC LIMIT 50`
+  );
+  res.json({
+    list: rows.map(r => ({
+      ...r,
+      images: r.images ? JSON.parse(r.images) : [],
+    })),
+  });
+});
+
+app.post('/api/admin/appeals/:id', needAdmin, async (req, res) => {
+  const id = Number(req.params.id);
+  const action = req.body && req.body.action === 'approve' ? 'approve'
+    : req.body && req.body.action === 'reject' ? 'reject' : '';
+  if (!action) return res.status(400).json({ error: '处理动作无效' });
+  const [rows] = await pool.query('SELECT id, user_id, status, username FROM appeals WHERE id = ?', [id]);
+  if (!rows[0]) return res.status(404).json({ error: '申诉不存在' });
+  if (rows[0].status !== 'pending') return res.status(400).json({ error: '该申诉已处理' });
+  if (action === 'approve') {
+    await pool.query('UPDATE users SET muted = 0, muted_at = NULL WHERE id = ?', [rows[0].user_id]);
+    await pool.query("UPDATE appeals SET status = 'approved', handled_at = NOW() WHERE id = ?", [id]);
+    return res.json({ ok: true, action, username: rows[0].username });
+  }
+  await pool.query("UPDATE appeals SET status = 'rejected', handled_at = NOW() WHERE id = ?", [id]);
+  res.json({ ok: true, action, username: rows[0].username });
 });
 
 /* 周 / 月 / 年 统计报表 */
@@ -685,7 +790,12 @@ app.post('/api/work-likes/:key', needLogin, async (req, res) => {
 app.use('/css', express.static(path.join(ROOT, 'css')));
 app.use('/js', express.static(path.join(ROOT, 'js')));
 app.use('/img', express.static(path.join(ROOT, 'img')));
-app.get(['/', '/index.html'], (req, res) => res.sendFile(path.join(ROOT, 'index.html')));
+app.get(['/', '/index.html'], (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.sendFile(path.join(ROOT, 'index.html'));
+});
 const noIndex = (req, res, next) => { res.setHeader('X-Robots-Tag', 'noindex, nofollow'); next(); };
 
 app.get('/robots.txt', (req, res) => {

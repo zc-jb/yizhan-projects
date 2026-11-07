@@ -56,6 +56,20 @@ const TABLES = [
     UNIQUE KEY uk_like (target, target_id, user_id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
+  `CREATE TABLE IF NOT EXISTS appeals (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    username VARCHAR(32) NOT NULL,
+    reason VARCHAR(32) NOT NULL,
+    content VARCHAR(600) NOT NULL,
+    images LONGTEXT NULL,
+    status VARCHAR(16) NOT NULL DEFAULT 'pending',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    handled_at DATETIME NULL,
+    INDEX idx_appeal_status (status),
+    INDEX idx_appeal_user (user_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
   `CREATE TABLE IF NOT EXISTS work_likes (
     work_key VARCHAR(20) NOT NULL,
     user_id INT NOT NULL,
@@ -105,6 +119,11 @@ export async function initSchema() {
     const [mutedCol] = await conn.query("SHOW COLUMNS FROM users LIKE 'muted'");
     if (!mutedCol.length) {
       await conn.query('ALTER TABLE users ADD COLUMN muted TINYINT NOT NULL DEFAULT 0');
+    }
+    // 兼容旧库：补齐「禁言时间」字段
+    const [mutedAtCol] = await conn.query("SHOW COLUMNS FROM users LIKE 'muted_at'");
+    if (!mutedAtCol.length) {
+      await conn.query('ALTER TABLE users ADD COLUMN muted_at DATETIME NULL');
     }
   } finally {
     await conn.end();

@@ -205,6 +205,25 @@ window.Api = (function () {
     return null;
   }
 
+  /* ---------------- 违规告知 ---------------- */
+  async function notice() {
+    if (online) {
+      try { return await req('/notice'); } catch (e) {}
+    }
+    return { muted: null, count: 0 };
+  }
+
+  /* ---------------- 违规申诉 ---------------- */
+  async function submitAppeal(payload) {
+    if (!online) return { error: '当前处于离线模式，无法提交申诉' };
+    try {
+      await req('/appeals', { method: 'POST', body: JSON.stringify(payload) });
+      return { ok: true };
+    } catch (e) {
+      return { error: e.message };
+    }
+  }
+
   /* ---------------- 作品权限 ---------------- */
   const PKEY = () => K.plans + '@' + ((me && me.name) || 'anon');
   const UKEY = () => K.uses + '@' + ((me && me.name) || 'anon');
@@ -315,7 +334,7 @@ window.Api = (function () {
   return {
     boot, get online() { return online; }, user, isGuest,
     login, register, guestLogin, logout,
-    comments, addComment, delComment, likeComment,
+    comments, addComment, delComment, likeComment, notice, submitAppeal,
     worksStatus, useWork, redeem, workLikes, toggleWorkLike, acc2code
   };
 })();
