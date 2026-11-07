@@ -206,7 +206,7 @@ function vPost(slug) {
       <section class="comments" id="comments">
         <h3>💬 评论（<span id="cmtCount">0</span>）</h3>
         <div class="cmt-form">
-          <input id="cmtName" placeholder="昵称" maxlength="20">
+          <p class="muted" style="font-size:13px">以 <b>${esc(Auth.user() || '')}</b> 的身份发表</p>
           <textarea id="cmtText" placeholder="写下你的想法…" maxlength="500"></textarea>
           <button class="btn" id="cmtBtn">发表评论</button>
         </div>
@@ -244,69 +244,46 @@ function vPost(slug) {
       () => { b.textContent = '已复制 ✓'; setTimeout(()=>b.textContent='复制',1500); },
       () => { b.textContent = '失败'; });
   });
-  // 评论（本地存储，发表后 3 分钟内可删除）
-  const KEY = 'blog-cmt-' + slug;
-  const LKEY = 'blog-liked-' + slug;
-  const TTL = 3 * 60 * 1000;
-  const draw = () => {
-    const list = store.get(KEY, []);
-    const liked = store.get(LKEY, []);
-    $('#cmtCount').textContent = list.length;
-    $('#cmtList').innerHTML = list.map((c, i) => {
-      const can = !c.ts || Date.now() - c.ts < TTL;
-      const cid = c.ts || ('x' + i + '_');
-      const reps = (c.r || []).map((r, j) => {
-        const canR = !r.ts || Date.now() - r.ts < TTL;
-        const rid = r.ts || ('x' + i + '_' + j);
-        return `<div class="cmt reply"><span class="who">${esc(r.n)}</span>${r.to ? `<span class="to">回复 @${esc(r.to)}</span>` : ''}<span class="when">${r.t}</span>${canR ? `<button class="cmt-del" data-i="${i}" data-j="${j}">删除</button>` : ''}<button class="cmt-rep" data-i="${i}" data-to="${esc(r.n).replace(/"/g,'&quot;')}">回复</button><button class="cmt-like${liked.includes(rid) ? ' on' : ''}" data-i="${i}" data-j="${j}">👍 ${r.likes || 0}</button><p class="what">${esc(r.x)}</p></div>`;
-      }).join('');
-      return `<div class="cmt"><span class="who">${esc(c.n)}</span><span class="when">${c.t}</span>${can ? `<button class="cmt-del" data-i="${i}">删除</button>` : ''}<button class="cmt-rep" data-i="${i}" data-to="">回复</button><button class="cmt-like${liked.includes(cid) ? ' on' : ''}" data-i="${i}">👍 ${c.likes || 0}</button><p class="what">${esc(c.x)}</p>${reps}<div class="rep-form" id="repForm${i}" style="display:none"><input class="rep-name" placeholder="昵称" maxlength="20"><textarea class="rep-text" placeholder="写下你的回复…" maxlength="300"></textarea><button class="btn rep-send" data-i="${i}">发表回复</button></div></div>`;
+  // 评论（后端存储，发表后 3 分钟内可删除）
+  const draw = async () => {
+    const list = await Api.comments('post', slug);
+    $('#cmtCount').textContent = list.reduce((s, c) => s + 1 + (c.r || []).length, 0);
+    $('#cmtList').innerHTML = list.map(c => {
+      const reps = (c.r || []).map(r => `<div class="cmt reply"><span class="who">${esc(r.n)}</span>${r.to ? `<span class="to">回复 @${esc(r.to)}</span>` : ''}<span class="when">${r.t}</span>${r.canDel ? `<button class="cmt-del" data-id="${r.id}">删除</button>` : ''}<button class="cmt-rep" data-id="${c.id}" data-to="${esc(r.n).replace(/"/g,'&quot;')}">回复</button><button class="cmt-like${r.liked ? ' on' : ''}" data-id="${r.id}">👍 ${r.likes || 0}</button><p class="what">${esc(r.x)}</p></div>`).join('');
+      return `<div class="cmt"><span class="who">${esc(c.n)}</span><span class="when">${c.t}</span>${c.canDel ? `<button class="cmt-del" data-id="${c.id}">删除</button>` : ''}<button class="cmt-rep" data-id="${c.id}" data-to="">回复</button><button class="cmt-like${c.liked ? ' on' : ''}" data-id="${c.id}">👍 ${c.likes || 0}</button><p class="what">${esc(c.x)}</p>${reps}<div class="rep-form" id="repForm${c.id}" style="display:none"><textarea class="rep-text" placeholder="写下你的回复…" maxlength="300"></textarea><button class="btn rep-send" data-id="${c.id}">发表回复</button></div></div>`;
     }).join('') || '<p class="muted" style="padding:12px 0">还没有评论，来抢沙发～</p>';
-    document.querySelectorAll('#cmtList .cmt-like').forEach(b => b.onclick = () => {
-      const l2 = store.get(KEY, []);
-      const lk = store.get(LKEY, []);
-      const i = +b.dataset.i;
-      const item = (b.dataset.j != null && b.dataset.j !== '') ? l2[i].r[+b.dataset.j] : l2[i];
-      const id = item.ts || ('x' + i + '_' + (b.dataset.j || ''));
-      const k = lk.indexOf(id);
-      if (k >= 0) { lk.splice(k, 1); item.likes = Math.max(0, (item.likes || 0) - 1); }
-      else { lk.push(id); item.likes = (item.likes || 0) + 1; }
-      store.set(LKEY, lk);
-      store.set(KEY, l2);
+    document.querySelectorAll('#cmtList .cmt-like').forEach(b => b.onclick = async () => {
+      const r = await Api.likeComment(+b.dataset.id);
+      if (!r) { toast('请先登录后再点赞'); return; }
       draw();
     });
-    document.querySelectorAll('#cmtList .cmt-del').forEach(b => b.onclick = () => {
+    document.querySelectorAll('#cmtList .cmt-del').forEach(b => b.onclick = async () => {
       if (!confirm('确定删除吗？')) return;
-      const l2 = store.get(KEY, []);
-      if (b.dataset.j != null && b.dataset.j !== '') l2[+b.dataset.i].r.splice(+b.dataset.j, 1);
-      else l2.splice(+b.dataset.i, 1);
-      store.set(KEY, l2);
+      const err = await Api.delComment(+b.dataset.id);
+      if (err) { toast(err); return; }
       draw();
     });
     document.querySelectorAll('#cmtList .cmt-rep').forEach(b => b.onclick = () => {
-      const f = $('#repForm' + b.dataset.i);
+      const f = $('#repForm' + b.dataset.id);
       const open = f.style.display !== 'none';
       document.querySelectorAll('#cmtList .rep-form').forEach(x => x.style.display = 'none');
-      if (!open) { f.style.display = 'flex'; f.dataset.to = b.dataset.to || ''; f.querySelector('.rep-text').placeholder = b.dataset.to ? `回复 @${b.dataset.to}…` : '写下你的回复…'; f.querySelector('.rep-name').focus(); }
+      if (!open) { f.style.display = 'flex'; f.dataset.to = b.dataset.to || ''; f.querySelector('.rep-text').placeholder = b.dataset.to ? `回复 @${b.dataset.to}…` : '写下你的回复…'; f.querySelector('.rep-text').focus(); }
     });
-    document.querySelectorAll('#cmtList .rep-send').forEach(b => b.onclick = () => {
-      const f = $('#repForm' + b.dataset.i);
-      const n = f.querySelector('.rep-name').value.trim(), x = f.querySelector('.rep-text').value.trim();
-      if (!n || !x) { alert('请填写昵称和内容'); return; }
-      const l2 = store.get(KEY, []);
-      const c = l2[+b.dataset.i];
-      c.r = c.r || [];
-      c.r.push({ n, x, to: f.dataset.to || '', ts: Date.now(), t: new Date().toLocaleString('zh-CN') });
-      store.set(KEY, l2);
+    document.querySelectorAll('#cmtList .rep-send').forEach(b => b.onclick = async () => {
+      const f = $('#repForm' + b.dataset.id);
+      const x = f.querySelector('.rep-text').value.trim();
+      if (!x) { alert('请填写内容'); return; }
+      const err = await Api.addComment('post', slug, x, +b.dataset.id);
+      if (err) { toast(err); return; }
+      f.style.display = 'none';
       draw();
     });
   };
-  $('#cmtBtn').onclick = () => {
-    const n = $('#cmtName').value.trim(), x = $('#cmtText').value.trim();
-    if (!n || !x) { alert('请填写昵称和内容'); return; }
-    const list = store.get(KEY, []);
-    list.unshift({ n, x, ts: Date.now(), t: new Date().toLocaleString('zh-CN') });
-    store.set(KEY, list);
+  $('#cmtBtn').onclick = async () => {
+    const x = $('#cmtText').value.trim();
+    if (!x) { alert('请填写内容'); return; }
+    const err = await Api.addComment('post', slug, x, null);
+    if (err) { toast(err); return; }
     $('#cmtText').value = '';
     draw();
   };
@@ -353,72 +330,51 @@ function vGuest() {
   app.innerHTML = `<div class="card page-box"><h1>💌 留言板</h1>
     <p class="muted" style="margin-bottom:16px">欢迎留下你的足迹、建议或想看的主题～</p>
     <div class="cmt-form">
-      <input id="gName" placeholder="昵称" maxlength="20">
+      <p class="muted" style="font-size:13px">以 <b>${esc(Auth.user() || '')}</b> 的身份留言</p>
       <textarea id="gText" placeholder="写点什么…" maxlength="500"></textarea>
       <button class="btn" id="gBtn">提交留言</button>
     </div>
     <div id="gList"></div></div>`;
-  const KEY = 'blog-guest';
-  const LKEY = 'blog-liked-guest';
-  const TTL = 3 * 60 * 1000;
-  const draw = () => {
-    const list = store.get(KEY, []);
-    const liked = store.get(LKEY, []);
-    $('#gList').innerHTML = list.map((c, i) => {
-      const can = !c.ts || Date.now() - c.ts < TTL;
-      const cid = c.ts || ('x' + i + '_');
-      const reps = (c.r || []).map((r, j) => {
-        const canR = !r.ts || Date.now() - r.ts < TTL;
-        const rid = r.ts || ('x' + i + '_' + j);
-        return `<div class="cmt reply"><span class="who">${esc(r.n)}</span>${r.to ? `<span class="to">回复 @${esc(r.to)}</span>` : ''}<span class="when">${r.t}</span>${canR ? `<button class="cmt-del" data-i="${i}" data-j="${j}">删除</button>` : ''}<button class="cmt-rep" data-i="${i}" data-to="${esc(r.n).replace(/"/g,'&quot;')}">回复</button><button class="cmt-like${liked.includes(rid) ? ' on' : ''}" data-i="${i}" data-j="${j}">👍 ${r.likes || 0}</button><p class="what">${esc(r.x)}</p></div>`;
-      }).join('');
-      return `<div class="cmt"><span class="who">${esc(c.n)}</span><span class="when">${c.t}</span>${can ? `<button class="cmt-del" data-i="${i}">删除</button>` : ''}<button class="cmt-rep" data-i="${i}" data-to="">回复</button><button class="cmt-like${liked.includes(cid) ? ' on' : ''}" data-i="${i}">👍 ${c.likes || 0}</button><p class="what">${esc(c.x)}</p>${reps}<div class="rep-form" id="repForm${i}" style="display:none"><input class="rep-name" placeholder="昵称" maxlength="20"><textarea class="rep-text" placeholder="写下你的回复…" maxlength="300"></textarea><button class="btn rep-send" data-i="${i}">发表回复</button></div></div>`;
+  const draw = async () => {
+    const list = await Api.comments('guest', 'guest');
+    $('#gList').innerHTML = list.map(c => {
+      const reps = (c.r || []).map(r => `<div class="cmt reply"><span class="who">${esc(r.n)}</span>${r.to ? `<span class="to">回复 @${esc(r.to)}</span>` : ''}<span class="when">${r.t}</span>${r.canDel ? `<button class="cmt-del" data-id="${r.id}">删除</button>` : ''}<button class="cmt-rep" data-id="${c.id}" data-to="${esc(r.n).replace(/"/g,'&quot;')}">回复</button><button class="cmt-like${r.liked ? ' on' : ''}" data-id="${r.id}">👍 ${r.likes || 0}</button><p class="what">${esc(r.x)}</p></div>`).join('');
+      return `<div class="cmt"><span class="who">${esc(c.n)}</span><span class="when">${c.t}</span>${c.canDel ? `<button class="cmt-del" data-id="${c.id}">删除</button>` : ''}<button class="cmt-rep" data-id="${c.id}" data-to="">回复</button><button class="cmt-like${c.liked ? ' on' : ''}" data-id="${c.id}">👍 ${c.likes || 0}</button><p class="what">${esc(c.x)}</p>${reps}<div class="rep-form" id="repForm${c.id}" style="display:none"><textarea class="rep-text" placeholder="写下你的回复…" maxlength="300"></textarea><button class="btn rep-send" data-id="${c.id}">发表回复</button></div></div>`;
     }).join('') || '<p class="muted">还没有留言，来抢沙发～</p>';
-    document.querySelectorAll('#gList .cmt-like').forEach(b => b.onclick = () => {
-      const l2 = store.get(KEY, []);
-      const lk = store.get(LKEY, []);
-      const i = +b.dataset.i;
-      const item = (b.dataset.j != null && b.dataset.j !== '') ? l2[i].r[+b.dataset.j] : l2[i];
-      const id = item.ts || ('x' + i + '_' + (b.dataset.j || ''));
-      const k = lk.indexOf(id);
-      if (k >= 0) { lk.splice(k, 1); item.likes = Math.max(0, (item.likes || 0) - 1); }
-      else { lk.push(id); item.likes = (item.likes || 0) + 1; }
-      store.set(LKEY, lk);
-      store.set(KEY, l2);
+    document.querySelectorAll('#gList .cmt-like').forEach(b => b.onclick = async () => {
+      const r = await Api.likeComment(+b.dataset.id);
+      if (!r) { toast('请先登录后再点赞'); return; }
       draw();
     });
-    document.querySelectorAll('#gList .cmt-del').forEach(b => b.onclick = () => {
+    document.querySelectorAll('#gList .cmt-del').forEach(b => b.onclick = async () => {
       if (!confirm('确定删除吗？')) return;
-      const l2 = store.get(KEY, []);
-      if (b.dataset.j != null && b.dataset.j !== '') l2[+b.dataset.i].r.splice(+b.dataset.j, 1);
-      else l2.splice(+b.dataset.i, 1);
-      store.set(KEY, l2);
+      const err = await Api.delComment(+b.dataset.id);
+      if (err) { toast(err); return; }
       draw();
     });
     document.querySelectorAll('#gList .cmt-rep').forEach(b => b.onclick = () => {
-      const f = $('#repForm' + b.dataset.i);
+      const f = $('#repForm' + b.dataset.id);
       const open = f.style.display !== 'none';
       document.querySelectorAll('#gList .rep-form').forEach(x => x.style.display = 'none');
-      if (!open) { f.style.display = 'flex'; f.dataset.to = b.dataset.to || ''; f.querySelector('.rep-text').placeholder = b.dataset.to ? `回复 @${b.dataset.to}…` : '写下你的回复…'; f.querySelector('.rep-name').focus(); }
+      if (!open) { f.style.display = 'flex'; f.dataset.to = b.dataset.to || ''; f.querySelector('.rep-text').placeholder = b.dataset.to ? `回复 @${b.dataset.to}…` : '写下你的回复…'; f.querySelector('.rep-text').focus(); }
     });
-    document.querySelectorAll('#gList .rep-send').forEach(b => b.onclick = () => {
-      const f = $('#repForm' + b.dataset.i);
-      const n = f.querySelector('.rep-name').value.trim(), x = f.querySelector('.rep-text').value.trim();
-      if (!n || !x) { alert('请填写昵称和内容'); return; }
-      const l2 = store.get(KEY, []);
-      const c = l2[+b.dataset.i];
-      c.r = c.r || [];
-      c.r.push({ n, x, to: f.dataset.to || '', ts: Date.now(), t: new Date().toLocaleString('zh-CN') });
-      store.set(KEY, l2);
+    document.querySelectorAll('#gList .rep-send').forEach(b => b.onclick = async () => {
+      const f = $('#repForm' + b.dataset.id);
+      const x = f.querySelector('.rep-text').value.trim();
+      if (!x) { alert('请填写内容'); return; }
+      const err = await Api.addComment('guest', 'guest', x, +b.dataset.id);
+      if (err) { toast(err); return; }
+      f.style.display = 'none';
       draw();
     });
   };
-  $('#gBtn').onclick = () => {
-    const n = $('#gName').value.trim(), x = $('#gText').value.trim();
-    if (!n || !x) { alert('请填写昵称和内容'); return; }
-    const list = store.get(KEY, []);
-    list.unshift({ n, x, ts: Date.now(), t: new Date().toLocaleString('zh-CN') });
-    store.set(KEY, list); $('#gText').value = ''; draw();
+  $('#gBtn').onclick = async () => {
+    const x = $('#gText').value.trim();
+    if (!x) { alert('请填写内容'); return; }
+    const err = await Api.addComment('guest', 'guest', x, null);
+    if (err) { toast(err); return; }
+    $('#gText').value = '';
+    draw();
   };
   draw();
 }
@@ -474,21 +430,12 @@ function goWork(url) {
 // 从作品页跳回后刷新剩余次数/套餐显示
 window.addEventListener('focus', () => { if (location.hash === '#/works' && Auth.user()) vWorks(); });
 
-function openWork(w) {
+async function openWork(w) {
   if (w.free) return goWork(w.url);
-  const plans = store.get(PKEY(), {});
-  const p = plans[w.id];
-  const now = Date.now();
-  if (p && ((p.ms && p.until > now) || (!p.ms && p.credits > 0))) {
-    if (!p.ms) { p.credits--; store.set(PKEY(), plans); toast('已扣减 1 次使用次数'); }
-    return goWork(w.url);
-  }
-  const uses = store.get(UKEY(), {});
-  const used = uses[w.id] || 0;
-  if (used < 3) {
-    uses[w.id] = used + 1;
-    store.set(UKEY(), uses);
-    toast(`免费体验第 ${used + 1}/3 次`);
+  const r = await Api.useWork(w.id);
+  if (r && r.ok) {
+    if (r.vip) toast('已扣减 1 次使用次数');
+    else toast(`免费体验第 ${3 - (r.left ?? 0)}/3 次`);
     return goWork(w.url);
   }
   showPayModal(w);
@@ -536,30 +483,19 @@ function showPayModal(w) {
     const done = () => { b.textContent = '已复制 ✓'; setTimeout(() => { b.textContent = '_Zc1908 📋'; }, 1500); };
     try { navigator.clipboard.writeText('_Zc1908').then(done).catch(done); } catch (_) { done(); }
   };
-  $('#redeemBtn').onclick = () => {
+  $('#redeemBtn').onclick = async () => {
     const code = $('#redeemInput').value.trim().toUpperCase();
-    let type = null;
+    if (!code) { toast('请输入开通码'); return; }
+    const b = $('#redeemBtn');
+    if (b.disabled) return;
+    b.disabled = true; b.textContent = '开通中…';
+    const err = await Api.redeem(w.id, code);
+    b.disabled = false; b.textContent = '立即开通';
+    if (err) { toast(err); return; }
     const nb = parseCode2(code);
-    if (nb) {
-      if (nb.acc !== acc2code(Auth.user() || '')) { toast('该开通码不属于当前账号，无法使用'); return; }
-      type = nb.plan;
-    } else {
-      type = parseCode(code); // 旧版通用码，不绑定账号
-      if (!type) { toast('开通码无效，请核对后再试'); return; }
-    }
-    const usedCodes = store.get('blog-used-codes', []);
-    if (usedCodes.includes(code)) { toast('该开通码已被使用，每个码仅限一次'); return; }
-    usedCodes.push(code);
-    store.set('blog-used-codes', usedCodes);
-    const plans = store.get(PKEY(), {});
-    const now = Date.now();
-    const pl = WORK_PLANS.find(x => x.k === type);
-    const cur = plans[w.id] || { credits: 0 };
-    if (pl.ms) plans[w.id] = { ms: pl.ms, until: Math.max(now, cur.until || 0) + pl.ms };
-    else plans[w.id] = { ms: 0, credits: (cur.credits || 0) + 1 };
-    store.set(PKEY(), plans);
+    const pl = WORK_PLANS.find(x => x.k === (nb ? nb.plan : parseCode(code)));
     m.remove();
-    toast(`🎉 ${pl.n}套餐开通成功，感谢支持！`);
+    toast(`🎉 ${pl ? pl.n : ''}套餐开通成功，感谢支持！`);
     goWork(w.url);
   };
 }
@@ -604,23 +540,21 @@ function vTools() {
   };
 }
 
-function vWorks() {
+async function vWorks() {
   const works = [
     { id: 'poster', icon: '🎨', name: 'AI 海报制作', desc: '在线海报设计工具：30+ 套精美模板、画布拖拽编辑、AI 智能文案与配图、二维码生成、一键导出 PNG/JPG/PDF。', url: 'https://ai-poster-yizhan.netlify.app/', tag: '在线工具' },
     { id: 'video', icon: '🎬', name: '影视快看 · 视频解析', desc: 'VIP 视频解析工具：粘贴各大平台视频链接一键解析，免会员在线观看，深色沉浸界面，手机端完美适配。', url: 'https://zc-jb.github.io/tech-blog/vip.html', tag: '在线工具' },
     { id: 'blog', icon: '⚡', name: '技术驿站', desc: '就是本站——专注实用技术的个人博客：11 篇技术长文、全文搜索、深色模式、评论互动、RSS 订阅。', url: '#/', tag: '个人博客', free: true },
   ];
-  const LKEY = 'blog-work-likes', SKEY = 'blog-liked-works';
-  const likes = store.get(LKEY, {});
-  const liked = store.get(SKEY, []);
-  const uses = store.get(UKEY(), {});
-  const plans = store.get(PKEY(), {});
-  const now = Date.now();
+  const st = await Api.worksStatus();
+  const wl = await Api.workLikes();
+  const likes = wl.likes || {};
+  const liked = wl.liked || [];
   const stateOf = w => {
     if (w.free) return '<span class="work-state free">永久免费</span>';
-    const p = plans[w.id];
-    if (p && ((p.ms && p.until > now) || (!p.ms && p.credits > 0))) return `<span class="work-state vip">✨ 已开通${p.ms ? ' · ' + new Date(p.until).toLocaleDateString() + ' 到期' : ' · 剩 ' + p.credits + ' 次'}</span>`;
-    return `<span class="work-state">免费体验 ${Math.max(0, 3 - (uses[w.id] || 0))}/3 次</span>`;
+    const s = st[w.id] || { type: 'free', left: 0 };
+    if (s.type === 'vip') return `<span class="work-state vip">✨ 已开通${s.until ? ' · ' + new Date(s.until).toLocaleDateString() + ' 到期' : ' · 剩 ' + s.left + ' 次'}</span>`;
+    return `<span class="work-state">免费体验 ${s.left}/3 次</span>`;
   };
   app.innerHTML = `<div class="card page-box"><h1>🧰 我的作品</h1><p class="muted">堆码不易，感谢支持！！！</p>
     <div class="works-grid">${works.map(w => `<a class="work-card" href="javascript:void 0" data-id="${w.id}">
@@ -629,17 +563,11 @@ function vWorks() {
       <p class="work-desc">${w.desc}</p>
       <div class="work-foot"><span class="work-go">立即体验 →</span><button class="work-like${liked.includes(w.id) ? ' on' : ''}" data-id="${w.id}">❤️ ${likes[w.id] || 0}</button></div></div></a>`).join('')}</div></div>`;
   document.querySelectorAll('.work-card').forEach(c => c.onclick = () => openWork(works.find(x => x.id === c.dataset.id)));
-  document.querySelectorAll('.work-like').forEach(b => b.onclick = e => {
+  document.querySelectorAll('.work-like').forEach(b => b.onclick = async e => {
     e.preventDefault();
     e.stopPropagation();
-    const id = b.dataset.id;
-    const lk = store.get(LKEY, {});
-    const ld = store.get(SKEY, []);
-    const k = ld.indexOf(id);
-    if (k >= 0) { ld.splice(k, 1); lk[id] = Math.max(0, (lk[id] || 0) - 1); }
-    else { ld.push(id); lk[id] = (lk[id] || 0) + 1; }
-    store.set(LKEY, lk);
-    store.set(SKEY, ld);
+    const r = await Api.toggleWorkLike(b.dataset.id);
+    if (!r) { toast('请先登录后再点赞'); return; }
     vWorks();
   });
 }
@@ -687,29 +615,14 @@ function vAbout() {
 }
 
 /* ---------- 登录认证 ---------- */
+/* ---------- 登录认证（走 Api，后端在线时会话存 MySQL） ---------- */
 const Auth = {
-  users() { return store.get('tb_users', []); },
-  user() { const s = store.get('tb_session', null); return s ? s.name : null; },
-  isGuest() { const s = store.get('tb_session', null); return !!(s && s.guest); },
-  login(name, pass) {
-    const u = this.users().find(x => x.name === name);
-    if (!u) return '账号不存在，请先注册';
-    if (u.pass !== pass) return '密码不正确，请重试';
-    store.set('tb_session', { name, guest: false });
-    return null;
-  },
-  register(name, pass) {
-    if (this.users().some(x => x.name === name)) return '该账号已被注册，请直接登录';
-    const us = this.users(); us.push({ name, pass });
-    store.set('tb_users', us);
-    store.set('tb_session', { name, guest: false });
-    return null;
-  },
-  guest() {
-    const name = '游客_' + Math.random().toString(36).slice(2, 6).toUpperCase();
-    store.set('tb_session', { name, guest: true });
-  },
-  logout() { try { localStorage.removeItem('tb_session'); } catch(e){} }
+  user() { const u = Api.user(); return u ? u.name : null; },
+  isGuest() { return Api.isGuest(); },
+  login(name, pass) { return Api.login(name, pass); },
+  register(name, pass) { return Api.register(name, pass); },
+  guest() { return Api.guestLogin(); },
+  logout() { return Api.logout(); }
 };
 
 function vAuth() {
@@ -743,18 +656,31 @@ function vAuth() {
     err.textContent = '';
   });
   const fail = m => { err.textContent = m; err.classList.remove('shake'); void err.offsetWidth; err.classList.add('shake'); };
-  const submit = () => {
+  const submit = async () => {
+    if (go.disabled) return;
     const name = $('#auName').value.trim(), pass = $('#auPass').value;
     if (!name) return fail('请输入账号 / 昵称');
     if (!pass || pass.length < 4) return fail('密码至少 4 位');
-    const e = mode === 'login' ? Auth.login(name, pass) : Auth.register(name, pass);
+    go.disabled = true;
+    const label = go.textContent;
+    go.textContent = '请稍候…';
+    const e = mode === 'login' ? await Auth.login(name, pass) : await Auth.register(name, pass);
+    go.disabled = false;
+    go.textContent = label;
     if (e) return fail(e);
     afterLogin();
   };
   go.onclick = submit;
   $('#auName').onkeydown = e => { if (e.key === 'Enter') submit(); };
   $('#auPass').onkeydown = e => { if (e.key === 'Enter') submit(); };
-  $('#auGuest').onclick = () => { Auth.guest(); afterLogin(); };
+  $('#auGuest').onclick = async () => {
+    const g = $('#auGuest');
+    if (g.disabled) return;
+    g.disabled = true; g.textContent = '正在进入…';
+    const e = await Auth.guest();
+    if (e) { g.disabled = false; g.textContent = '🚶 游客登录 · 随便逛逛'; return fail(e); }
+    afterLogin();
+  };
   setTimeout(() => $('#auName').focus(), 60);
 }
 
@@ -967,7 +893,10 @@ window.addEventListener('hashchange', route);
 })();
 
 /* ---------- 启动 ---------- */
-$('#logoutBtn').onclick = () => { Auth.logout(); renderUserChip(); route(); };
-renderUserChip();
-route();
+$('#logoutBtn').onclick = async () => { await Auth.logout(); renderUserChip(); route(); };
+(async () => {
+  await Api.boot();
+  renderUserChip();
+  route();
+})();
 })();

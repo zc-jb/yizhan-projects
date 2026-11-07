@@ -1,0 +1,118 @@
+import mysql from 'mysql2/promise';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const useSSL = process.env.DB_SSL === 'true';
+const sslConf = useSSL ? { minVersion: 'TLSv1.2' } : undefined;
+
+export const pool = mysql.createPool({
+  host: process.env.DB_HOST || '127.0.0.1',
+  port: Number(process.env.DB_PORT || 3306),
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASS || '',
+  database: process.env.DB_NAME || 'tech_blog',
+  ssl: sslConf,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+  charset: 'utf8mb4',
+  timezone: '+08:00',
+});
+
+const TABLES = [
+  `CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(32) NOT NULL UNIQUE,
+    pass_hash VARCHAR(160) NOT NULL,
+    is_guest TINYINT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  `CREATE TABLE IF NOT EXISTS sessions (
+    token VARCHAR(64) PRIMARY KEY,
+    user_id INT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_sess_user (user_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  `CREATE TABLE IF NOT EXISTS comments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    scope VARCHAR(8) NOT NULL,
+    slug VARCHAR(120) NOT NULL,
+    parent_id INT NULL,
+    user_id INT NOT NULL,
+    username VARCHAR(32) NOT NULL,
+    body VARCHAR(1000) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_cmt_lookup (scope, slug),
+    INDEX idx_cmt_parent (parent_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  `CREATE TABLE IF NOT EXISTS likes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    target VARCHAR(16) NOT NULL,
+    target_id INT NOT NULL,
+    user_id INT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_like (target, target_id, user_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  `CREATE TABLE IF NOT EXISTS work_likes (
+    work_key VARCHAR(20) NOT NULL,
+    user_id INT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (work_key, user_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  `CREATE TABLE IF NOT EXISTS entitlements (
+    user_id INT NOT NULL,
+    work_key VARCHAR(20) NOT NULL,
+    plan VARCHAR(10) NOT NULL DEFAULT 'free',
+    remaining INT NOT NULL DEFAULT 3,
+    expires_at DATETIME NULL,
+    PRIMARY KEY (user_id, work_key)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  `CREATE TABLE IF NOT EXISTS codes (
+    code VARCHAR(24) PRIMARY KEY,
+    plan VARCHAR(10) NOT NULL,
+    user_id INT NOT NULL,
+    used_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+];
+
+export async function initSchema() {
+  // 用独立连接建表后立即关闭，避免连接池的会话残留过期元数据
+  const conn = await mysql.createConnection({
+    host: process.env.DB_HOST || '127.0.0.1',
+    port: Number(process.env.DB_PORT || 3306),
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASS || '',
+    database: process.env.DB_NAME || 'tech_blog',
+    ssl: sslConf,
+    charset: 'utf8mb4',
+  });
+  try {
+    for (const sql of TABLES) await conn.query(sql);
+  } finally {
+    await conn.end();
+  }
+}
+
+// 建库（首次运行，库不存在时自动创建）
+export async function ensureDatabase() {
+  const name = process.env.DB_NAME || 'tech_blog';
+  const conn = await mysql.createConnection({
+    host: process.env.DB_HOST || '127.0.0.1',
+    port: Number(process.env.DB_PORT || 3306),
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASS || '',
+    ssl: sslConf,
+    charset: 'utf8mb4',
+  });
+  await conn.query(
+    `CREATE DATABASE IF NOT EXISTS \`${name}\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
+  );
+  await conn.end();
+}
