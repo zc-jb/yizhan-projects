@@ -6,12 +6,12 @@
 <title>技术驿站 · 全栈技术博客</title>
 <meta name="description" content="分享前端、后端、运维、数据库、AI 等技术文章的个人博客">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
-<link rel="stylesheet" href="css/style.css?v=20261106m">
+<link rel="stylesheet" href="css/style.css?v=20261107v">
 </head>
 <body>
 <header class="topbar">
   <div class="wrap topbar-in">
-    <a class="logo" href="#/">⚡ 技术驿站</a>
+    <a class="logo" href="#/"><span class="logo-mark">⚡</span><span class="logo-text">技术驿站<small>TECH STATION</small></span></a>
     <nav id="nav">
       <a href="#/" data-nav="home">首页</a>
       <a href="#/archive" data-nav="archive">归档</a>
@@ -34,33 +34,126 @@
 
 <main class="wrap" id="app"><!-- 由 app.js 渲染 --></main>
 
-<footer class="footer">
-  <div class="wrap footer-in">
-    <div class="f-brand">
-      <div class="f-logo">⚡ 技术驿站</div>
-      <p class="f-slogan">用代码记录成长 · 共 <span id="postCount"></span> 篇文章 · 持续更新中</p>
+<aside class="side-rail left" aria-label="技术交流">
+  <div class="rail-card">
+    <div class="rail-head"><span class="rail-ico">💬</span><b>技术交流</b></div>
+    <div class="rail-live"><i></i>技术人 · 在线交流</div>
+    <p class="rail-desc">来自四面八方的开发者，在这里分享经验、碰撞想法。</p>
+    <button class="rail-btn pri" id="railTech">进入交流区 →</button>
+    <button class="rail-btn ghost" id="railGo">微信交流</button>
+  </div>
+</aside>
+
+<aside class="side-rail right" aria-label="违规告知">
+  <div class="rail-card warn">
+    <div class="rail-head"><span class="rail-ico">⚠️</span><b>违规告知</b></div>
+    <p class="rail-desc">原创内容受保护，请尊重创作，转载请注明出处。</p>
+    <ul class="rail-list">
+      <li>禁止批量采集与镜像</li>
+      <li>转载请标注原文链接</li>
+      <li>侵权请联系删除</li>
+    </ul>
+    <button class="rail-btn ghost warm" id="railRule">联系处理 →</button>
+  </div>
+</aside>
+
+<div class="tp-overlay" id="techOverlay">
+  <div class="tp-modal" role="dialog" aria-modal="true" aria-label="技术交流">
+    <button class="tp-close" id="techClose" title="关闭">✕</button>
+    <div class="tp-main">
+      <div class="tp-head">
+        <div class="tp-title">技术交流</div>
+        <div class="tp-sub"><i></i><span id="tpSub">正在同步最新讨论…</span></div>
+      </div>
+      <div class="tp-tabs" id="tpTabs">
+        <button class="tp-tab on" data-sort="new">最新讨论</button>
+        <button class="tp-tab" data-sort="hot">热门讨论</button>
+      </div>
+      <div class="tp-msgs" id="tpMsgs"></div>
+      <div class="tp-empty on" id="tpEmpty">正在加载留言…</div>
+      <div class="tp-input">
+        <input id="tpText" maxlength="500" placeholder="输入你的技术观点……" autocomplete="off">
+        <div class="tp-tools"><span title="附件">📎</span><span title="代码">&lt;/&gt;</span><span title="表情">😊</span></div>
+        <button class="tp-send" id="tpSend">发送</button>
+      </div>
     </div>
-    <div class="f-card">
-      <div class="f-card-head">💬 技术咨询</div>
-      <div class="f-card-body">
-        <div class="f-card-left">
-          <span class="f-wx-label">微信号（点击复制）</span>
+    <aside class="tp-side">
+      <div class="tp-side-block">
+        <div class="tp-side-title">👥 参与者</div>
+        <div class="tp-avas" id="tpUsers"></div>
+        <p id="tpUsersMeta">暂无参与者</p>
+      </div>
+      <div class="tp-side-block">
+        <div class="tp-side-title">💬 交流统计</div>
+        <p><b id="tpMsgCount">0</b> 条留言 · <b id="tpLikeCount">0</b> 次点赞</p>
+      </div>
+      <div class="tp-side-block">
+        <div class="tp-side-title">📢 公告</div>
+        <p>友善交流，欢迎分享你的问题与思路。</p>
+      </div>
+      <div class="tp-side-note">数据来自站点留言板，实时同步。</div>
+    </aside>
+  </div>
+</div>
+
+<footer class="footer">
+  <div class="wrap">
+    <div class="f-cta" id="consultCard">
+      <div class="f-cta-text">
+        <div class="f-cta-title"><span class="f-dot"></span>技术咨询<span class="f-card-tag">微信</span></div>
+        <p>遇到技术难题，或想聊聊你的项目？扫码添加微信，一起把问题解决。</p>
+      </div>
+      <div class="f-cta-act">
+        <a class="f-qr-wrap" href="img/wechat-qr.png" download="技术咨询二维码.png" title="点击保存二维码">
+          <img class="f-qr-img" src="img/wechat-qr.png" alt="技术咨询二维码">
+        </a>
+        <div class="f-cta-btns">
           <button class="f-wx-id" id="wxCopy" title="点击复制微信号">_Zc1908 📋</button>
           <a class="qr-save" href="img/wechat-qr.png" download="技术咨询二维码.png">⬇ 保存二维码</a>
         </div>
-        <a href="img/wechat-qr.png" download="技术咨询二维码.png" title="点击保存二维码"><img class="f-qr-img" src="img/wechat-qr.png" alt="技术咨询二维码"></a>
       </div>
     </div>
   </div>
-  <div class="f-bottom">© 2026 技术驿站 · 把复杂的东西讲简单</div>
+  <div class="wrap footer-in">
+    <div class="f-brand">
+      <div class="f-logo"><span class="f-logo-mark">⚡</span><span class="f-logo-txt">技术驿站<small>TECH STATION</small></span></div>
+      <p class="f-slogan">把复杂的技术讲简单。这里记录全栈开发的实战经验与学习笔记，愿它成为你技术旅途中的一个落脚点。</p>
+      <div class="f-stats">
+        <span>📚 <b id="postCount"></b> 篇原创</span>
+        <span>⚡ 持续更新</span>
+        <span>🌙 深色模式</span>
+      </div>
+    </div>
+    <div class="f-col">
+      <h4>探索</h4>
+      <a href="#/">首页</a>
+      <a href="#/archive">文章归档</a>
+      <a href="#/tags">技术图谱</a>
+      <a href="#/guest">留言板</a>
+    </div>
+    <div class="f-col">
+      <h4>发现</h4>
+      <a href="#/tools">精品工具集</a>
+      <a href="#/works">我的作品</a>
+      <a href="#/about">关于本站</a>
+      <a href="rss.xml" target="_blank" rel="noopener">RSS 订阅</a>
+    </div>
+  </div>
+  <div class="f-bottom">
+    <div class="wrap f-bottom-in">
+      <span>© 2026 技术驿站 · 把复杂的东西讲简单</span>
+      <span class="f-made">用 <b>⚡ 与热爱</b> 驱动 · 全站持续更新中</span>
+    </div>
+  </div>
 </footer>
 <script>document.getElementById('wxCopy').onclick=function(){const b=this,t='_Zc1908';const ok=()=>{b.textContent='已复制 ✓';setTimeout(()=>b.textContent='_Zc1908 📋',1500)};const legacy=()=>{const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();try{document.execCommand('copy')}catch(e){}document.body.removeChild(ta);ok()};if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(ok).catch(legacy)}else legacy()}</script>
 
+<button class="tech-fab" id="techFab">💬 技术交流</button>
 <button id="toTop" title="回到顶部">↑</button>
 
 <script src="js/api.js?v=20261107c"></script>
 <script src="js/posts.js?v=20261107a"></script>
 <script src="js/nav-data.js?v=20261107a"></script>
-<script src="js/app.js?v=20261107c"></script>
+<script src="js/app.js?v=20261107u"></script>
 </body>
 </html>

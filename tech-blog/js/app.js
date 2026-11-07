@@ -119,6 +119,129 @@ window.addEventListener('scroll', () => {
 });
 $('#toTop').onclick = () => scrollTo({ top: 0, behavior: 'smooth' });
 
+/* ---------- 宽屏两侧悬浮栏 ---------- */
+const scrollToConsult = () => {
+  const card = $('#consultCard');
+  if (!card) return;
+  card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  card.classList.remove('flash');
+  void card.offsetWidth;
+  card.classList.add('flash');
+  setTimeout(() => card.classList.remove('flash'), 1500);
+};
+const railGo = $('#railGo');
+if (railGo) railGo.onclick = scrollToConsult;
+const railRule = $('#railRule');
+if (railRule) railRule.onclick = scrollToConsult;
+
+/* ---------- 技术交流面板（真实留言数据） ---------- */
+const tpOverlay = $('#techOverlay');
+let tpData = [], tpSort = 'new', tpSig = '', tpTimer = null, tpLoading = false;
+
+const tpAva = n => `<span class="tp-ava a${(String(n).length % 6) + 1}" title="${esc(n)}">${esc(String(n).slice(0, 1))}</span>`;
+
+const tpRender = () => {
+  const msgs = $('#tpMsgs');
+  if (!msgs) return;
+  const list = tpSort === 'hot' ? tpData.slice().sort((a, b) => (b.likes || 0) - (a.likes || 0)) : tpData;
+  msgs.innerHTML = list.map(c => {
+    const reps = (c.r || []).length
+      ? `<div class="tp-reps">${c.r.map(r => `<div class="tp-rep"><b>${esc(r.n)}</b>${esc(r.x)}</div>`).join('')}</div>`
+      : '';
+    return `<div class="tp-msg">
+      ${tpAva(c.n)}
+      <div class="tp-body">
+        <div class="tp-meta"><b>${esc(c.n)}</b><time>${esc(c.t || '')}</time>
+          <button class="tp-like${c.liked ? ' on' : ''}" data-like="${c.id}">👍 ${c.likes || 0}</button>
+        </div>
+        <p>${esc(c.x || '')}</p>
+        ${reps}
+      </div>
+    </div>`;
+  }).join('');
+
+  const empty = $('#tpEmpty');
+  if (empty) {
+    empty.classList.toggle('on', !list.length);
+    empty.textContent = tpLoading ? '正在加载留言…' : '还没有人发言，来发布第一条技术观点吧。';
+  }
+
+  const names = [...new Set(tpData.map(c => c.n))];
+  const likes = tpData.reduce((s, c) => s + (c.likes || 0), 0);
+  const users = $('#tpUsers');
+  if (users) users.innerHTML = names.slice(0, 6).map(tpAva).join('');
+  const usersMeta = $('#tpUsersMeta');
+  if (usersMeta) usersMeta.textContent = names.length ? `共 ${names.length} 位技术人参与` : '暂无参与者';
+  if ($('#tpMsgCount')) $('#tpMsgCount').textContent = tpData.length;
+  if ($('#tpLikeCount')) $('#tpLikeCount').textContent = likes;
+  if ($('#tpSub')) $('#tpSub').textContent = `已同步 ${tpData.length} 条讨论 · 共 ${names.length} 人参与`;
+};
+
+const tpLoad = async silent => {
+  if (!silent) { tpLoading = true; tpRender(); }
+  const list = await Api.comments('guest', 'guest');
+  const s = JSON.stringify(list.map(c => [c.id, c.likes, c.liked, (c.r || []).map(r => [r.id, r.x])]));
+  tpLoading = false;
+  if (!list.length && !tpSig) { tpData = []; tpRender(); return; }
+  if (silent && s === tpSig) return;
+  tpSig = s; tpData = list; tpRender();
+};
+
+const openTech = async () => {
+  tpOverlay.classList.add('on');
+  document.body.classList.add('tech-open');
+  await tpLoad();
+  const msgs = $('#tpMsgs');
+  if (msgs) msgs.scrollTop = msgs.scrollHeight;
+  setTimeout(() => $('#tpText').focus(), 120);
+  clearInterval(tpTimer);
+  tpTimer = setInterval(() => {
+    if (!tpOverlay.classList.contains('on')) { clearInterval(tpTimer); return; }
+    tpLoad(true);
+  }, 10000);
+};
+const closeTech = () => {
+  tpOverlay.classList.remove('on');
+  document.body.classList.remove('tech-open');
+  clearInterval(tpTimer);
+};
+if ($('#railTech')) $('#railTech').onclick = openTech;
+if ($('#techFab')) $('#techFab').onclick = openTech;
+if ($('#techClose')) $('#techClose').onclick = closeTech;
+tpOverlay.addEventListener('click', e => { if (!e.target.closest('.tp-modal')) closeTech(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && tpOverlay.classList.contains('on')) closeTech();
+});
+$('#tpTabs').addEventListener('click', e => {
+  const b = e.target.closest('.tp-tab');
+  if (!b) return;
+  tpSort = b.dataset.sort;
+  $$('#tpTabs .tp-tab').forEach(x => x.classList.toggle('on', x === b));
+  tpRender();
+});
+$('#tpMsgs').addEventListener('click', async e => {
+  const like = e.target.closest('[data-like]');
+  if (!like) return;
+  const r = await Api.likeComment(+like.dataset.like);
+  if (!r) { toast('请先登录后再点赞'); return; }
+  tpLoad(true);
+});
+
+const tpSend = async () => {
+  const el = $('#tpText');
+  if (!el) return;
+  const t = el.value.trim();
+  if (!t) return;
+  el.value = '';
+  const err = await Api.addComment('guest', 'guest', t, null);
+  if (err) { el.value = t; toast(err); return; }
+  await tpLoad();
+  const msgs = $('#tpMsgs');
+  if (msgs) msgs.scrollTop = msgs.scrollHeight;
+};
+if ($('#tpSend')) $('#tpSend').onclick = tpSend;
+if ($('#tpText')) $('#tpText').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); tpSend(); } });
+
 /* ---------- 视图 ---------- */
 function card(p) {
   return `<article class="card post-card">
@@ -134,9 +257,57 @@ let homeState = { q: '', cat: '', page: 1 };
 
 function vHome() {
   const cats = [...new Set(POSTS.map(p => p.cat))];
+  const tagTotal = new Set(POSTS.flatMap(p => p.tags)).size;
+  const navTotal = (typeof TOOL_NAV !== 'undefined' ? TOOL_NAV : []).reduce((s, g) => s + g.links.length, 0);
   app.innerHTML = `
-    <section class="hero"><div class="marquee"><div class="marquee-in"><span>你好！欢迎来到技术驿站，你的支持我的动力 ✦ </span><span>你好！欢迎来到技术驿站，你的支持我的动力 ✦ </span></div></div>
-      <p>分享前端、后端、运维、数据库、AI 等领域的实战经验与学习笔记，共 ${POSTS.length} 篇。</p></section>
+    <section class="hero">
+      <div class="hero-in">
+        <span class="hero-badge">⚡ Tech Station · 技术驿站</span>
+        <h1>把复杂的技术，<em>讲得简单</em></h1>
+        <p class="hero-sub">前端 · 后端 · 运维 · 数据库 · AI …… 一线实战经验与学习笔记，持续更新中。</p>
+        <div class="hero-stats">
+          <div><b>${POSTS.length}</b><span>技术长文</span></div>
+          <div><b>${cats.length}</b><span>内容方向</span></div>
+          <div><b>${tagTotal}</b><span>技术标签</span></div>
+        </div>
+        <div class="hero-actions">
+          <button type="button" class="hero-btn pri" id="heroRead">开始阅读 →</button>
+          <button type="button" class="hero-btn" id="heroConsult">技术咨询</button>
+        </div>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <div class="art-window" id="artCodeWin">
+          <div class="art-bar"><i></i><i></i><i></i><span>station.js</span></div>
+          <div class="art-code">
+            <p><b>const</b> station = <em>await</em> init();</p>
+            <p><b>station</b>.posts(<span>${POSTS.length}</span>);</p>
+            <p><b>station</b>.tags(<span>${tagTotal}</span>);</p>
+            <p><b>station</b>.ready(<span>true</span>);</p>
+          </div>
+          <div class="art-badge">● ONLINE · ALWAYS SHIPPING</div>
+        </div>
+        <div class="art-window art-about" id="artAbout" hidden>
+          <div class="art-bar"><i></i><i></i><i></i><span>about.md</span></div>
+          <div class="about-lines" id="aboutLines"></div>
+          <a class="art-enter" id="artEnter" href="#/archive" hidden>进入文章归档 →</a>
+        </div>
+      </div>
+    </section>
+    <div class="feature-row">
+      <a class="feat-card" href="#/tags">
+        <span class="feat-ic" style="background:linear-gradient(135deg,#4f46e5,#7c3aed)">🏷</span>
+        <div class="feat-txt"><b>技术图谱</b><span>${tagTotal} 个技术栈 · 按方向浏览</span></div>
+      </a>
+      <a class="feat-card" href="#/tools">
+        <span class="feat-ic" style="background:linear-gradient(135deg,#06b6d4,#3b82f6)">🧰</span>
+        <div class="feat-txt"><b>精品工具集</b><span>${navTotal || 800}+ 个在线工具随用随走</span></div>
+      </a>
+      <a class="feat-card" href="#/works">
+        <span class="feat-ic" style="background:linear-gradient(135deg,#f59e0b,#ec4899)">🚀</span>
+        <div class="feat-txt"><b>我的作品</b><span>自研工具 · 登录即免费体验</span></div>
+      </a>
+    </div>
+    <div class="sec-head"><h2>最新文章</h2><span>共 ${POSTS.length} 篇 · 持续更新</span></div>
     <div class="toolbar">
       <div class="search">🔍<input id="q" placeholder="搜索标题 / 简介 / 标签…" value="${esc(homeState.q)}"></div>
       <div class="chips" id="catChips">
@@ -153,6 +324,57 @@ function vHome() {
     $$('#catChips .chip').forEach(x => x.classList.toggle('on', x.dataset.cat === c));
     drawList();
   };
+
+  /* 点击「开始阅读」：在右侧面板中逐条呈现「关于本站」内容 */
+  const heroRead = $('#heroRead');
+  if (heroRead) heroRead.addEventListener('click', () => {
+    const codeWin = $('#artCodeWin'), about = $('#artAbout');
+    if (!codeWin || !about) return;
+    if (matchMedia('(max-width:1000px)').matches) { location.hash = '#/archive'; return; }
+    if (about.dataset.on === '1') { location.hash = '#/archive'; return; }
+    about.dataset.on = '1';
+    codeWin.hidden = true;
+    about.hidden = false;
+    const lines = $('#aboutLines');
+    const rows = [
+      ['h', '📚 内容方向'],
+      ['t', '前端 · 后端 · 运维 · 数据库 · AI'],
+      ['t', '开发工具 · 计算机网络 · 人工智能'],
+      ['h', '🛠 本站功能'],
+      ['t', '全文搜索 · 标签筛选 · 文章归档'],
+      ['t', '目录导航 · 代码高亮 · 一键复制'],
+      ['t', '深色模式 · 评论 · 留言板 · RSS'],
+      ['h', '✍️ 写作理念'],
+      ['t', '把复杂的东西讲简单'],
+      ['t', '能跑通 · 看得懂 · 用得上']
+    ];
+    rows.forEach(([kind, text], i) => setTimeout(() => {
+      if (!lines || !lines.isConnected) return;
+      const row = document.createElement('div');
+      row.className = 'about-line' + (kind === 'h' ? ' head' : '');
+      row.innerHTML = (kind === 'h' ? '' : '<i></i>') + esc(text);
+      lines.appendChild(row);
+    }, 160 + i * 280));
+    setTimeout(() => {
+      if (!about.isConnected) return;
+      const enter = $('#artEnter');
+      if (enter) enter.hidden = false;
+      if (heroRead.isConnected) heroRead.textContent = '进入文章归档 →';
+    }, 160 + rows.length * 280 + 120);
+  });
+
+  /* 点击「技术咨询」：平滑滚动到页脚技术咨询卡片 */
+  const heroConsult = $('#heroConsult');
+  if (heroConsult) heroConsult.addEventListener('click', () => {
+    const card = $('#consultCard');
+    if (!card) return;
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    card.classList.remove('flash');
+    void card.offsetWidth;
+    card.classList.add('flash');
+    setTimeout(() => card.classList.remove('flash'), 1500);
+  });
+
   drawList();
 }
 function $$(s){ return [...document.querySelectorAll(s)]; }
@@ -327,56 +549,171 @@ function vTags() {
 }
 
 function vGuest() {
-  app.innerHTML = `<div class="card page-box"><h1>💌 留言板</h1>
-    <p class="muted" style="margin-bottom:16px">欢迎留下你的足迹、建议或想看的主题～</p>
-    <div class="cmt-form">
-      <p class="muted" style="font-size:13px">以 <b>${esc(Auth.user() || '')}</b> 的身份留言</p>
-      <textarea id="gText" placeholder="写点什么…" maxlength="500"></textarea>
-      <button class="btn" id="gBtn">提交留言</button>
-    </div>
-    <div id="gList"></div></div>`;
-  const draw = async () => {
-    const list = await Api.comments('guest', 'guest');
-    $('#gList').innerHTML = list.map(c => {
-      const reps = (c.r || []).map(r => `<div class="cmt reply"><span class="who">${esc(r.n)}</span>${r.to ? `<span class="to">回复 @${esc(r.to)}</span>` : ''}<span class="when">${r.t}</span>${r.canDel ? `<button class="cmt-del" data-id="${r.id}">删除</button>` : ''}<button class="cmt-rep" data-id="${c.id}" data-to="${esc(r.n).replace(/"/g,'&quot;')}">回复</button><button class="cmt-like${r.liked ? ' on' : ''}" data-id="${r.id}">👍 ${r.likes || 0}</button><p class="what">${esc(r.x)}</p></div>`).join('');
-      return `<div class="cmt"><span class="who">${esc(c.n)}</span><span class="when">${c.t}</span>${c.canDel ? `<button class="cmt-del" data-id="${c.id}">删除</button>` : ''}<button class="cmt-rep" data-id="${c.id}" data-to="">回复</button><button class="cmt-like${c.liked ? ' on' : ''}" data-id="${c.id}">👍 ${c.likes || 0}</button><p class="what">${esc(c.x)}</p>${reps}<div class="rep-form" id="repForm${c.id}" style="display:none"><textarea class="rep-text" placeholder="写下你的回复…" maxlength="300"></textarea><button class="btn rep-send" data-id="${c.id}">发表回复</button></div></div>`;
-    }).join('') || '<p class="muted">还没有留言，来抢沙发～</p>';
-    document.querySelectorAll('#gList .cmt-like').forEach(b => b.onclick = async () => {
-      const r = await Api.likeComment(+b.dataset.id);
-      if (!r) { toast('请先登录后再点赞'); return; }
-      draw();
-    });
-    document.querySelectorAll('#gList .cmt-del').forEach(b => b.onclick = async () => {
-      if (!confirm('确定删除吗？')) return;
-      const err = await Api.delComment(+b.dataset.id);
-      if (err) { toast(err); return; }
-      draw();
-    });
-    document.querySelectorAll('#gList .cmt-rep').forEach(b => b.onclick = () => {
-      const f = $('#repForm' + b.dataset.id);
-      const open = f.style.display !== 'none';
-      document.querySelectorAll('#gList .rep-form').forEach(x => x.style.display = 'none');
-      if (!open) { f.style.display = 'flex'; f.dataset.to = b.dataset.to || ''; f.querySelector('.rep-text').placeholder = b.dataset.to ? `回复 @${b.dataset.to}…` : '写下你的回复…'; f.querySelector('.rep-text').focus(); }
-    });
-    document.querySelectorAll('#gList .rep-send').forEach(b => b.onclick = async () => {
-      const f = $('#repForm' + b.dataset.id);
-      const x = f.querySelector('.rep-text').value.trim();
-      if (!x) { alert('请填写内容'); return; }
-      const err = await Api.addComment('guest', 'guest', x, +b.dataset.id);
-      if (err) { toast(err); return; }
-      f.style.display = 'none';
-      draw();
-    });
+  const state = { tab: 'all', sort: 'new', q: '' };
+  let favs = store.get('blog-guest-favs', []);
+  let data = [], sig = '';
+
+  app.innerHTML = `<div class="mb">
+    <aside class="mb-side">
+      <div class="mb-brand">留言板<span>Message Board</span></div>
+      <nav class="mb-nav" id="mbNav">
+        <button class="on" data-tab="all">💬 全部留言</button>
+        <button data-tab="mine">🙋 我的留言</button>
+        <button data-tab="fav">⭐ 我的收藏</button>
+        <button data-tab="hot">🔥 精华留言</button>
+      </nav>
+    </aside>
+    <section class="mb-main">
+      <div class="mb-top">
+        <h1>留言板</h1>
+        <div class="mb-search">🔍<input id="mbQ" placeholder="搜索留言、用户" value="${esc(state.q)}"></div>
+        <button class="mb-write" id="mbWrite">✎ 写留言</button>
+      </div>
+      <div class="mb-toolbar">
+        <div class="mb-sorts" id="mbSort">
+          <button class="on" data-sort="new">最新</button>
+          <button data-sort="hot">热门</button>
+        </div>
+        <span class="mb-count" id="mbCount"></span>
+      </div>
+      <div class="mb-list" id="mbList"><div class="mb-loading">正在加载留言…</div></div>
+      <div class="mb-composer">
+        <textarea id="mbText" maxlength="500" placeholder="写下你的想法……"></textarea>
+        <button class="mb-pub" id="mbPub">发布</button>
+      </div>
+    </section>
+    <aside class="mb-right">
+      <div class="mb-widget"><div class="mb-wtitle">👥 活跃用户</div><div class="mb-users" id="mbUsers"></div></div>
+      <div class="mb-widget"><div class="mb-wtitle">🏷 热门话题</div><div class="mb-topics" id="mbTopics"></div></div>
+      <div class="mb-widget"><div class="mb-wtitle">📢 公告</div><p class="mb-note">欢迎来到技术交流区：友善发言、分享问题与想法，一起把技术聊明白。</p></div>
+    </aside>
+  </div>`;
+
+  const ava = n => `<span class="mb-ava v${(String(n).length % 6) + 1}">${esc(String(n).slice(0, 1))}</span>`;
+  const isFav = id => favs.includes(id);
+  const item = c => {
+    const reps = (c.r || []).map(r => `<div class="mb-rep"><b>${esc(r.n)}</b>${esc(r.x)}<time> · ${esc(r.t)}</time>${r.canDel ? `<button class="mb-rep-del" data-del="${r.id}">删除</button>` : ''}</div>`).join('');
+    return `<article class="mb-item" data-id="${c.id}">
+      ${ava(c.n)}
+      <div class="mb-ib">
+        <div class="mb-imeta"><b>${esc(c.n)}</b><time>${esc(c.t)}</time>${c.canDel ? `<button class="mb-del" data-del="${c.id}">删除</button>` : ''}</div>
+        <p class="mb-text">${esc(c.x)}</p>
+        <div class="mb-iact">
+          <button data-like="${c.id}" class="${c.liked ? 'liked' : ''}">👍 ${c.likes || 0}</button>
+          <button data-reply="${c.id}">💬 回复 ${(c.r || []).length}</button>
+          <button data-fav="${c.id}" class="${isFav(c.id) ? 'faved' : ''}">⭐ ${isFav(c.id) ? '已收藏' : '收藏'}</button>
+        </div>
+        ${reps ? `<div class="mb-reps">${reps}</div>` : ''}
+        <div class="mb-repform" hidden><textarea placeholder="写下你的回复…" maxlength="300"></textarea><button data-send="${c.id}">发送</button></div>
+      </div>
+    </article>`;
   };
-  $('#gBtn').onclick = async () => {
-    const x = $('#gText').value.trim();
-    if (!x) { alert('请填写内容'); return; }
+
+  const filtered = () => {
+    let list = data.slice();
+    const q = state.q.trim().toLowerCase();
+    if (state.tab === 'mine') list = list.filter(c => c.n === Auth.user());
+    if (state.tab === 'fav') list = list.filter(c => isFav(c.id));
+    if (state.tab === 'hot') list = list.filter(c => (c.likes || 0) > 0);
+    if (q) list = list.filter(c => (c.n + c.x).toLowerCase().includes(q));
+    if (state.sort === 'hot' || state.tab === 'hot') list.sort((a, b) => (b.likes || 0) - (a.likes || 0));
+    return list;
+  };
+
+  const render = () => {
+    const list = filtered();
+    $('#mbList').innerHTML = list.length ? list.map(item).join('') : '<div class="mb-loading">没有找到相关留言</div>';
+    $('#mbCount').textContent = `共 ${list.length} 条留言`;
+    const byUser = {};
+    data.forEach(c => { byUser[c.n] = (byUser[c.n] || 0) + 1; });
+    const users = Object.entries(byUser).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    $('#mbUsers').innerHTML = users.length
+      ? users.map(([n, cnt]) => `<div class="mb-user">${ava(n)}<b>${esc(n)}</b><span>${cnt} 条</span></div>`).join('')
+      : '<p class="mb-note">暂无用户发言</p>';
+    const KW = ['前端', '后端', '数据库', 'AI', '运维', '性能', '安全', '开源', '工具'];
+    const topics = KW.map(k => [k, data.filter(c => (c.x || '').toLowerCase().includes(k.toLowerCase())).length]).filter(x => x[1] > 0).slice(0, 6);
+    $('#mbTopics').innerHTML = topics.length
+      ? topics.map(([k, n]) => `<span class="mb-topic">${k} ${n}</span>`).join('')
+      : '<p class="mb-note">暂无热门话题</p>';
+  };
+
+  const load = async silent => {
+    const list = await Api.comments('guest', 'guest');
+    const s = JSON.stringify(list.map(c => [c.id, c.likes, c.canDel, (c.r || []).map(r => [r.id, r.likes, r.x])]));
+    if (silent && s === sig) return;
+    sig = s; data = list; render();
+  };
+
+  $('#mbList').onclick = async e => {
+    const del = e.target.closest('[data-del]');
+    if (del) {
+      if (!confirm('确定删除吗？')) return;
+      const err = await Api.delComment(+del.dataset.del);
+      if (err) { toast(err); return; }
+      load(); return;
+    }
+    const like = e.target.closest('[data-like]');
+    if (like) {
+      const r = await Api.likeComment(+like.dataset.like);
+      if (!r) { toast('请先登录后再点赞'); return; }
+      load(); return;
+    }
+    const fav = e.target.closest('[data-fav]');
+    if (fav) {
+      const id = +fav.dataset.fav;
+      favs = favs.includes(id) ? favs.filter(x => x !== id) : [id, ...favs];
+      store.set('blog-guest-favs', favs); render(); return;
+    }
+    const rep = e.target.closest('[data-reply]');
+    if (rep) {
+      const f = rep.closest('.mb-item').querySelector('.mb-repform');
+      f.hidden = !f.hidden;
+      if (!f.hidden) f.querySelector('textarea').focus();
+      return;
+    }
+    const send = e.target.closest('[data-send]');
+    if (send) {
+      const f = send.closest('.mb-repform');
+      const x = f.querySelector('textarea').value.trim();
+      if (!x) return;
+      const err = await Api.addComment('guest', 'guest', x, +send.dataset.send);
+      if (err) { toast(err); return; }
+      f.hidden = true; load();
+    }
+  };
+
+  $('#mbNav').onclick = e => {
+    const b = e.target.closest('button'); if (!b) return;
+    state.tab = b.dataset.tab;
+    $$('#mbNav button').forEach(x => x.classList.toggle('on', x === b));
+    render();
+  };
+  $('#mbSort').onclick = e => {
+    const b = e.target.closest('button'); if (!b) return;
+    state.sort = b.dataset.sort;
+    $$('#mbSort button').forEach(x => x.classList.toggle('on', x === b));
+    render();
+  };
+  $('#mbQ').oninput = e => { state.q = e.target.value; render(); };
+  $('#mbWrite').onclick = () => {
+    $('#mbText').focus();
+    $('#mbText').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+  $('#mbPub').onclick = async () => {
+    const x = $('#mbText').value.trim();
+    if (!x) { toast('请填写内容'); return; }
     const err = await Api.addComment('guest', 'guest', x, null);
     if (err) { toast(err); return; }
-    $('#gText').value = '';
-    draw();
+    $('#mbText').value = '';
+    load();
   };
-  draw();
+
+  load();
+  if (window.__mbTimer) clearInterval(window.__mbTimer);
+  window.__mbTimer = setInterval(() => {
+    if (!document.getElementById('mbList')) { clearInterval(window.__mbTimer); return; }
+    load(true);
+  }, 10000);
 }
 
 const WORK_PLANS = [
