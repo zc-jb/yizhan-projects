@@ -3,153 +3,493 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>客服工作台 · 技术驿站</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧑‍💼</text></svg>">
+<title>数据总览 · 技术驿站运营中心</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#0f1117;--card:#171b26;--line:#262c3d;--txt:#e6e8ee;--dim:#9aa1b2;--blue:#4d9fff;--purple:#8b5cf6;--green:#2ecc71;--red:#e5484d;--gold:#f5b942}
-body{background:var(--bg);color:var(--txt);font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;padding:20px;min-height:100vh}
-.wrap{max-width:1160px;margin:0 auto}
-header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:22px}
-h1{font-size:22px;font-weight:800;letter-spacing:.5px}
-.tag{font-size:12px;color:var(--dim);border:1px solid var(--line);border-radius:999px;padding:3px 10px}
-.spacer{flex:1}
-.tk{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 12px;color:var(--txt);font-size:13px;width:220px;outline:none;font-family:inherit}
-.tk:focus{border-color:var(--blue)}
-.btn{background:linear-gradient(120deg,#1e6fff,#8b5cf6);border:none;color:#fff;border-radius:10px;padding:10px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+:root{
+  --bg:#050a12;--card:#0b1422;--card2:#08101c;--line:rgba(64,110,168,.22);--line2:rgba(77,159,255,.4);
+  --txt:#e8f1ff;--dim:#8ba0bd;--dim2:#5d708c;
+  --blue:#4d9fff;--purple:#8b5cf6;--green:#2ee6a8;--red:#ff5d6c;--gold:#ffc043;--cyan:#39d0d8;
+}
+body{
+  background:
+    radial-gradient(1200px 640px at 10% -12%, rgba(77,159,255,.16), transparent 62%),
+    radial-gradient(920px 540px at 94% -6%, rgba(139,92,246,.15), transparent 60%),
+    linear-gradient(rgba(77,159,255,.042) 1px, transparent 1px) 0 0/38px 38px,
+    linear-gradient(90deg, rgba(77,159,255,.042) 1px, transparent 1px) 0 0/38px 38px,
+    var(--bg);
+  color:var(--txt);min-height:100vh;padding-bottom:46px;
+  font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:repeating-linear-gradient(transparent 0 2px, rgba(255,255,255,.011) 2px 4px)}
+
+/* ---------- 顶栏 ---------- */
+.topbar{
+  position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:15px;flex-wrap:wrap;
+  padding:13px 26px;border-bottom:1px solid var(--line);
+  background:rgba(5,10,18,.85);backdrop-filter:blur(18px);
+}
+.brand{display:flex;align-items:center;gap:11px}
+.logo{
+  width:40px;height:40px;border-radius:11px;display:grid;place-items:center;position:relative;
+  background:linear-gradient(135deg,#2f7cff,#8b5cf6);box-shadow:0 0 22px rgba(77,159,255,.45);
+}
+.logo::after{content:'';position:absolute;inset:-1px;border-radius:12px;border:1px solid rgba(143,195,255,.45)}
+.logo svg{width:19px;height:19px;stroke:#fff;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.brand h1{font-size:17px;font-weight:750;letter-spacing:.4px}
+.brand p{font-size:11.5px;color:var(--dim2);margin-top:2px;letter-spacing:.4px}
+.hud{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--dim)}
+.hud .live{
+  display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(46,230,168,.32);
+  background:rgba(46,230,168,.07);border-radius:999px;padding:4px 10px;color:var(--green);
+  font-weight:700;letter-spacing:.8px;font-size:11px;
+}
+.hud .live i{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 1.8s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(46,230,168,.5)}70%{box-shadow:0 0 0 9px rgba(46,230,168,0)}100%{box-shadow:0 0 0 0 rgba(46,230,168,0)}}
+.hud time{font-family:ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums;color:#b9cde8;letter-spacing:.3px}
+.env{
+  display:inline-flex;align-items:center;gap:7px;font-size:12px;
+  border:1px solid var(--line);border-radius:999px;padding:5px 12px;color:var(--dim);
+  transition:color .2s,border-color .2s,background .2s;
+}
+.env::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--gold)}
+.env.ok::before{background:var(--green);box-shadow:0 0 10px rgba(46,230,168,.85)}
+.controls{margin-left:auto;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.tk{
+  width:228px;background:var(--card);border:1px solid var(--line);border-radius:10px;
+  padding:9px 12px;color:var(--txt);font-size:13px;outline:none;font-family:inherit;transition:border-color .18s,box-shadow .18s;
+}
+.tk:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(77,159,255,.14)}
+.btn{
+  background:linear-gradient(120deg,#2f7cff,#8b5cf6);border:none;color:#fff;border-radius:10px;
+  padding:10px 18px;font-size:14px;font-weight:650;cursor:pointer;font-family:inherit;
+  box-shadow:0 6px 18px rgba(47,124,255,.28);transition:transform .15s,box-shadow .15s,opacity .15s;
+}
+.btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 10px 24px rgba(47,124,255,.38)}
 .btn:disabled{opacity:.55;cursor:default}
-.btn.ghost{background:none;border:1px solid var(--line);color:var(--dim);font-weight:600}
-.grid{display:grid;gap:14px}
-.stats{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-bottom:18px}
-.stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 16px 14px}
-.stat b{display:block;font-size:26px;font-weight:800;line-height:1.2;font-variant-numeric:tabular-nums}
-.stat span{font-size:12px;color:var(--dim);display:block;margin-top:6px}
-.stat i{font-size:11px;color:var(--dim);font-style:normal;display:block;margin-top:4px;opacity:.8}
-.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
-.panel h2{font-size:15px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
-.panel h2 em{font-style:normal;font-size:11px;color:var(--dim);font-weight:400}
-.cols{grid-template-columns:1.25fr 1fr;align-items:start}
-@media(max-width:860px){.cols{grid-template-columns:1fr}}
-.field{margin-bottom:12px}
-.field label{display:block;font-size:12px;color:var(--dim);margin-bottom:6px}
-.field input,.field select{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:10px 12px;color:var(--txt);font-size:14px;outline:none;font-family:inherit}
-.field input:focus,.field select:focus{border-color:var(--blue)}
+.btn.ghost{background:rgba(255,255,255,.02);border:1px solid var(--line);color:var(--dim);font-weight:600;box-shadow:none}
+.btn.ghost:hover{border-color:var(--line2);color:var(--txt);transform:none;box-shadow:none}
+
+/* ---------- 布局 ---------- */
+.main{max-width:1340px;margin:0 auto;padding:20px 26px 0;position:relative;z-index:1}
+.grid{display:grid;gap:13px}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(160px,1fr));margin-bottom:13px}
+.charts{grid-template-columns:minmax(0,1.62fr) minmax(0,1fr);margin-bottom:13px}
+.workspace{grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);align-items:start}
+.stack{display:grid;gap:13px}
+
+/* ---------- 数据滚动条 ---------- */
+.ticker{
+  position:relative;overflow:hidden;border:1px solid var(--line);border-radius:12px;
+  background:rgba(8,15,26,.8);margin-bottom:13px;
+}
+.ticker::before,.ticker::after{content:'';position:absolute;top:0;bottom:0;width:48px;z-index:1;pointer-events:none}
+.ticker::before{left:0;background:linear-gradient(90deg,rgba(5,10,18,.96),transparent)}
+.ticker::after{right:0;background:linear-gradient(270deg,rgba(5,10,18,.96),transparent)}
+.track{display:flex;width:max-content;padding:9px 0;animation:tick 38s linear infinite;font-size:11.5px;color:var(--dim)}
+.track span{display:inline-flex;align-items:center;gap:7px;padding:0 20px;white-space:nowrap;border-right:1px solid rgba(90,140,205,.15)}
+.track b{color:var(--txt);font-variant-numeric:tabular-nums;font-weight:700;font-size:12px}
+@keyframes tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+/* ---------- KPI ---------- */
+.kpi{
+  position:relative;overflow:hidden;border:1px solid var(--line);border-radius:14px;
+  background:linear-gradient(180deg,rgba(255,255,255,.032),rgba(255,255,255,0) 58%),var(--card);
+  padding:15px 16px 16px;transition:border-color .2s,transform .2s,box-shadow .2s;
+}
+.kpi::before{content:'';position:absolute;left:0;top:0;height:2px;width:100%}
+.kpi::after{content:'';position:absolute;right:-30px;top:-30px;width:90px;height:90px;border-radius:50%;opacity:.22;pointer-events:none}
+.kpi[data-tone=blue]::before{background:linear-gradient(90deg,var(--blue),transparent 78%)}
+.kpi[data-tone=purple]::before{background:linear-gradient(90deg,var(--purple),transparent 78%)}
+.kpi[data-tone=green]::before{background:linear-gradient(90deg,var(--green),transparent 78%)}
+.kpi[data-tone=gold]::before{background:linear-gradient(90deg,var(--gold),transparent 78%)}
+.kpi[data-tone=cyan]::before{background:linear-gradient(90deg,var(--cyan),transparent 78%)}
+.kpi[data-tone=blue]::after{background:radial-gradient(circle,rgba(77,159,255,.5),transparent 68%)}
+.kpi[data-tone=purple]::after{background:radial-gradient(circle,rgba(139,92,246,.5),transparent 68%)}
+.kpi[data-tone=green]::after{background:radial-gradient(circle,rgba(46,230,168,.45),transparent 68%)}
+.kpi[data-tone=gold]::after{background:radial-gradient(circle,rgba(255,192,67,.45),transparent 68%)}
+.kpi[data-tone=cyan]::after{background:radial-gradient(circle,rgba(57,208,216,.45),transparent 68%)}
+.kpi .ico{position:absolute;right:14px;top:14px;opacity:.42}
+.kpi .ico svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.kpi[data-tone=blue] .ico{color:var(--blue)}
+.kpi[data-tone=purple] .ico{color:var(--purple)}
+.kpi[data-tone=green] .ico{color:var(--green)}
+.kpi[data-tone=gold] .ico{color:var(--gold)}
+.kpi[data-tone=cyan] .ico{color:var(--cyan)}
+.kpi b{
+  display:block;font-size:29px;font-weight:800;line-height:1.15;letter-spacing:-.6px;
+  font-variant-numeric:tabular-nums;word-break:break-all;
+  background:linear-gradient(180deg,#e2efff,#4d9fff);-webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+.kpi[data-tone=purple] b{background:linear-gradient(180deg,#e9e0ff,#8b5cf6);-webkit-background-clip:text;background-clip:text}
+.kpi[data-tone=green] b{background:linear-gradient(180deg,#dcfff2,#2ee6a8);-webkit-background-clip:text;background-clip:text}
+.kpi[data-tone=gold] b{background:linear-gradient(180deg,#fff3d4,#ffc043);-webkit-background-clip:text;background-clip:text}
+.kpi[data-tone=cyan] b{background:linear-gradient(180deg,#dcfbff,#39d0d8);-webkit-background-clip:text;background-clip:text}
+.kpi .lbl{display:block;font-size:12px;color:var(--dim);margin-top:4px;letter-spacing:.3px}
+.kpi .sub{display:block;font-size:10.5px;color:var(--dim2);margin-top:5px;padding-right:36px;line-height:1.5}
+.kpi .spark{position:absolute;right:12px;bottom:11px;width:74px;height:22px;opacity:.5}
+.kpi.click{cursor:pointer}
+.kpi.click:hover{border-color:rgba(77,159,255,.6);transform:translateY(-2px);box-shadow:0 14px 30px rgba(0,0,0,.34),0 0 0 1px rgba(77,159,255,.12)}
+.kpi .more{position:absolute;right:14px;bottom:11px;font-size:10.5px;font-style:normal;color:var(--dim2);opacity:0;transition:opacity .18s,color .18s}
+.kpi.click:hover .more{opacity:1;color:var(--blue)}
+
+/* ---------- 面板 ---------- */
+.panel{
+  position:relative;border:1px solid var(--line);border-radius:14px;
+  background:linear-gradient(180deg,rgba(18,30,48,.72),rgba(8,14,24,.86));
+  padding:16px 18px;box-shadow:inset 0 1px 0 rgba(255,255,255,.025),0 16px 36px rgba(0,0,0,.28);
+}
+.panel::before{content:'';position:absolute;left:18px;right:18px;top:0;height:1px;background:linear-gradient(90deg,transparent,rgba(77,159,255,.4),transparent)}
+.panel-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:13px}
+.panel-h h2{font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px;letter-spacing:.3px}
+.panel-h h2::before{content:'';width:3px;height:13px;border-radius:2px;background:linear-gradient(180deg,var(--blue),var(--purple))}
+.panel-h h2 em{font-style:normal;font-size:11px;color:var(--dim2);font-weight:400}
+.legend{display:flex;gap:12px;font-size:11px;color:var(--dim)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:8px;height:8px;border-radius:50%;display:inline-block}
+
+/* ---------- 图表 ---------- */
+.chart-box{position:relative}
+.chart-svg{width:100%;height:auto;display:block}
+.chart-svg text{font-family:inherit}
+.chart-svg .axis{fill:var(--dim2);font-size:10px}
+.chart-svg.anim path{animation:draw .6s ease both}
+@keyframes draw{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+.chart-svg .pt{transition:r .15s}
+.chart-svg .pt:hover{r:5}
+.donut-wrap{display:flex;align-items:center;gap:16px;min-height:186px}
+#donut{flex:none}
+.donut-svg{width:152px;height:152px}
+.donut-svg text{font-family:inherit}
+.donut-svg .dnum{fill:#e8f1ff;font-size:30px;font-weight:800}
+.donut-svg .dlbl{fill:var(--dim2);font-size:10.5px}
+.legend-list{flex:1;display:flex;flex-direction:column;gap:7px;min-width:0}
+.lg{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--dim)}
+.lg i{width:8px;height:8px;border-radius:50%;flex:none}
+.lg b{color:var(--txt);font-weight:600;font-size:12px}
+.lg s{text-decoration:none;margin-left:auto;font-variant-numeric:tabular-nums;white-space:nowrap}
+.lg em{font-style:normal;color:var(--dim2);width:66px;text-align:right;font-variant-numeric:tabular-nums}
+
+/* ---------- 表单 ---------- */
+.field{margin-bottom:11px}
+.field label{display:block;font-size:11.5px;color:var(--dim);margin-bottom:6px;letter-spacing:.2px}
+.field input,.field select{
+  width:100%;background:var(--card2);border:1px solid var(--line);border-radius:10px;
+  padding:10px 12px;color:var(--txt);font-size:13.5px;outline:none;font-family:inherit;transition:border-color .18s,box-shadow .18s;
+}
+.field input:focus,.field select:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(77,159,255,.13)}
+.field input::placeholder{color:var(--dim2)}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.msg{font-size:13px;line-height:1.7;margin-top:10px;word-break:break-all}
+.msg{font-size:12.5px;line-height:1.7;margin-top:10px;word-break:break-all}
 .msg.ok{color:var(--green)} .msg.err{color:var(--red)}
-.codebox{display:flex;align-items:center;gap:10px;background:var(--bg);border:1px dashed var(--blue);border-radius:10px;padding:12px 14px;margin-top:10px}
-.codebox b{font-size:19px;letter-spacing:1.5px;color:var(--blue);font-variant-numeric:tabular-nums;flex:1}
-.mini{border:1px solid var(--blue);background:none;color:var(--blue);border-radius:8px;padding:5px 11px;font-size:12px;cursor:pointer;font-family:inherit}
-.charts{grid-template-columns:1fr 1fr;margin-top:0;margin-bottom:18px}
-.bars{display:flex;align-items:flex-end;gap:8px;height:96px;padding-top:6px}
-.bar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px;height:100%}
-.bar u{display:block;width:100%;background:linear-gradient(180deg,var(--blue),rgba(77,159,255,.35));border-radius:6px 6px 2px 2px;min-height:2px;text-decoration:none}
-.bar u.p{background:linear-gradient(180deg,var(--purple),rgba(139,92,246,.35))}
-.bar s{font-size:10px;color:var(--dim);text-decoration:none}
-.list{display:flex;flex-direction:column;gap:8px;max-height:330px;overflow:auto}
-.item{display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:9px 12px;font-size:13px}
-.item b{font-family:ui-monospace,Consolas,monospace;color:var(--blue);letter-spacing:.5px}
-.item span{flex:1;color:var(--dim);font-size:12px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pill{font-size:11px;border-radius:999px;padding:2px 8px;border:1px solid var(--line);color:var(--dim)}
-.pill.on{color:var(--green);border-color:rgba(46,204,113,.4)}
-.pill.off{color:var(--gold);border-color:rgba(245,185,66,.35)}
-.user{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:var(--bg)}
-.user .top{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700}
+.codebox{
+  display:flex;align-items:center;gap:10px;margin-top:11px;padding:13px 15px;
+  background:linear-gradient(120deg,rgba(77,159,255,.1),rgba(139,92,246,.1));
+  border:1px dashed rgba(77,159,255,.55);border-radius:12px;box-shadow:0 0 22px rgba(77,159,255,.12) inset;
+}
+.codebox b{font-size:19px;letter-spacing:1.6px;color:#8fc3ff;font-variant-numeric:tabular-nums;flex:1}
+.mini{
+  border:1px solid rgba(77,159,255,.5);background:rgba(77,159,255,.08);color:#8fc3ff;
+  border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;font-family:inherit;transition:background .15s;
+}
+.mini:hover{background:rgba(77,159,255,.18)}
+
+/* ---------- 数据流 ---------- */
+.stream{display:flex;flex-direction:column;gap:6px;max-height:238px;overflow:auto;padding-right:2px}
+.sitem{
+  display:flex;align-items:center;gap:9px;background:rgba(10,19,32,.75);border:1px solid var(--line);
+  border-radius:9px;padding:8px 11px;font-size:12px;position:relative;overflow:hidden;
+  transition:border-color .16s,background .16s;
+}
+.sitem::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--blue);opacity:.75}
+.sitem.done::before{background:var(--green)}
+.sitem:hover{border-color:var(--line2);background:rgba(15,27,45,.9)}
+.sitem b{font-family:ui-monospace,Consolas,monospace;color:#8fc3ff;letter-spacing:.6px;font-weight:600;white-space:nowrap}
+.sitem span{flex:1;color:var(--dim);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sitem time{color:var(--dim2);font-size:10.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pill{font-size:10.5px;border-radius:999px;padding:2px 9px;border:1px solid var(--line);color:var(--dim);white-space:nowrap}
+.pill.on{color:var(--green);border-color:rgba(46,230,168,.38);background:rgba(46,230,168,.08)}
+.pill.off{color:var(--gold);border-color:rgba(255,192,67,.34);background:rgba(255,192,67,.07)}
+
+/* ---------- 账号卡 ---------- */
+.user{
+  border:1px solid var(--line);border-radius:12px;padding:11px 12px;margin-bottom:8px;
+  background:var(--card2);transition:border-color .16s,box-shadow .16s;
+}
+.user:hover{border-color:var(--line2);box-shadow:0 0 0 1px rgba(77,159,255,.1)}
+.user .top{display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:700;flex-wrap:wrap}
+.avatar{
+  width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:12px;font-weight:800;
+  background:linear-gradient(135deg,rgba(77,159,255,.28),rgba(139,92,246,.28));
+  color:#bfd9ff;border:1px solid rgba(77,159,255,.32);text-transform:uppercase;flex:none;
+}
 .user .top span{font-size:11px;color:var(--dim);font-weight:400}
-.user .ents{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px}
-.ent{font-size:11px;border:1px solid var(--line);border-radius:6px;padding:3px 7px;color:var(--dim)}
-.empty{color:var(--dim);font-size:13px;text-align:center;padding:18px 0}
-.stat{position:relative}
-.stat.click{cursor:pointer;transition:border-color .15s,transform .15s,box-shadow .15s}
-.stat.click:hover{border-color:var(--blue);transform:translateY(-2px)}
-.stat .more{position:absolute;right:12px;bottom:9px;font-size:10px;color:var(--dim);font-style:normal}
-.stat.click:hover .more{color:var(--blue)}
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:99;padding:18px}
-.modal.on{display:flex}
-.modal-box{background:var(--card);border:1px solid var(--line);border-radius:14px;width:min(880px,96vw);max-height:82vh;display:flex;flex-direction:column;overflow:hidden}
-.modal-box header{display:flex;align-items:center;justify-content:space-between;padding:13px 18px;border-bottom:1px solid var(--line);margin:0}
-.modal-box h3{margin:0;font-size:15px}
-.modal-box header button{background:none;border:none;color:var(--dim);font-size:18px;cursor:pointer;line-height:1}
-.modal-box header button:hover{color:var(--txt)}
+.user .ents{margin-top:9px;display:flex;flex-wrap:wrap;gap:6px}
+.ent{
+  font-size:10.5px;border:1px solid var(--line);border-radius:7px;padding:3px 8px;color:var(--dim);
+  background:rgba(255,255,255,.02);
+}
+.empty{color:var(--dim2);font-size:12.5px;text-align:center;padding:22px 0}
+
+/* ---------- 开通码查询 ---------- */
+.qfilters{display:grid;grid-template-columns:repeat(6,minmax(0,1fr)) auto auto;gap:10px;align-items:end}
+.qfilters .btn{white-space:nowrap}
+.qwrap{margin-top:13px;max-height:430px;overflow:auto;border:1px solid var(--line);border-radius:12px;background:var(--card2)}
+.qwrap .tbl th{background:var(--card2)}
+.qwrap .tbl td{white-space:nowrap}
+.qwrap .tbl td:nth-child(2){white-space:normal}
+.qwrap .empty{padding:24px 0}
+
+/* ---------- 弹窗 ---------- */
+.modal{position:fixed;inset:0;background:rgba(3,6,12,.76);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:99;padding:18px}
+.modal.on{display:flex;animation:fade .16s ease}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.modal-box{
+  background:var(--card);border:1px solid var(--line2);border-radius:16px;width:min(920px,96vw);
+  max-height:84vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 26px 74px rgba(0,0,0,.6);
+  animation:pop .18s ease;
+}
+@keyframes pop{from{transform:translateY(8px) scale(.99);opacity:.6}to{transform:none;opacity:1}}
+.modal-box header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line)}
+.modal-box h3{font-size:14.5px;font-weight:700}
+.modal-box header button{background:none;border:none;color:var(--dim);font-size:17px;cursor:pointer;line-height:1;padding:4px 8px;border-radius:8px}
+.modal-box header button:hover{color:var(--txt);background:rgba(255,255,255,.05)}
 .modal-body{overflow:auto}
 .tbl{width:100%;border-collapse:collapse;font-size:12.5px}
-.tbl th{position:sticky;top:0;background:var(--card);color:var(--dim);font-weight:600;text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);white-space:nowrap}
-.tbl td{padding:9px 14px;border-bottom:1px dashed var(--line);color:var(--txt);vertical-align:top}
+.tbl th{
+  position:sticky;top:0;background:var(--card);color:var(--dim2);font-weight:600;text-align:left;
+  padding:10px 15px;border-bottom:1px solid var(--line2);white-space:nowrap;font-size:11.5px;letter-spacing:.2px;z-index:1;
+}
+.tbl td{padding:9px 15px;border-bottom:1px solid rgba(44,56,73,.45);color:var(--txt);vertical-align:top}
+.tbl tbody tr:hover td{background:rgba(77,159,255,.05)}
 .tbl td:first-child{white-space:nowrap}
 .tbl tr:last-child td{border-bottom:none}
-.tbl .mono{font-family:ui-monospace,Consolas,monospace;color:var(--blue);letter-spacing:.4px}
-footer{text-align:center;color:var(--dim);font-size:12px;margin-top:22px}
-footer a{color:var(--blue);text-decoration:none}
+.tbl .mono{font-family:ui-monospace,Consolas,monospace;color:#8fc3ff;letter-spacing:.4px}
+
+/* ---------- 明细弹窗搜索 / 操作 ---------- */
+.msearch{display:flex;gap:8px;padding:12px 15px;border-bottom:1px solid var(--line);background:rgba(10,19,32,.5)}
+.msearch input{
+  flex:1;background:var(--card2);border:1px solid var(--line);border-radius:9px;padding:9px 12px;
+  color:var(--txt);font-size:13px;outline:none;font-family:inherit;transition:border-color .18s,box-shadow .18s;
+}
+.msearch input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(77,159,255,.13)}
+.msearch .btn{padding:9px 16px;font-size:13px}
+.tbl .mini{padding:3px 10px;font-size:11px;border-radius:7px;font-family:inherit;cursor:pointer}
+.tbl .mini.warn{border:1px solid rgba(255,93,108,.5);background:rgba(255,93,108,.08);color:#ff9aa3}
+.tbl .mini.warn:hover{background:rgba(255,93,108,.16)}
+.tbl .mini.ok{border:1px solid rgba(46,230,168,.45);background:rgba(46,230,168,.08);color:#8ff5d4}
+.tbl .mini.ok:hover{background:rgba(46,230,168,.16)}
+.tbl .mini:disabled{opacity:.5;cursor:default}
+
+/* ---------- 悬浮数据报表 ---------- */
+.fab{
+  position:fixed;right:22px;bottom:26px;z-index:60;display:inline-flex;align-items:center;gap:8px;
+  background:linear-gradient(120deg,#2f7cff,#8b5cf6);border:none;color:#fff;border-radius:14px;
+  padding:12px 17px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;
+  box-shadow:0 10px 28px rgba(47,124,255,.4),0 0 0 1px rgba(143,195,255,.2);transition:transform .16s,box-shadow .16s;
+}
+.fab:hover{transform:translateY(-2px);box-shadow:0 16px 38px rgba(47,124,255,.5)}
+.fab svg{width:17px;height:17px;stroke:#fff;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.report-fab{
+  position:fixed;right:22px;bottom:88px;width:392px;max-width:calc(100vw - 32px);z-index:61;
+  background:linear-gradient(180deg,#101c2e,#0a1320);border:1px solid var(--line2);border-radius:16px;padding:16px 17px;
+  box-shadow:0 26px 68px rgba(0,0,0,.6),0 0 26px rgba(77,159,255,.1);display:none;
+}
+.report-fab.on{display:block;animation:fabIn .2s ease}
+@keyframes fabIn{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
+.report-fab .hd{display:flex;align-items:center;gap:8px}
+.report-fab .hd h3{font-size:14px;font-weight:700}
+.report-fab .hd .x{margin-left:auto;background:none;border:none;color:var(--dim);cursor:pointer;font-size:16px;line-height:1;padding:3px 7px;border-radius:8px}
+.report-fab .hd .x:hover{color:var(--txt);background:rgba(255,255,255,.05)}
+.rpt-tabs{display:flex;gap:8px;margin:12px 0 12px}
+.rpt-tabs button{
+  flex:1;background:var(--card2);border:1px solid var(--line);color:var(--dim);border-radius:9px;
+  padding:8px 0;font-size:12.5px;font-family:inherit;cursor:pointer;transition:.16s;
+}
+.rpt-tabs button:hover{border-color:var(--line2);color:var(--txt)}
+.rpt-tabs button.on{
+  background:linear-gradient(120deg,rgba(77,159,255,.2),rgba(139,92,246,.2));
+  border-color:rgba(77,159,255,.6);color:#cfe4ff;font-weight:700;box-shadow:0 0 14px rgba(77,159,255,.18);
+}
+.rpt-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-bottom:11px}
+.rpt-kpi{background:var(--card2);border:1px solid var(--line);border-radius:9px;padding:8px 10px}
+.rpt-kpi b{display:block;font-size:16px;font-weight:800;font-variant-numeric:tabular-nums;color:#cfe4ff}
+.rpt-kpi span{display:block;font-size:10px;color:var(--dim2);margin-top:2px}
+.rpt-kpi[data-tone=purple] b{color:#c4b5fd}
+.rpt-kpi[data-tone=green] b{color:#8ff5d4}
+.rpt-kpi[data-tone=gold] b{color:#ffd98a}
+.rpt-kpi[data-tone=cyan] b{color:#8ef4ff}
+.rpt-chart .chart-svg{width:100%;height:auto;display:block}
+.rpt-chart .axis{fill:var(--dim2);font-size:9.5px}
+.rpt-foot{margin-top:9px;font-size:10.5px;color:var(--dim2);text-align:center;line-height:1.6}
+.rpt-export{display:flex;gap:8px;margin-top:10px}
+.rpt-export select{
+  flex:1;min-width:0;background:var(--card2);border:1px solid var(--line);color:var(--txt);
+  border-radius:9px;padding:8px 10px;font-size:12px;font-family:inherit;outline:none;transition:border-color .18s;
+}
+.rpt-export select:focus{border-color:var(--blue)}
+.rpt-export .btn{flex:none;padding:8px 14px;font-size:12.5px;border-radius:9px}
+
+footer{max-width:1340px;margin:0 auto;padding:18px 26px;color:var(--dim2);font-size:11.5px;text-align:center}
+
+@media(max-width:1080px){
+  .workspace{grid-template-columns:1fr}
+  .charts{grid-template-columns:1fr}
+  .qfilters{grid-template-columns:repeat(3,minmax(0,1fr)) auto auto}
+}
+@media(max-width:760px){
+  .topbar{padding:12px 16px;gap:10px}
+  .main{padding:14px 16px 0}
+  .controls{width:100%;margin-left:0}
+  .tk{flex:1;width:auto;min-width:0}
+  .row2{grid-template-columns:1fr}
+  .qfilters{grid-template-columns:1fr 1fr}
+  .kpi b{font-size:25px}
+  .donut-wrap{flex-direction:column;align-items:flex-start}
+  .legend-list{width:100%}
+}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1>🧑‍💼 客服工作台</h1>
-    <span class="tag" id="envTag">未连接</span>
-    <div class="spacer"></div>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="logo">
+      <svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="12" rx="2.5"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7"/><path d="M3 12h18"/></svg>
+    </div>
+    <div>
+      <h1>运营数据总览</h1>
+      <p>TECH BLOG · 客服工作台</p>
+    </div>
+  </div>
+  <div class="hud">
+    <span class="live"><i></i>LIVE</span>
+    <time id="clock">--:--:--</time>
+  </div>
+  <span class="env" id="envTag">未连接</span>
+  <div class="controls">
     <input class="tk" id="tk" type="password" placeholder="站长口令 ADMIN_TOKEN" autocomplete="off">
     <button class="btn" id="login">连接</button>
     <button class="btn ghost" id="refresh">刷新数据</button>
-  </header>
+  </div>
+</div>
 
-  <div class="grid stats" id="stats"></div>
+<div class="main">
+  <div class="ticker"><div class="track" id="ticker"></div></div>
+
+  <div class="grid kpis" id="stats"></div>
 
   <div class="grid charts">
     <div class="panel">
-      <h2>近 7 天注册 <em>人数</em></h2>
-      <div class="bars" id="bar1"></div>
+      <div class="panel-h">
+        <h2>近 7 天趋势 <em>注册 / 兑换</em></h2>
+        <div class="legend">
+          <span><i style="background:#4d9fff"></i>注册</span>
+          <span><i style="background:#8b5cf6"></i>兑换</span>
+        </div>
+      </div>
+      <div class="chart-box" id="trend"></div>
     </div>
     <div class="panel">
-      <h2>近 7 天兑换 <em>张数</em></h2>
-      <div class="bars" id="bar2"></div>
+      <div class="panel-h"><h2>套餐分布 <em>已兑换</em></h2></div>
+      <div class="donut-wrap">
+        <div id="donut"></div>
+        <div class="legend-list" id="byplan"></div>
+      </div>
     </div>
   </div>
 
-  <div class="grid cols">
-    <div class="grid" style="gap:14px">
+  <div class="grid workspace">
+    <div class="stack">
       <div class="panel">
-        <h2>发放开通码 <em>用户付款后在此生成，仅该账号可用一次</em></h2>
+        <div class="panel-h"><h2>发放开通码 <em>用户付款后在此生成，仅该账号可用一次</em></h2></div>
         <div class="field"><label>用户账号（须已注册）</label><input id="acc" placeholder="输入完整账号，区分大小写" autocomplete="off"></div>
-        <div class="row2">
-          <div class="field"><label>套餐</label>
-            <select id="plan">
-              <option value="6">单次 · ¥6</option>
-              <option value="18" selected>包周 · ¥18.88</option>
-              <option value="59">包月 · ¥59.99</option>
-              <option value="666">包年 · ¥666</option>
-            </select>
-          </div>
-          <div class="field"><label>确认账号</label><input id="acc2" placeholder="再输入一次防手误" autocomplete="off"></div>
+        <div class="field"><label>确认账号</label><input id="acc2" placeholder="再输入一次防手误" autocomplete="off"></div>
+        <div class="field"><label>套餐</label>
+          <select id="plan">
+            <option value="6">单次 · ¥6</option>
+            <option value="18" selected>包周 · ¥18.88</option>
+            <option value="59">包月 · ¥59.99</option>
+            <option value="666">包年 · ¥666</option>
+          </select>
         </div>
-        <button class="btn" id="gen" style="width:100%">生成专属开通码</button>
+        <button class="btn" id="gen" style="margin-top:4px">生成专属开通码</button>
         <div id="out"></div>
       </div>
 
       <div class="panel">
-        <h2>账号查询 <em>支持模糊搜索</em></h2>
+        <div class="panel-h"><h2>账号查询 <em>支持模糊搜索</em></h2></div>
         <div class="field"><input id="q" placeholder="输入账号关键字，回车查询" autocomplete="off"></div>
         <div id="users"></div>
       </div>
     </div>
 
-    <div class="grid" style="gap:14px">
+    <div class="stack">
       <div class="panel">
-        <h2>最近发放 <em>8 条</em></h2>
-        <div class="list" id="issued"></div>
+        <div class="panel-h"><h2>实时发放 <em>最近 8 条</em></h2></div>
+        <div class="stream" id="issued"></div>
       </div>
       <div class="panel">
-        <h2>最近兑换 <em>8 条</em></h2>
-        <div class="list" id="redeemed"></div>
-      </div>
-      <div class="panel">
-        <h2>套餐分布 <em>已兑换</em></h2>
-        <div class="list" id="byplan"></div>
+        <div class="panel-h"><h2>实时兑换 <em>最近 8 条</em></h2></div>
+        <div class="stream" id="redeemed"></div>
       </div>
     </div>
   </div>
 
-  <footer>技术驿站 · 客服后台 · <a href="./">返回前台</a></footer>
+  <div class="panel" style="margin-top:13px">
+    <div class="panel-h"><h2>开通码查询 <em>支持账号、码、生成时间、使用状态、是否永久筛选</em></h2></div>
+    <div class="qfilters">
+      <div class="field" style="margin:0"><label>账号</label><input id="cqUser" placeholder="账号关键字" autocomplete="off"></div>
+      <div class="field" style="margin:0"><label>开通码</label><input id="cqCode" placeholder="码包含片段，如 YZ18" autocomplete="off"></div>
+      <div class="field" style="margin:0"><label>生成时间（起）</label><input id="cqFrom" type="date"></div>
+      <div class="field" style="margin:0"><label>生成时间（止）</label><input id="cqTo" type="date"></div>
+      <div class="field" style="margin:0"><label>是否已用</label>
+        <select id="cqUsed">
+          <option value="">全部</option>
+          <option value="0">未使用</option>
+          <option value="1">已使用</option>
+        </select>
+      </div>
+      <div class="field" style="margin:0"><label>是否永久</label>
+        <select id="cqForever">
+          <option value="">全部</option>
+          <option value="1">仅永久（包年）</option>
+          <option value="0">非永久</option>
+        </select>
+      </div>
+      <button class="btn" id="cqGo">查询</button>
+      <button class="btn ghost" id="cqReset">重置</button>
+    </div>
+    <div class="qwrap" id="cqOut"><div class="empty">填写条件后点击「查询」，可查出全部历史开通码（最多显示 100 条）</div></div>
+  </div>
+</div>
+
+<button class="fab" id="reportBtn" title="查看数据报表">
+  <svg viewBox="0 0 24 24"><path d="M4 19.5V14M9.5 19.5V9M15 19.5V12M20.5 19.5V5.5"/><path d="M3.5 21.5h17"/></svg>
+  数据报表
+</button>
+
+<div class="report-fab" id="reportPanel">
+  <div class="hd"><h3>数据报表</h3><button class="x" id="reportClose" title="收起">✕</button></div>
+  <div class="rpt-tabs">
+    <button data-r="week" class="on">周</button>
+    <button data-r="month">月</button>
+    <button data-r="year">年</button>
+  </div>
+  <div class="rpt-kpis" id="rptKpis"></div>
+  <div class="rpt-chart" id="rptChart"></div>
+  <div class="rpt-foot" id="rptFoot">选择周期查看统计</div>
+  <div class="rpt-export">
+    <select id="rptFmt" title="导出格式">
+      <option value="csv">表格（Excel / CSV）</option>
+      <option value="pdf">PDF（打印 / 另存为）</option>
+    </select>
+    <button class="btn" id="rptExport" title="导出当前所选周期的报表">一键导出</button>
+  </div>
 </div>
 
 <div id="modal" class="modal">
@@ -159,12 +499,25 @@ footer a{color:var(--blue);text-decoration:none}
   </div>
 </div>
 
+<footer>数据每 3 秒自动刷新 · 仅限授权客服人员使用</footer>
+
 <script>
 const $ = s => document.querySelector(s);
 const PLAN = { free: '免费', once: '单次', week: '包周', month: '包月', year: '包年' };
 const KEY = 'yz-admin-token';
+const TONE = { blue: '#4d9fff', purple: '#8b5cf6', green: '#2ee6a8', gold: '#ffc043', cyan: '#39d0d8', red: '#ff5d6c' };
 let token = localStorage.getItem(KEY) || '';
 let timer = null;
+
+const ICON = {
+  users: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.1"/><circle cx="16.2" cy="9.6" r="2.4"/><path d="M3.2 19.2c0-2.8 2.6-4.6 5.8-4.6s5.8 1.8 5.8 4.6"/><path d="M15 19.2c0-2.2 1.9-3.6 4.1-3.6s4.1 1.4 4.1 3.6"/></svg>',
+  chat: '<svg viewBox="0 0 24 24"><path d="M20.5 12a7.9 7.9 0 0 1-8.5 7.6 9 9 0 0 1-3.6-.7L4.2 20l1.1-3.7A7.6 7.6 0 0 1 3.5 12a7.9 7.9 0 0 1 8.5-7.6A7.9 7.9 0 0 1 20.5 12Z"/><path d="M8.6 11h.01M12 11h.01M15.4 11h.01"/></svg>',
+  key: '<svg viewBox="0 0 24 24"><circle cx="8" cy="8" r="3.6"/><path d="M10.6 10.6 20 20"/><path d="M16.4 16.4l1.9-1.9M18.9 18.9l1.9-1.9"/></svg>',
+  check: '<svg viewBox="0 0 24 24"><path d="M20 11.2V12a8 8 0 1 1-4.7-7.3"/><path d="m20 5.5-9 9-2.9-2.9"/></svg>',
+  shield: '<svg viewBox="0 0 24 24"><path d="M12 3 5 6v5.5c0 4.4 2.9 7.8 7 9.5 4.1-1.7 7-5.1 7-9.5V6l-7-3Z"/><path d="m9.2 12 2 2 3.6-3.6"/></svg>',
+  money: '<svg viewBox="0 0 24 24"><path d="M4 6.5h16v11H4z"/><path d="M4 10.5h16"/><circle cx="16.5" cy="14.5" r="1.1"/></svg>',
+  today: '<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3.5V7M16 3.5V7"/><path d="M8.5 14.5h3"/></svg>'
+};
 
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const money = n => '¥' + Number(n || 0).toFixed(2);
@@ -175,6 +528,25 @@ const day = s => {
   const p = n => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 };
+
+function animateNum(el, to, fmt) {
+  if (!el) return;
+  to = Number(to);
+  if (!Number.isFinite(to)) { el.textContent = '-'; return; }
+  const from = Number(el.dataset.v || 0);
+  el.dataset.v = to;
+  const f = v => (fmt ? fmt(v) : Math.round(v).toLocaleString());
+  if (from === to) { el.textContent = f(to); return; }
+  cancelAnimationFrame(el._raf);
+  const t0 = performance.now(), dur = 720;
+  const tick = now => {
+    const p = Math.min(1, (now - t0) / dur);
+    const e = 1 - Math.pow(1 - p, 3);
+    el.textContent = f(from + (to - from) * e);
+    if (p < 1) el._raf = requestAnimationFrame(tick);
+  };
+  el._raf = requestAnimationFrame(tick);
+}
 
 async function api(path, opt = {}) {
   const r = await fetch(path, {
@@ -194,24 +566,151 @@ async function api(path, opt = {}) {
 function setEnv(text, ok) {
   const el = $('#envTag');
   el.textContent = text;
+  el.classList.toggle('ok', !!ok);
   el.style.color = ok ? 'var(--green)' : 'var(--gold)';
-  el.style.borderColor = ok ? 'rgba(46,204,113,.4)' : 'rgba(245,185,66,.35)';
+  el.style.borderColor = ok ? 'rgba(46,230,168,.4)' : 'rgba(255,192,67,.35)';
+  el.style.background = ok ? 'rgba(46,230,168,.06)' : 'transparent';
 }
 
-function statCard(label, value, sub, type) {
-  return `<div class="stat${type ? ' click' : ''}"${type ? ` data-type="${type}" data-title="${label}"` : ''}>
-    <b>${value}</b><span>${label}</span>${sub ? `<i>${sub}</i>` : ''}
-    ${type ? '<em class="more">查看明细 ›</em>' : ''}
-  </div>`;
-}
+/* ---------------- KPI ---------------- */
+const KPI = [
+  { id: 'users', label: '总用户', tone: 'blue', icon: 'users', type: 'users',
+    val: d => d.users.total, sub: d => `正式 ${d.users.regular} · 游客 ${d.users.guest}` },
+  { id: 'todayUsers', label: '今日注册', tone: 'cyan', icon: 'today', type: 'users_today',
+    val: d => d.users.today, sub: d => `近 7 天 ${d.users.week}`, spark: d => d.series.map(x => x.users) },
+  { id: 'comments', label: '留言总数', tone: 'purple', icon: 'chat', type: 'comments',
+    val: d => d.comments.total, sub: d => `今日 ${d.comments.today}` },
+  { id: 'issued', label: '已发码', tone: 'gold', icon: 'key', type: 'issued',
+    val: d => d.codes.issued, sub: d => `今日 ${d.codes.issuedToday} · 未兑换 ${d.codes.unused}` },
+  { id: 'redeemed', label: '已兑换', tone: 'green', icon: 'check', type: 'redeemed',
+    val: d => d.codes.redeemed, sub: d => `今日 ${d.codes.redeemedToday}`, spark: d => d.series.map(x => x.redeemed) },
+  { id: 'active', label: '有效权益', tone: 'purple', icon: 'shield',
+    val: d => d.codes.active, sub: () => '在线可用的开通用户' },
+  { id: 'revenue', label: '累计收入', tone: 'green', icon: 'money', money: true,
+    val: d => d.codes.revenue, sub: () => '按已兑换套餐估算' },
+];
 
-function drawBars(el, data, cls) {
-  const max = Math.max(1, ...data.map(x => x.v));
-  el.innerHTML = data.map(x => `
-    <div class="bar" title="${x.d}：${x.v}">
-      <u class="${cls}" style="height:${Math.round((x.v / max) * 100)}%"></u>
-      <s>${x.d}</s>
+function buildKpis() {
+  $('#stats').innerHTML = KPI.map(k => `
+    <div class="kpi${k.type ? ' click' : ''}" data-tone="${k.tone}"${k.type ? ` data-type="${k.type}" data-title="${k.label}"` : ''}>
+      <i class="ico">${ICON[k.icon] || ''}</i>
+      <b id="kv-${k.id}">0</b>
+      <span class="lbl">${k.label}</span>
+      <i class="sub" id="ks-${k.id}"></i>
+      ${k.spark ? `<svg class="spark" id="sp-${k.id}" viewBox="0 0 74 22" preserveAspectRatio="none"></svg>` : ''}
+      ${k.type ? '<em class="more">查看明细 ›</em>' : ''}
     </div>`).join('');
+}
+
+function drawSpark(el, arr, color) {
+  if (!el || !arr || !arr.length) return;
+  const w = 74, h = 22, max = Math.max(1, ...arr), n = arr.length;
+  const pts = arr.map((v, i) => [n > 1 ? (i / (n - 1)) * w : w / 2, h - 2 - (v / max) * (h - 6)]);
+  el.innerHTML = `<polyline points="${pts.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ')}"
+    fill="none" stroke="${color}" stroke-width="1.7" stroke-linejoin="round"/>`;
+}
+
+/* ---------------- 趋势图 ---------------- */
+let lastTrendSig = null;
+function drawTrend(el, series) {
+  if (!el) return;
+  const W = 690, H = 252, L = 42, R = 18, T = 18, B = 32;
+  const ih = H - T - B, iw = W - L - R;
+  const rawMax = Math.max(1, ...series.map(s => Math.max(s.users, s.redeemed)));
+  const pw = Math.pow(10, Math.floor(Math.log10(rawMax)));
+  const nv = rawMax / pw;
+  const max = (nv <= 1 ? 1 : nv <= 2 ? 2 : nv <= 5 ? 5 : 10) * pw;
+  const step = iw / Math.max(1, series.length - 1);
+  const px = i => L + i * step;
+  const py = v => T + ih - (v / max) * ih;
+  const up = series.map((s, i) => [px(i), py(s.users)]);
+  const rp = series.map((s, i) => [px(i), py(s.redeemed)]);
+  const line = pts => 'M' + pts.map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join(' L');
+  const area = pts => `M${L},${T + ih} L${pts.map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join(' L')} L${(L + iw).toFixed(1)},${T + ih} Z`;
+  const grid = [0, 1, 2, 3, 4].map(k => {
+    const y = T + ih * k / 4;
+    const v = max * (4 - k) / 4;
+    return `<line x1="${L}" y1="${y}" x2="${W - R}" y2="${y}" stroke="rgba(88,140,205,.16)" stroke-width="1"/>
+      <text x="${L - 9}" y="${y + 3.5}" text-anchor="end" class="axis">${v % 1 ? v.toFixed(2) : v}</text>`;
+  }).join('');
+  const xl = series.map((s, i) => `<text x="${px(i).toFixed(1)}" y="${H - 9}" text-anchor="middle" class="axis">${s.d.slice(5)}</text>`).join('');
+  const dots = (pts, color, key, label) => pts.map((q, i) =>
+    `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="3.2" fill="${color}" stroke="#060d18" stroke-width="1.4" class="pt"><title>${series[i].d} ${label}：${series[i][key]}</title></circle>`).join('');
+  const sig = series.map(s => s.users + '/' + s.redeemed).join('|');
+  const anim = sig !== lastTrendSig;
+  lastTrendSig = sig;
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" class="chart-svg${anim ? ' anim' : ''}">
+    <defs>
+      <linearGradient id="gu" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#4d9fff" stop-opacity=".42"/>
+        <stop offset="1" stop-color="#4d9fff" stop-opacity="0"/>
+      </linearGradient>
+      <linearGradient id="gr" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#8b5cf6" stop-opacity=".34"/>
+        <stop offset="1" stop-color="#8b5cf6" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    ${grid}
+    <path d="${area(up)}" fill="url(#gu)"/>
+    <path d="${area(rp)}" fill="url(#gr)"/>
+    <path d="${line(up)}" fill="none" stroke="#4d9fff" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="${line(rp)}" fill="none" stroke="#8b5cf6" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+    ${xl}
+    ${dots(up, '#4d9fff', 'users', '注册')}
+    ${dots(rp, '#8b5cf6', 'redeemed', '兑换')}
+  </svg>`;
+}
+
+/* ---------------- 套餐分布环形图 ---------------- */
+let lastDonutSig = null;
+function drawDonut(el, byPlan) {
+  if (!el) return;
+  const colors = ['#4d9fff', '#8b5cf6', '#2ee6a8', '#ffc043', '#ff5d6c', '#39d0d8'];
+  const total = byPlan.reduce((s, r) => s + r.n, 0);
+  const R = 54, C = 2 * Math.PI * R;
+  let off = 0;
+  const arcs = byPlan.map((r, i) => {
+    const len = (r.n / total) * C;
+    const seg = `<circle cx="76" cy="76" r="${R}" fill="none" stroke="${colors[i % 6]}" stroke-width="13"
+      stroke-dasharray="${len.toFixed(1)} ${(C - len).toFixed(1)}" stroke-dashoffset="${(-off).toFixed(1)}"
+      transform="rotate(-90 76 76)" opacity=".92"><title>${esc(r.label)}：${r.n} 张</title></circle>`;
+    off += len;
+    return seg;
+  }).join('');
+  const sig = byPlan.map(r => r.plan + r.n).join('|');
+  const anim = sig !== lastDonutSig;
+  lastDonutSig = sig;
+  el.innerHTML = total ? `<svg viewBox="0 0 152 152" class="donut-svg${anim ? ' anim' : ''}">
+      <circle cx="76" cy="76" r="${R}" fill="none" stroke="rgba(90,140,200,.14)" stroke-width="13"/>
+      ${arcs}
+      <text x="76" y="74" text-anchor="middle" class="dnum">${total}</text>
+      <text x="76" y="92" text-anchor="middle" class="dlbl">已兑换</text>
+    </svg>` : '<div class="empty">暂无兑换数据</div>';
+  const box = $('#byplan');
+  if (box) box.innerHTML = total ? byPlan.map((r, i) => `
+    <div class="lg"><i style="background:${colors[i % 6]}"></i><b>${esc(r.label)}</b><s>${r.n} 张</s><em>${money(r.amount)}</em></div>`).join('')
+    : '<div class="empty">暂无数据</div>';
+}
+
+/* ---------------- 数据滚动条 ---------------- */
+let lastTicker = '';
+function drawTicker(d) {
+  const segs = [
+    `总用户 <b>${d.users.total}</b>`,
+    `正式 <b>${d.users.regular}</b>`,
+    `游客 <b>${d.users.guest}</b>`,
+    `今日注册 <b>${d.users.today}</b>`,
+    `留言 <b>${d.comments.total}</b>`,
+    `已发码 <b>${d.codes.issued}</b>`,
+    `未兑换 <b>${d.codes.unused}</b>`,
+    `已兑换 <b>${d.codes.redeemed}</b>`,
+    `有效权益 <b>${d.codes.active}</b>`,
+    `累计收入 <b>${money(d.codes.revenue)}</b>`,
+  ];
+  const html = segs.map(x => `<span>${x}</span>`).join('');
+  if (html === lastTicker) return;
+  lastTicker = html;
+  $('#ticker').innerHTML = html + html;
 }
 
 let pollBusy = false;
@@ -223,38 +722,32 @@ async function loadStats() {
 
 async function renderStats() {
   const d = await api('/api/admin/stats');
-  const c = d.codes, u = d.users;
-  $('#stats').innerHTML = [
-    statCard('总用户', u.total, `正式 ${u.regular} · 游客 ${u.guest}`, 'users'),
-    statCard('今日注册', u.today, `近 7 天 ${u.week}`, 'users_today'),
-    statCard('留言总数', d.comments.total, `今日 ${d.comments.today}`, 'comments'),
-    statCard('已发码', c.issued, `今日 ${c.issuedToday} · 未兑换 ${c.unused}`, 'issued'),
-    statCard('已兑换', c.redeemed, `今日 ${c.redeemedToday}`, 'redeemed'),
-    statCard('有效权益', c.active, '在线可用的开通用户'),
-    statCard('累计收入', money(c.revenue), '按已兑换套餐估算'),
-  ].join('');
-
-  drawBars($('#bar1'), d.series.map(x => ({ d: x.d.slice(5), v: x.users })), '');
-  drawBars($('#bar2'), d.series.map(x => ({ d: x.d.slice(5), v: x.redeemed })), 'p');
+  KPI.forEach(k => {
+    animateNum($('#kv-' + k.id), Number(k.val(d) || 0), k.money ? x => '¥' + x.toFixed(2) : null);
+    const s = $('#ks-' + k.id);
+    if (s) s.textContent = k.sub(d);
+    if (k.spark) drawSpark($('#sp-' + k.id), k.spark(d), TONE[k.tone]);
+  });
+  drawTicker(d);
+  drawTrend($('#trend'), d.series);
+  drawDonut($('#donut'), d.byPlan);
 
   $('#issued').innerHTML = d.recentIssued.length ? d.recentIssued.map(r => `
-    <div class="item">
+    <div class="sitem ${r.used ? 'done' : ''}">
       <b>${esc(r.code)}</b>
-      <span>${esc(r.username)} · ${PLAN[r.plan] || r.plan} · ${day(r.issued_at)}</span>
-      <span class="pill ${r.used ? 'on' : 'off'}">${r.used ? '已兑换' : '待兑换'}</span>
+      <span>${esc(r.username)} · ${PLAN[r.plan] || r.plan}</span>
+      <time>${day(r.issued_at)}</time>
+      <em class="pill ${r.used ? 'on' : 'off'}">${r.used ? '已兑换' : '待兑换'}</em>
     </div>`).join('') : '<div class="empty">暂无发放记录</div>';
 
   $('#redeemed').innerHTML = d.recentRedeemed.length ? d.recentRedeemed.map(r => `
-    <div class="item">
+    <div class="sitem done">
       <b>${esc(r.code)}</b>
-      <span>${esc(r.username)} · ${PLAN[r.plan] || r.plan} · ${day(r.used_at)}</span>
+      <span>${esc(r.username)} · ${PLAN[r.plan] || r.plan}</span>
+      <time>${day(r.used_at)}</time>
     </div>`).join('') : '<div class="empty">暂无兑换记录</div>';
 
-  $('#byplan').innerHTML = d.byPlan.length ? d.byPlan.map(r => `
-    <div class="item">
-      <span style="flex:1;text-align:left;color:var(--txt)">${esc(r.label)}</span>
-      <span>${r.n} 张 · ${money(r.amount)}</span>
-    </div>`).join('') : '<div class="empty">暂无数据</div>';
+  if ($('#reportPanel').classList.contains('on') && Date.now() - rptLast > 15000) loadReport(rptRange, true);
 }
 
 function connect() {
@@ -275,12 +768,6 @@ function connect() {
     .finally(() => { $('#login').disabled = false; });
 }
 
-$('#login').onclick = connect;
-$('#refresh').onclick = () => loadStats().catch(e => setEnv(e.message, false));
-
-$('#tk').value = token;
-if (token) connect();
-
 /* ---- 发放开通码 ---- */
 $('#gen').onclick = async () => {
   const username = $('#acc').value.trim();
@@ -290,7 +777,6 @@ $('#gen').onclick = async () => {
   out.innerHTML = '';
   if (!username) return (out.innerHTML = '<p class="msg err">请输入用户账号</p>');
   if (username !== again) return (out.innerHTML = '<p class="msg err">两次输入的账号不一致，请核对</p>');
-
   const btn = $('#gen');
   btn.disabled = true;
   btn.textContent = '生成中…';
@@ -300,7 +786,7 @@ $('#gen').onclick = async () => {
       <div class="codebox"><b>${esc(d.code)}</b><button class="mini" id="copy">复制</button></div>
       <p class="msg ok">已生成：${esc(d.username)} · ${PLAN[d.plan] || d.plan}，仅该账号可用，且只能用一次。</p>`;
     $('#copy').onclick = () => {
-      const done = () => { $('#copy').textContent = '已复制 ✓'; setTimeout(() => $('#copy').textContent = '复制', 1500); };
+      const done = () => { $('#copy').textContent = '已复制 ✓'; setTimeout(() => { $('#copy').textContent = '复制'; }, 1500); };
       try { navigator.clipboard.writeText(d.code).then(done).catch(done); } catch (_) { done(); }
     };
     $('#acc2').value = '';
@@ -334,7 +820,9 @@ async function searchUsers(q) {
           }).join('')
         : '<span class="ent">无开通记录</span>';
       return `<div class="user">
-        <div class="top">${esc(u.username)} <span>注册 ${day(u.created_at)} · 已发 ${u.issued} 张 · 已兑换 ${u.redeemed} 张${u.guest ? ' · 游客' : ''}</span></div>
+        <div class="top"><i class="avatar">${esc(String(u.username).slice(0, 1))}</i>${esc(u.username)}
+          ${u.muted ? '<span class="pill off">已禁言</span>' : ''}
+          <span>注册 ${day(u.created_at)} · 已发 ${u.issued} 张 · 已兑换 ${u.redeemed} 张${u.guest ? ' · 游客' : ''}</span></div>
         <div class="ents">${ents}</div>
       </div>`;
     }).join('');
@@ -349,27 +837,70 @@ $('#acc').addEventListener('change', e => {
   if (v.length >= 2) searchUsers(v);
 });
 
-/* ---- 统计卡片下钻 ---- */
-const USER_TPL = {
-  head: ['账号', '类型', '注册时间', '已兑换'],
-  row: r => [esc(r.username), r.is_guest ? '游客' : '正式', day(r.created_at), r.redeemed + ' 张'],
+/* ---- 开通码历史查询 ---- */
+const CQ_HINT = '填写条件后点击「查询」，可查出全部历史开通码（最多显示 100 条）';
+
+async function queryCodes() {
+  const box = $('#cqOut');
+  if (!token) { box.innerHTML = '<div class="empty">请先在顶部填写站长口令并连接</div>'; return; }
+  const p = new URLSearchParams();
+  const user = $('#cqUser').value.trim();
+  const code = $('#cqCode').value.trim();
+  const from = $('#cqFrom').value;
+  const to = $('#cqTo').value;
+  const used = $('#cqUsed').value;
+  const forever = $('#cqForever').value;
+  if (user) p.set('username', user);
+  if (code) p.set('code', code);
+  if (from) p.set('from', from);
+  if (to) p.set('to', to);
+  if (used) p.set('used', used);
+  if (forever) p.set('forever', forever);
+  const btn = $('#cqGo');
+  btn.disabled = true;
+  box.innerHTML = '<div class="empty">查询中…</div>';
+  try {
+    const d = await api('/api/admin/codes?' + p.toString());
+    if (!d.rows.length) { box.innerHTML = '<div class="empty">没有符合条件的开通码</div>'; return; }
+    box.innerHTML =
+      `<table class="tbl">
+        <thead><tr><th>开通码</th><th>账号</th><th>套餐</th><th>是否永久</th><th>生成时间</th><th>是否已用</th></tr></thead>
+        <tbody>${d.rows.map(r => `<tr>
+          <td><span class="mono">${esc(r.code)}</span></td>
+          <td>${esc(r.username)}</td>
+          <td>${PLAN[r.plan] || r.plan}</td>
+          <td>${r.forever ? '<span class="pill on">永久</span>' : '<span class="pill">非永久</span>'}</td>
+          <td>${day(r.issued_at)}</td>
+          <td>${r.used ? `<span class="pill on">已用 ${day(r.used_at)}</span>` : '<span class="pill off">未使用</span>'}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+      <div class="empty">共 ${d.total} 条${d.total > d.rows.length ? `，仅显示最近 ${d.rows.length} 条` : ''}</div>`;
+  } catch (e) {
+    box.innerHTML = `<div class="empty">${esc(e.message)}</div>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+$('#cqGo').onclick = queryCodes;
+$('#cqReset').onclick = () => {
+  ['#cqUser', '#cqCode', '#cqFrom', '#cqTo', '#cqUsed', '#cqForever'].forEach(s => { $(s).value = ''; });
+  $('#cqOut').innerHTML = `<div class="empty">${CQ_HINT}</div>`;
 };
+['#cqUser', '#cqCode'].forEach(s => { $(s).addEventListener('keydown', e => { if (e.key === 'Enter') queryCodes(); }); });
+$('#cqUsed').addEventListener('change', queryCodes);
+$('#cqForever').addEventListener('change', queryCodes);
+
+/* ---- 明细弹窗 ---- */
 const LIST_TPL = {
-  users: USER_TPL,
-  users_today: USER_TPL,
   comments: {
     head: ['账号', '内容', '位置', '时间'],
     row: r => [esc(r.username), esc(r.body), r.scope === 'guest' ? '留言板' : esc(r.slug), day(r.created_at)],
   },
   issued: {
     head: ['开通码', '账号', '套餐', '发放时间', '状态'],
-    row: r => [
-      `<span class="mono">${esc(r.code)}</span>`,
-      esc(r.username),
-      PLAN[r.plan] || r.plan,
-      day(r.issued_at),
-      r.used_at ? `<span class="pill on">已兑换 ${day(r.used_at)}</span>` : '<span class="pill off">待兑换</span>',
-    ],
+    row: r => [`<span class="mono">${esc(r.code)}</span>`, esc(r.username), PLAN[r.plan] || r.plan, day(r.issued_at),
+      r.used_at ? `<span class="pill on">已兑换 ${day(r.used_at)}</span>` : '<span class="pill off">待兑换</span>'],
   },
   redeemed: {
     head: ['开通码', '账号', '套餐', '兑换时间'],
@@ -377,36 +908,332 @@ const LIST_TPL = {
   },
 };
 
+let mType = '', mTitle = '', mQuery = '';
+const isUserList = t => t === 'users' || t === 'users_today';
+
+function mSearchBar() {
+  return `<div class="msearch">
+    <input id="mQ" placeholder="搜索账号关键字，回车查询" autocomplete="off" value="${esc(mQuery)}">
+    <button class="btn" id="mSearchBtn">搜索</button>
+  </div>`;
+}
+
+function bindMSearch() {
+  const q = $('#mQ');
+  if (!q) return;
+  q.addEventListener('keydown', e => { if (e.key === 'Enter') { mQuery = q.value.trim(); loadList(); } });
+  const b = $('#mSearchBtn');
+  if (b) b.onclick = () => { mQuery = q.value.trim(); loadList(); };
+}
+
 async function openList(type, title) {
+  mType = type;
+  mTitle = title;
+  mQuery = '';
   $('#mTitle').textContent = title;
-  $('#mBody').innerHTML = '<div class="empty">加载中…</div>';
+  $('#mBody').innerHTML = (isUserList(type) ? mSearchBar() : '') + '<div class="empty">加载中…</div>';
   $('#modal').classList.add('on');
+  bindMSearch();
+  loadList();
+}
+
+async function loadList() {
+  const users = isUserList(mType);
+  $('#mBody').innerHTML = (users ? mSearchBar() : '') + '<div class="empty">加载中…</div>';
+  bindMSearch();
   try {
-    const d = await api('/api/admin/list?type=' + type);
-    $('#mTitle').textContent = `${title}（共 ${d.total} 条）`;
+    const d = await api('/api/admin/list?type=' + mType + (users && mQuery ? '&q=' + encodeURIComponent(mQuery) : ''));
+    $('#mTitle').textContent = `${mTitle}（共 ${d.total} 条）`;
     if (!d.rows || !d.rows.length) {
-      $('#mBody').innerHTML = '<div class="empty">暂无数据</div>';
+      $('#mBody').innerHTML = (users ? mSearchBar() : '') + '<div class="empty">没有匹配的数据</div>';
+      bindMSearch();
       return;
     }
-    const t = LIST_TPL[type] || USER_TPL;
-    $('#mBody').innerHTML =
-      `<table class="tbl"><thead><tr>${t.head.map(h => `<th>${h}</th>`).join('')}</tr></thead>
-       <tbody>${d.rows.map(r => `<tr>${t.row(r).map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>` +
+    const t = LIST_TPL[mType] || LIST_TPL.comments;
+    const head = users ? ['账号', '操作', '类型', '注册时间', '已兑换'] : t.head;
+    const body = users
+      ? d.rows.map(r => `<tr>
+          <td>${esc(r.username)}</td>
+          <td>${r.muted
+            ? `<button class="mini ok" data-mute data-id="${r.id}" data-muted="1">解禁</button> <span class="pill off">已禁言</span>`
+            : `<button class="mini warn" data-mute data-id="${r.id}" data-muted="0">禁用</button>`}</td>
+          <td>${r.is_guest ? '游客' : '正式'}</td>
+          <td>${day(r.created_at)}</td>
+          <td>${r.redeemed} 张</td>
+        </tr>`).join('')
+      : d.rows.map(r => `<tr>${t.row(r).map(c => `<td>${c}</td>`).join('')}</tr>`).join('');
+    $('#mBody').innerHTML = (users ? mSearchBar() : '') +
+      `<table class="tbl"><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+       <tbody>${body}</tbody></table>` +
       (d.total > d.rows.length ? `<div class="empty">仅显示最近 ${d.rows.length} 条</div>` : '');
+    bindMSearch();
   } catch (e) {
-    $('#mBody').innerHTML = `<div class="empty">${esc(e.message)}</div>`;
+    $('#mBody').innerHTML = (users ? mSearchBar() : '') + `<div class="empty">${esc(e.message)}</div>`;
+    bindMSearch();
   }
 }
 
 $('#stats').addEventListener('click', e => {
-  const card = e.target.closest('.stat.click');
+  const card = e.target.closest('.kpi.click');
   if (card) openList(card.dataset.type, card.dataset.title);
 });
+
+$('#mBody').addEventListener('click', async e => {
+  const btn = e.target.closest('[data-mute]');
+  if (!btn) return;
+  const id = Number(btn.dataset.id);
+  const muted = btn.dataset.muted === '1';
+  btn.disabled = true;
+  btn.textContent = '处理中…';
+  try {
+    await api('/api/admin/users/' + id + '/mute', { method: 'POST', body: { muted: !muted } });
+    loadList();
+    searchUsers($('#q').value.trim());
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = '失败';
+    btn.title = err.message;
+  }
+});
+
 const closeModal = () => $('#modal').classList.remove('on');
 $('#mClose').onclick = closeModal;
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
+/* ---- 悬浮数据报表（周 / 月 / 年） ---- */
+let rptRange = 'week';
+let rptSig = '';
+let rptLast = 0;
+let rptData = null;
+
+$('#reportBtn').onclick = () => {
+  $('#reportPanel').classList.add('on');
+  loadReport(rptRange);
+};
+$('#reportClose').onclick = () => $('#reportPanel').classList.remove('on');
+document.querySelectorAll('.rpt-tabs button').forEach(b => {
+  b.onclick = () => {
+    rptRange = b.dataset.r;
+    document.querySelectorAll('.rpt-tabs button').forEach(x => x.classList.toggle('on', x === b));
+    loadReport(rptRange);
+  };
+});
+
+function drawReportChart(el, series) {
+  const W = 386, H = 170, L = 33, R = 12, T = 12, B = 24;
+  const iw = W - L - R, ih = H - T - B;
+  const rawMax = Math.max(1, ...series.map(s => Math.max(s.users, s.issued, s.redeemed)));
+  const pw = Math.pow(10, Math.floor(Math.log10(rawMax)));
+  const nv = rawMax / pw;
+  const max = (nv <= 1 ? 1 : nv <= 2 ? 2 : nv <= 5 ? 5 : 10) * pw;
+  const step = iw / Math.max(1, series.length - 1);
+  const px = i => L + i * step;
+  const py = v => T + ih - (v / max) * ih;
+  const line = key => 'M' + series.map((s, i) => px(i).toFixed(1) + ',' + py(s[key]).toFixed(1)).join(' L');
+  const grid = [0, 1, 2, 3].map(k => {
+    const y = T + ih * k / 3;
+    const v = max * (3 - k) / 3;
+    return `<line x1="${L}" y1="${y}" x2="${W - R}" y2="${y}" stroke="rgba(88,140,205,.16)"/>
+      <text x="${L - 6}" y="${y + 3}" text-anchor="end" class="axis">${v % 1 ? v.toFixed(1) : v}</text>`;
+  }).join('');
+  const skip = series.length > 20 ? 5 : series.length > 8 ? 2 : 1;
+  const xl = series.map((s, i) => (i % skip === 0 || i === series.length - 1)
+    ? `<text x="${px(i).toFixed(1)}" y="${H - 7}" text-anchor="middle" class="axis">${series.length > 12 ? s.d.slice(5) : s.d}</text>` : '').join('');
+  const lines = [['users', '#4d9fff'], ['issued', '#ffc043'], ['redeemed', '#2ee6a8']].map(([key, color]) => {
+    const dots = series.map((s, i) => `<circle cx="${px(i).toFixed(1)}" cy="${py(s[key]).toFixed(1)}" r="2.4" fill="${color}" class="pt"><title>${s.d}：${s[key]}</title></circle>`).join('');
+    return `<path d="${line(key)}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round"/>${dots}`;
+  }).join('');
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" class="chart-svg">${grid}${lines}${xl}</svg>`;
+}
+
+async function loadReport(range, silent) {
+  const kpis = $('#rptKpis');
+  const chart = $('#rptChart');
+  const foot = $('#rptFoot');
+  if (!token) {
+    kpis.innerHTML = '';
+    chart.innerHTML = '';
+    foot.textContent = '请先在顶部填写站长口令并连接';
+    return;
+  }
+  if (!silent) kpis.innerHTML = '<div class="empty" style="grid-column:1/-1;padding:10px 0">加载中…</div>';
+  try {
+    const d = await api('/api/admin/report?range=' + range);
+    rptLast = Date.now();
+    rptData = d;
+    const sig = range + '|' + JSON.stringify(d.series) + JSON.stringify(d.totals);
+    if (silent && sig === rptSig) return;
+    rptSig = sig;
+    const label = { week: '周报表', month: '月报表', year: '年报表' }[range] || '报表';
+    const rate = d.totals.issued ? Math.round(d.totals.redeemed / d.totals.issued * 100) : 0;
+    kpis.innerHTML = [
+      ['新增用户', d.totals.users, 'blue'],
+      ['发放开通码', d.totals.issued, 'gold'],
+      ['兑换开通码', d.totals.redeemed, 'green'],
+      ['留言/评论', d.totals.comments, 'purple'],
+      ['累计收入', money(d.totals.revenue), 'green'],
+      ['兑换率', rate + '%', 'cyan'],
+    ].map(([l, v, tone]) => `<div class="rpt-kpi" data-tone="${tone}"><b>${v}</b><span>${l}</span></div>`).join('');
+    drawReportChart(chart, d.series);
+    foot.textContent = `${label} · ${d.start} ~ ${d.end}`;
+  } catch (e) {
+    if (silent) { foot.textContent = '刷新失败，稍后自动重试'; return; }
+    kpis.innerHTML = `<div class="empty" style="grid-column:1/-1">${esc(e.message)}</div>`;
+    chart.innerHTML = '';
+    foot.textContent = '加载失败';
+  }
+}
+
+/* ---- 一键导出（当前所选周/月/年） ---- */
+function saveFile(content, name, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+const csvCell = v => {
+  const s = String(v == null ? '' : v);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+};
+
+function exportCsv(d) {
+  const label = { week: '周报表', month: '月报表', year: '年报表' }[d.range] || '报表';
+  const rows = [
+    [`技术驿站 ${label}`, `${d.start} ~ ${d.end}`],
+    [`导出时间`, day(new Date())],
+    [],
+    ['周期', '新增用户', '发放开通码', '兑换开通码', '留言/评论', '收入(元)'],
+    ...d.series.map(s => [s.d, s.users, s.issued, s.redeemed, s.comments, Number(s.revenue).toFixed(2)]),
+    ['合计', d.totals.users, d.totals.issued, d.totals.redeemed, d.totals.comments, Number(d.totals.revenue).toFixed(2)],
+  ];
+  const csv = rows.map(r => r.map(csvCell).join(',')).join('\r\n');
+  saveFile('\ufeff' + csv, `技术驿站-${label}-${d.start}_${d.end}.csv`, 'text/csv;charset=utf-8');
+}
+
+function pdfHtml(d) {
+  const label = { week: '周报表', month: '月报表', year: '年报表' }[d.range] || '报表';
+  const rate = d.totals.issued ? Math.round(d.totals.redeemed / d.totals.issued * 100) : 0;
+  const body = d.series.map(s => `<tr>
+      <td>${s.d}</td><td>${s.users}</td><td>${s.issued}</td>
+      <td>${s.redeemed}</td><td>${s.comments}</td><td>¥${Number(s.revenue).toFixed(2)}</td>
+    </tr>`).join('');
+  return `<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">
+    <title>技术驿站 ${label} ${d.start} ~ ${d.end}</title>
+    <style>
+      *{box-sizing:border-box}
+      body{font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:#111;padding:24px 28px}
+      h1{font-size:20px;margin:0 0 4px}
+      .sub{color:#666;font-size:12px;margin-bottom:14px}
+      .sum{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+      .sum div{border:1px solid #ddd;border-radius:8px;padding:8px 12px;font-size:12px}
+      .sum b{display:block;font-size:17px;margin-top:2px}
+      table{width:100%;border-collapse:collapse;font-size:12px}
+      th,td{border:1px solid #ccc;padding:7px 9px;text-align:left}
+      th{background:#f2f6fc}
+      tfoot td{font-weight:700;background:#fafafa}
+      footer{margin-top:12px;color:#888;font-size:11px}
+      @media print{body{padding:0}@page{size:A4;margin:14mm}}
+      .bar{position:sticky;top:0;background:#fff;padding:10px 0 12px;display:flex;gap:8px}
+      .bar button{padding:8px 16px;border-radius:8px;border:1px solid #c9d6e6;background:#f4f8ff;cursor:pointer;font-size:13px}
+    </style></head><body>
+    <div class="bar"><button onclick="window.print()">打印 / 另存为 PDF</button></div>
+    <h1>技术驿站 · ${label}</h1>
+    <div class="sub">统计周期：${d.start} ~ ${d.end} · 导出时间：${day(new Date())}</div>
+    <div class="sum">
+      <div>新增用户<b>${d.totals.users}</b></div>
+      <div>发放开通码<b>${d.totals.issued}</b></div>
+      <div>兑换开通码<b>${d.totals.redeemed}</b></div>
+      <div>留言/评论<b>${d.totals.comments}</b></div>
+      <div>累计收入<b>¥${Number(d.totals.revenue).toFixed(2)}</b></div>
+      <div>兑换率<b>${rate}%</b></div>
+    </div>
+    <table>
+      <thead><tr><th>周期</th><th>新增用户</th><th>发放开通码</th><th>兑换开通码</th><th>留言/评论</th><th>收入(元)</th></tr></thead>
+      <tbody>${body}</tbody>
+      <tfoot><tr><td>合计</td><td>${d.totals.users}</td><td>${d.totals.issued}</td>
+        <td>${d.totals.redeemed}</td><td>${d.totals.comments}</td><td>¥${Number(d.totals.revenue).toFixed(2)}</td></tr></tfoot>
+    </table>
+    <footer>技术驿站运营中心 · 数据来源：后台数据库实时统计</footer>
+    <script>window.addEventListener('load',function(){setTimeout(function(){window.print()},120)})<\/script>
+    </body></html>`;
+}
+
+/* 优先在同步打开的窗口渲染（避免被拦截），失败则用隐藏 iframe */
+function exportPdf(d, win) {
+  const html = pdfHtml(d);
+  if (win && !win.closed) {
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    return true;
+  }
+  const old = document.getElementById('pdfFrame');
+  if (old) old.remove();
+  const f = document.createElement('iframe');
+  f.id = 'pdfFrame';
+  f.style.cssText = 'position:fixed;left:-9999px;top:0;width:820px;height:600px;border:0;opacity:0;pointer-events:none';
+  document.body.appendChild(f);
+  const doc = f.contentWindow.document;
+  doc.open();
+  doc.write(html);
+  doc.close();
+  return true;
+}
+
+$('#rptExport').onclick = async () => {
+  const btn = $('#rptExport');
+  const foot = $('#rptFoot');
+  const fmt = $('#rptFmt').value;
+  let pdfWin = null;
+  // 数据已就绪时同步生成 Blob 页面，避免被弹窗拦截
+  if (fmt === 'pdf' && rptData && rptData.range === rptRange) {
+    const url = URL.createObjectURL(new Blob([pdfHtml(rptData)], { type: 'text/html;charset=utf-8' }));
+    pdfWin = window.open(url, '_blank');
+    if (pdfWin) setTimeout(() => URL.revokeObjectURL(url), 15000);
+    else URL.revokeObjectURL(url);
+  }
+  btn.disabled = true;
+  btn.textContent = '导出中…';
+  try {
+    if (!rptData || rptData.range !== rptRange) await loadReport(rptRange, true);
+    if (!rptData) throw new Error('暂无数据可导出');
+    if (fmt === 'pdf') {
+      if (!pdfWin) exportPdf(rptData);
+      foot.textContent = '已生成 PDF 预览，请在打印窗口选择「另存为 PDF」';
+    } else {
+      exportCsv(rptData);
+      foot.textContent = '已导出 CSV 表格，可直接用 Excel 打开';
+    }
+  } catch (e) {
+    foot.textContent = e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '一键导出';
+  }
+};
+
+/* ---- 实时时钟 ---- */
+function tickClock() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  $('#clock').textContent = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+tickClock();
+setInterval(tickClock, 1000);
+
+/* ---- 初始化 ---- */
+buildKpis();
+$('#login').onclick = connect;
+$('#refresh').onclick = () => loadStats().catch(e => setEnv(e.message, false));
+$('#tk').value = token;
+if (token) connect();
 </script>
 </body>
 </html>

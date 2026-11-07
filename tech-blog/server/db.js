@@ -101,6 +101,11 @@ export async function initSchema() {
   });
   try {
     for (const sql of TABLES) await conn.query(sql);
+    // 兼容旧库：补齐「禁言」字段
+    const [mutedCol] = await conn.query("SHOW COLUMNS FROM users LIKE 'muted'");
+    if (!mutedCol.length) {
+      await conn.query('ALTER TABLE users ADD COLUMN muted TINYINT NOT NULL DEFAULT 0');
+    }
   } finally {
     await conn.end();
   }

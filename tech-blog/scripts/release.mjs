@@ -8,7 +8,7 @@ const SRC = path.resolve(HERE, '..');          // 测试服源码目录（唯一
 const OUT = path.join(SRC, 'releases', 'prod'); // 正式服运行目录
 
 /* 随代码一起发布的文件/目录 */
-const ITEMS = ['server', 'js', 'css', 'img', 'index.html', 'admin.html', 'keygen.html', 'vip.html', 'rss.xml', '.nojekyll', 'package.json'];
+const ITEMS = ['server', 'js', 'css', 'img', 'index.html', 'admin.html', 'vip.html', 'rss.xml', '.nojekyll', 'package.json'];
 
 const log = (...a) => console.log('  ', ...a);
 

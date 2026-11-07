@@ -85,11 +85,11 @@ app.use('/api', async (req, res, next) => {
   if (token) {
     try {
       const [rows] = await pool.query(
-        `SELECT u.id, u.username, u.is_guest FROM sessions s
+        `SELECT u.id, u.username, u.is_guest, u.muted FROM sessions s
          JOIN users u ON u.id = s.user_id WHERE s.token = ?`,
         [token]
       );
-      if (rows[0]) req.user = { id: rows[0].id, name: rows[0].username, guest: !!rows[0].is_guest };
+      if (rows[0]) req.user = { id: rows[0].id, name: rows[0].username, guest: !!rows[0].is_guest, muted: !!rows[0].muted };
     } catch (_) {}
   }
   next();
@@ -196,6 +196,7 @@ app.get('/api/comments', async (req, res) => {
 });
 
 app.post('/api/comments', needLogin, async (req, res) => {
+  if (req.user.muted) return res.status(403).json({ error: '该账号已被管理员禁用评论/留言功能' });
   const scope = req.body.scope === 'guest' ? 'guest' : 'post';
   const slug = String(req.body.slug || (scope === 'guest' ? 'guest' : ''));
   const body = String(req.body.body || '').trim();
@@ -393,6 +394,41 @@ app.post('/api/admin/codes', needAdmin, async (req, res) => {
   res.json({ ok: true, code, plan: CODE_PLAN[plan], username: name });
 });
 
+/* 开通码历史查询：账号 / 码 / 生成时间 / 是否已用 / 是否永久（包年） */
+app.get('/api/admin/codes', needAdmin, async (req, res) => {
+  const username = String(req.query.username || '').trim();
+  const code = String(req.query.code || '').trim().toUpperCase();
+  const from = String(req.query.from || '').trim();
+  const to = String(req.query.to || '').trim();
+  const used = req.query.used === '1' ? 1 : req.query.used === '0' ? 0 : -1;
+  const forever = req.query.forever === '1' ? 1 : req.query.forever === '0' ? 0 : -1;
+  const isDate = s => /^\d{4}-\d{2}-\d{2}$/.test(s);
+
+  const where = [];
+  const args = [];
+  if (username) { where.push('i.username LIKE ?'); args.push('%' + username + '%'); }
+  if (code) { where.push('i.code LIKE ?'); args.push('%' + code + '%'); }
+  if (isDate(from)) { where.push('i.issued_at >= ?'); args.push(from); }
+  if (isDate(to)) { where.push('i.issued_at < DATE_ADD(?, INTERVAL 1 DAY)'); args.push(to); }
+  if (used === 1) where.push('EXISTS (SELECT 1 FROM codes c WHERE c.code = i.code)');
+  if (used === 0) where.push('NOT EXISTS (SELECT 1 FROM codes c WHERE c.code = i.code)');
+  if (forever === 1) where.push("i.plan = 'year'");
+  if (forever === 0) where.push("i.plan <> 'year'");
+
+  const cond = where.length ? ' WHERE ' + where.join(' AND ') : '';
+  const [cnt] = await pool.query(`SELECT COUNT(*) AS n FROM issued_codes i${cond}`, args);
+  const [rows] = await pool.query(
+    `SELECT i.code, i.username, i.plan, i.issued_at,
+        (SELECT c.used_at FROM codes c WHERE c.code = i.code LIMIT 1) AS used_at
+     FROM issued_codes i${cond} ORDER BY i.issued_at DESC, i.code DESC LIMIT 100`, args
+  );
+  res.json({
+    total: Number(cnt[0].n),
+    rows: rows.map(r => ({ code: r.code, username: r.username, plan: r.plan, issued_at: r.issued_at,
+      used_at: r.used_at, used: !!r.used_at, forever: r.plan === 'year' })),
+  });
+});
+
 /* 套餐价格（用于统计收入） */
 const PRICES = { once: 6, week: 18.88, month: 59.99, year: 666 };
 const PLAN_LABEL = { once: '单次', week: '包周', month: '包月', year: '包年' };
@@ -464,7 +500,7 @@ app.get('/api/admin/users', needAdmin, async (req, res) => {
   const q = String(req.query.q || '').trim();
   if (!q) return res.json({ users: [] });
   const [rows] = await pool.query(
-    `SELECT id, username, is_guest, created_at FROM users WHERE username LIKE ? ORDER BY id DESC LIMIT 10`,
+    `SELECT id, username, is_guest, muted, created_at FROM users WHERE username LIKE ? ORDER BY id DESC LIMIT 10`,
     ['%' + q + '%']
   );
   if (!rows.length) return res.json({ users: [] });
@@ -490,6 +526,7 @@ app.get('/api/admin/users', needAdmin, async (req, res) => {
       id: u.id,
       username: u.username,
       guest: !!u.is_guest,
+      muted: !!u.muted,
       created_at: u.created_at,
       redeemed: rm.get(u.id) || 0,
       issued: im.get(u.username) || 0,
@@ -504,12 +541,17 @@ app.get('/api/admin/list', needAdmin, async (req, res) => {
   const LIMIT = 100;
 
   if (type === 'users' || type === 'users_today') {
-    const where = type === 'users_today' ? 'WHERE u.created_at >= CURDATE()' : '';
-    const [t] = await pool.query(`SELECT COUNT(*) AS n FROM users u ${where}`);
+    const q = String(req.query.q || '').trim();
+    const cond = [];
+    const args = [];
+    if (type === 'users_today') cond.push('u.created_at >= CURDATE()');
+    if (q) { cond.push('u.username LIKE ?'); args.push('%' + q + '%'); }
+    const where = cond.length ? 'WHERE ' + cond.join(' AND ') : '';
+    const [t] = await pool.query(`SELECT COUNT(*) AS n FROM users u ${where}`, args);
     const [rows] = await pool.query(
-      `SELECT u.username, u.is_guest, u.created_at,
+      `SELECT u.id, u.username, u.is_guest, u.muted, u.created_at,
          (SELECT COUNT(*) FROM codes c WHERE c.user_id = u.id) AS redeemed
-       FROM users u ${where} ORDER BY u.id DESC LIMIT ${LIMIT}`
+       FROM users u ${where} ORDER BY u.id DESC LIMIT ${LIMIT}`, args
     );
     return res.json({ type, total: Number(t[0].n), rows });
   }
@@ -546,6 +588,78 @@ app.get('/api/admin/list', needAdmin, async (req, res) => {
   res.status(400).json({ error: '未知的列表类型' });
 });
 
+/* 禁用 / 解禁账号的评论、留言功能 */
+app.post('/api/admin/users/:id/mute', needAdmin, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ error: '账号参数无效' });
+  const muted = req.body && req.body.muted ? 1 : 0;
+  const [u] = await pool.query('SELECT username FROM users WHERE id = ?', [id]);
+  if (!u[0]) return res.status(404).json({ error: '账号不存在' });
+  await pool.query('UPDATE users SET muted = ? WHERE id = ?', [muted, id]);
+  res.json({ ok: true, id, username: u[0].username, muted: !!muted });
+});
+
+/* 周 / 月 / 年 统计报表 */
+app.get('/api/admin/report', needAdmin, async (req, res) => {
+  const raw = String(req.query.range || 'week');
+  const range = ['week', 'month', 'year'].includes(raw) ? raw : 'week';
+  const pad = n => String(n).padStart(2, '0');
+  const now = new Date();
+  const buckets = [];
+  if (range === 'year') {
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      buckets.push(`${d.getFullYear()}-${pad(d.getMonth() + 1)}`);
+    }
+  } else {
+    const n = range === 'month' ? 30 : 7;
+    for (let i = n - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+      buckets.push(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
+    }
+  }
+  const fmt = range === 'year' ? '%Y-%m' : '%Y-%m-%d';
+  const start = range === 'year' ? buckets[0] + '-01' : buckets[0];
+
+  const group = async (table, col) => {
+    const [rows] = await pool.query(
+      `SELECT DATE_FORMAT(${col}, '${fmt}') AS k, COUNT(*) AS n FROM ${table} WHERE ${col} >= ? GROUP BY k`,
+      [start]
+    );
+    return new Map(rows.map(r => [r.k, Number(r.n)]));
+  };
+
+  const uMap = await group('users', 'created_at');
+  const cMap = await group('comments', 'created_at');
+  const iMap = await group('issued_codes', 'issued_at');
+  const rMap = await group('codes', 'used_at');
+
+  const [planRows] = await pool.query(
+    `SELECT DATE_FORMAT(used_at, '${fmt}') AS k, plan, COUNT(*) AS n
+     FROM codes WHERE used_at >= ? GROUP BY k, plan`, [start]
+  );
+  const revMap = new Map();
+  for (const r of planRows) revMap.set(r.k, (revMap.get(r.k) || 0) + (PRICES[r.plan] || 0) * Number(r.n));
+
+  const totals = { users: 0, issued: 0, redeemed: 0, comments: 0, revenue: 0 };
+  const series = buckets.map(k => {
+    const users = uMap.get(k) || 0;
+    const issued = iMap.get(k) || 0;
+    const redeemed = rMap.get(k) || 0;
+    const comments = cMap.get(k) || 0;
+    const revenue = Math.round((revMap.get(k) || 0) * 100) / 100;
+    totals.users += users;
+    totals.issued += issued;
+    totals.redeemed += redeemed;
+    totals.comments += comments;
+    totals.revenue += revenue;
+    return { d: k, users, issued, redeemed, comments, revenue };
+  });
+  totals.revenue = Math.round(totals.revenue * 100) / 100;
+
+  res.json({ range, start, end: buckets[buckets.length - 1], series, totals });
+});
+
 app.get('/api/work-likes', async (req, res) => {
   const [cnt] = await pool.query('SELECT work_key, COUNT(*) AS n FROM work_likes GROUP BY work_key');
   const out = {};
@@ -575,9 +689,8 @@ app.get(['/', '/index.html'], (req, res) => res.sendFile(path.join(ROOT, 'index.
 const noIndex = (req, res, next) => { res.setHeader('X-Robots-Tag', 'noindex, nofollow'); next(); };
 
 app.get('/robots.txt', (req, res) => {
-  res.type('text/plain').send('User-agent: *\nDisallow: /api/\nDisallow: /admin.html\nDisallow: /keygen.html\n');
+  res.type('text/plain').send('User-agent: *\nDisallow: /api/\nDisallow: /admin.html\n');
 });
-app.get('/keygen.html', noIndex, (req, res) => res.sendFile(path.join(ROOT, 'keygen.html')));
 app.get('/admin.html', noIndex, (req, res) => res.sendFile(path.join(ROOT, 'admin.html')));
 app.get('/vip.html', (req, res) => res.sendFile(path.join(ROOT, 'vip.html')));
 app.get('/rss.xml', (req, res) => res.sendFile(path.join(ROOT, 'rss.xml')));
