@@ -1332,17 +1332,24 @@ async function vWorks() {
     hotel: 'Spring Boot + Vue3 + MySQL',
     library: 'Spring Boot + Vue3 + MySQL',
   };
+  /* 售货区每件商品用不同主色，避免所有卡片颜色一致 */
+  const SALE_ACCENT = {
+    poster: 'linear-gradient(135deg,#6366f1,#06b6d4)',
+    video: 'linear-gradient(135deg,#ec4899,#f59e0b)',
+    hotel: 'linear-gradient(135deg,#0f766e,#2563eb)',
+    library: 'linear-gradient(135deg,#16a34a,#0ea5e9)',
+  };
   const saleCopies = works.filter(w => !w.free).map(w => ({
     key: w.id, icon: w.icon, title: w.name, tagline: w.tagline, desc: w.desc,
-    stack: SALE_STACK[w.id] || '', slug: SALE_SLUG[w.id] || '',
+    stack: SALE_STACK[w.id] || '', slug: SALE_SLUG[w.id] || '', accent: SALE_ACCENT[w.id] || '',
   }));
   saleCopies.push({
     key: 'library', icon: '📚', title: '图书管理系统',
     tagline: '图书/分类/读者/借阅一站式管理',
     desc: 'Spring Boot 3 + Vue3 + MySQL 8 的图书馆管理后台：图书/分类/读者/借阅与逾期统计，首次启动自动生成随机演示数据，前端已打进 jar。',
-    stack: SALE_STACK.library, slug: SALE_SLUG.library,
+    stack: SALE_STACK.library, slug: SALE_SLUG.library, accent: SALE_ACCENT.library,
   });
-  const saleCards = saleCopies.map(w => `<a class="work-card" href="javascript:void 0" data-sale="${esc(w.slug)}" data-cat="env" style="--accent:linear-gradient(135deg,#f59e0b,#ef4444)">
+  const saleCards = saleCopies.map(w => `<a class="work-card" href="javascript:void 0" data-sale="${esc(w.slug)}" data-cat="env" style="--accent:${w.accent}">
       <div class="work-top">
         <div class="work-icon">${w.icon}</div>
         <div class="work-info">
