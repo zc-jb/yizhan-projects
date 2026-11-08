@@ -873,10 +873,10 @@ function vGuest() {
 }
 
 const WORK_PLANS = [
-  { k: 'once', n: '单次', p: '¥6', d: '1 次使用', ms: 0 },
-  { k: 'week', n: '包周', p: '¥18.88', d: '7 天不限次', ms: 7 * 864e5 },
-  { k: 'month', n: '包月', p: '¥59.99', d: '30 天不限次', ms: 30 * 864e5 },
-  { k: 'year', n: '包年', p: '¥666', d: '365 天不限次', ms: 365 * 864e5 },
+  { k: 'once', n: '单次', p: '¥2.5', d: '1 次使用', ms: 0 },
+  { k: 'week', n: '包周', p: '¥16.66', d: '7 天不限次', ms: 7 * 864e5 },
+  { k: 'month', n: '包月', p: '¥39.99', d: '30 天不限次', ms: 30 * 864e5 },
+  { k: 'year', n: '包年', p: '¥398', d: '365 天不限次', ms: 365 * 864e5 },
 ];
 // 开通码规则：YZ<套餐>-<3位数字><校验位>，校验位 = 前3位数字之和 % 10
 // 例：YZ6-1236（1+2+3=6）为单次码；YZ18-8086（8+0+8=16→6）为包周码。站长可随时编新码，每码限用一次
@@ -941,6 +941,7 @@ async function openWork(w) {
 function showPayModal(w) {
   const old = document.getElementById('payModal');
   if (old) old.remove();
+  const guest = Auth.isGuest();
   const m = document.createElement('div');
   m.id = 'payModal';
   m.className = 'pay-mask';
@@ -949,7 +950,12 @@ function showPayModal(w) {
     <h3>🔒 免费体验次数已用完</h3>
     <p class="muted">「${w.name}」已体验 3 次，请选择套餐继续畅用</p>
     <p class="pay-acc">当前账号：<b>${esc(Auth.user() || '未登录')}</b>${Auth.isGuest() ? '（游客）' : ''} · 开通后仅该账号可享用</p>
-    <div class="pay-plans">${WORK_PLANS.map((p, i) => `<label class="pay-plan${i === 1 ? ' hot' : ''}"><input type="radio" name="plan" value="${p.k}" ${i === 1 ? 'checked' : ''}>${i === 1 ? '<em>推荐</em>' : ''}<b>${p.n}</b><span class="pay-price">${p.p}</span><small>${p.d}</small></label>`).join('')}</div>
+    <div class="pay-plans">${WORK_PLANS.map((p, i) => {
+      const off = guest && p.k !== 'once';
+      const on = guest ? p.k === 'once' : i === 1;
+      return `<label class="pay-plan${i === 1 ? ' hot' : ''}${off ? ' off' : ''}"><input type="radio" name="plan" value="${p.k}" ${on ? 'checked' : ''}${off ? ' disabled' : ''}>${i === 1 ? '<em>推荐</em>' : ''}<b>${p.n}</b><span class="pay-price">${p.p}</span><small>${p.d}${off ? ' · 游客不可' : ''}</small></label>`;
+    }).join('')}</div>
+    ${guest ? '<p class="pay-guest">游客账号仅可购买单次体验，其他套餐请注册正式账号后购买</p>' : ''}
     <div class="pay-tabs"><button class="pay-tab on" data-m="wx">💚 微信支付</button><button class="pay-tab" data-m="ali">💙 支付宝</button></div>
     <div class="pay-qr" id="payQr">
       <img src="img/wechat-pay.png" alt="微信收款码">
@@ -997,6 +1003,185 @@ function showPayModal(w) {
   };
 }
 
+const AD_PLANS = [
+  { k: 'once', n: '单次体验', price: '2.5', old: '6', desc: '1 次使用' },
+  { k: 'week', n: '体验周卡', price: '16.66', old: '18.88', desc: '7 天 · 不限次数', hot: true },
+  { k: 'month', n: '畅享月卡', price: '39.99', old: '59.99', desc: '30 天 · 不限次数' },
+  { k: 'year', n: '包年会员', price: '398', old: '666', desc: '365 天 · 永久划算' }
+];
+
+/* 进入应用前的会员广告弹框（含下单入口 + 开通码校验） */
+function showAdModal(w, onEnter) {
+  const old = document.getElementById('adModal');
+  if (old) old.remove();
+
+  const guest = Auth.isGuest();
+  let picked = guest ? AD_PLANS[0] : AD_PLANS[1];
+  let skip = 5;
+  let offer = 599;
+  const m = document.createElement('div');
+  m.id = 'adModal';
+  m.className = 'ad-mask';
+  m.innerHTML = `<div class="ad-box">
+    <button class="ad-x" id="adX" aria-label="关闭">✕</button>
+    <div class="ad-hero">
+      <span class="ad-flag">🎁 新用户专享</span>
+      <h2>全站会员体验礼包</h2>
+      <p class="ad-sub">「${esc(w.name)}」等全部作品，开通即无限畅用</p>
+      <div class="ad-price"><span class="ad-cur">¥</span><b id="adPrice">${picked.price}</b><s id="adOld">¥${picked.old}</s><i>首单立减 · 限时特惠</i></div>
+      <div class="ad-cd">优惠倒计时 <b id="adCd">09:59</b></div>
+    </div>
+    <div class="ad-body">
+      <div class="ad-perks">
+        <div><span>⚡</span><b>不限次数</b></div>
+        <div><span>🧠</span><b>AI 文案配图</b></div>
+        <div><span>📦</span><b>多格式导出</b></div>
+        <div><span>🔐</span><b>专属开通码</b></div>
+      </div>
+      <div class="ad-plans">
+        ${AD_PLANS.map(p => {
+          const off = guest && p.k !== 'once';
+          return `<button class="ad-plan${p.hot ? ' hot' : ''}${p.k === picked.k ? ' on' : ''}${off ? ' off' : ''}" data-k="${p.k}" type="button"${off ? ' disabled' : ''}>
+          ${p.hot ? '<em>最划算</em>' : ''}
+          <b>${p.n}</b>
+          <strong>¥${p.price}</strong>
+          <small>${p.desc}${off ? ' · 游客不可' : ''}</small>
+          <s>原价 ¥${p.old}</s>
+        </button>`;
+        }).join('')}
+      </div>
+      ${guest ? '<p class="ad-guest-tip">游客账号仅可购买单次体验，其他套餐请注册正式账号后购买</p>' : ''}
+      <div class="ad-actions">
+        <button class="ad-order" id="adOrder" type="button">立即下单 · ¥${picked.price} 开通</button>
+        <button class="ad-skip" id="adSkip" type="button" disabled>广告 5 秒后可跳过</button>
+      </div>
+      <div class="ad-pay" id="adPay" hidden>
+        <div class="ad-pay-head"><b id="adPayTitle">${picked.n} · ¥${picked.price}</b><button type="button" id="adPayBack">← 换个套餐</button></div>
+        <div class="ad-pay-tabs">
+          <button class="on" data-m="wx" type="button">💚 微信支付</button>
+          <button data-m="ali" type="button">💙 支付宝</button>
+        </div>
+        <img id="adQr" src="img/wechat-pay.png" alt="收款码">
+        <p class="ad-pay-tip">付款备注填账号 <b>${esc(Auth.user() || '未登录')}</b>，加微信 <button type="button" class="ad-wx" id="adWx">_Zc1908 📋</button> 发支付截图核实</p>
+        <p class="ad-warn">⚠️ 商品不支持退款，感谢支持</p>
+        <button class="ad-done" id="adDone" type="button">我已支付，下一步 →</button>
+        <div class="ad-redeem" id="adRedeem" hidden>
+          <div class="ad-redeem-head"><b>输入开通码激活会员</b><button type="button" id="adRedeemBack">← 返回支付</button></div>
+          <p class="ad-redeem-tip">支付后请加微信 <b>_Zc1908</b> 索取开通码，未激活前无法使用该产品</p>
+          <input id="adCode" class="ad-code" placeholder="请输入开通码，如 VIP-XXXX" autocomplete="off">
+          <button class="ad-verify" id="adVerify" type="button">验证并开通 →</button>
+          <p class="ad-msg" id="adMsg"></p>
+        </div>
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(m);
+  document.body.classList.add('ad-open');
+
+  const offerTimer = setInterval(() => {
+    offer = Math.max(0, offer - 1);
+    const mm = String(Math.floor(offer / 60)).padStart(2, '0');
+    const ss = String(offer % 60).padStart(2, '0');
+    const el = $('#adCd');
+    if (el) el.textContent = `${mm}:${ss}`;
+  }, 1000);
+  const skipTimer = setInterval(() => {
+    skip--;
+    const b = $('#adSkip');
+    if (!b) return;
+    if (skip <= 0) {
+      clearInterval(skipTimer);
+      b.disabled = false;
+      b.textContent = '跳过广告，直接体验 →';
+    } else {
+      b.textContent = `广告 ${skip} 秒后可跳过`;
+    }
+  }, 1000);
+
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    clearInterval(offerTimer);
+    clearInterval(skipTimer);
+    m.remove();
+    document.body.classList.remove('ad-open');
+  };
+
+  $('#adX').onclick = close;
+  m.onclick = e => { if (e.target === m) close(); };
+  $('#adSkip').onclick = () => { close(); onEnter(); };
+
+  m.querySelectorAll('.ad-plan').forEach(p => p.onclick = () => {
+    if (guest && p.dataset.k !== 'once') { toast('游客仅可购买单次体验'); return; }
+    picked = AD_PLANS.find(x => x.k === p.dataset.k) || picked;
+    m.querySelectorAll('.ad-plan').forEach(x => x.classList.toggle('on', x === p));
+    $('#adPrice').textContent = picked.price;
+    $('#adOld').textContent = `¥${picked.old}`;
+    $('#adOrder').textContent = `立即下单 · ¥${picked.price} 开通`;
+    $('#adPayTitle').textContent = `${picked.n} · ¥${picked.price}`;
+  });
+
+  $('#adOrder').onclick = () => {
+    $('#adPay').hidden = false;
+    $('#adOrder').style.display = 'none';
+    $('#adPay').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  };
+  $('#adPayBack').onclick = () => {
+    $('#adPay').hidden = true;
+    $('#adOrder').style.display = '';
+  };
+  m.querySelectorAll('.ad-pay-tabs button').forEach(t => t.onclick = () => {
+    m.querySelectorAll('.ad-pay-tabs button').forEach(x => x.classList.remove('on'));
+    t.classList.add('on');
+    $('#adQr').src = t.dataset.m === 'wx' ? 'img/wechat-pay.png' : 'img/alipay-qr.png';
+  });
+  $('#adWx').onclick = () => {
+    const b = $('#adWx');
+    const done = () => { b.textContent = '已复制 ✓'; setTimeout(() => { b.textContent = '_Zc1908 📋'; }, 1500); };
+    try { navigator.clipboard.writeText('_Zc1908').then(done).catch(done); } catch (_) { done(); }
+  };
+  $('#adDone').onclick = () => {
+    $('#adPay').hidden = true;
+    $('#adRedeem').hidden = false;
+    const msg = $('#adMsg');
+    msg.textContent = '';
+    msg.className = 'ad-msg';
+    setTimeout(() => $('#adCode').focus(), 80);
+  };
+  $('#adRedeemBack').onclick = () => {
+    $('#adRedeem').hidden = true;
+    $('#adPay').hidden = false;
+  };
+  const verifyCode = async () => {
+    const code = $('#adCode').value.trim().toUpperCase();
+    const msg = $('#adMsg');
+    if (!code) {
+      msg.textContent = '请输入开通码后再使用该产品';
+      msg.className = 'ad-msg err';
+      return;
+    }
+    const b = $('#adVerify');
+    if (b.disabled) return;
+    b.disabled = true;
+    b.textContent = '验证中…';
+    const err = await Api.redeem(w.id, code);
+    b.disabled = false;
+    b.textContent = '验证并开通 →';
+    if (err) {
+      msg.textContent = err;
+      msg.className = 'ad-msg err';
+      return;
+    }
+    msg.textContent = '开通成功，正在进入…';
+    msg.className = 'ad-msg ok';
+    toast(`🎉 「${w.name}」会员已开通`);
+    setTimeout(() => { close(); onEnter(); }, 800);
+  };
+  $('#adVerify').onclick = verifyCode;
+  $('#adCode').addEventListener('keydown', e => { if (e.key === 'Enter') verifyCode(); });
+}
+
 const NAV_PALETTE = ['#4f6ef7','#8b5cf6','#ec4899','#f59e0b','#10b981','#06b6d4','#f43f5e','#6366f1','#84cc16','#fb923c'];
 
 function vTools() {
@@ -1039,10 +1224,10 @@ function vTools() {
 
 async function vWorks() {
   const works = [
-    { id: 'poster', icon: '🎨', name: 'AI 海报制作', desc: '在线海报设计工具：30+ 套精美模板、画布拖拽编辑、AI 智能文案与配图、二维码生成、一键导出 PNG/JPG/PDF。', url: 'https://ai-poster-yizhan.netlify.app/', tag: '在线工具' },
-    { id: 'video', icon: '🎬', name: '影视快看 · 视频解析', desc: 'VIP 视频解析工具：粘贴各大平台视频链接一键解析，免会员在线观看，深色沉浸界面，手机端完美适配。', url: 'https://zc-jb.github.io/tech-blog/vip.html', tag: '在线工具' },
-    { id: 'blog', icon: '⚡', name: '技术驿站', desc: '就是本站——专注实用技术的个人博客：11 篇技术长文、全文搜索、深色模式、评论互动、RSS 订阅。', url: '#/', tag: '个人博客', free: true },
-    { id: 'hotel', icon: '🏨', name: '酒店管理系统', desc: '前后端分离的酒店管理系统：后端 Java + Spring Boot，前端 Vue3 + Element Plus，MySQL 8.0 作为主库存业务数据，Redis 仅作缓存加速，数据最终落盘 MySQL。', url: 'http://localhost:8080', tag: '全栈项目', direct: true },
+    { id: 'poster', icon: '🎨', name: 'AI 海报制作', tagline: '30 秒做出一张能直接发的商业海报', desc: '30+ 套精美模板、画布拖拽编辑、AI 智能文案与配图、二维码生成，一键导出 PNG / JPG / PDF。', features: ['30+ 模板', 'AI 文案配图', '一键导出'], accent: 'linear-gradient(135deg,#6366f1,#06b6d4)', badge: '🔥 热门', url: 'https://ai-poster-yizhan.netlify.app/', tag: '在线工具' },
+    { id: 'video', icon: '🎬', name: '影视快看 · 视频解析', tagline: '粘贴链接就能看，免会员高清直达', desc: '支持各大平台视频链接一键解析，深色沉浸播放界面，手机端完美适配，追剧不再到处找会员。', features: ['全网解析', '免会员观看', '手机适配'], accent: 'linear-gradient(135deg,#ec4899,#f59e0b)', url: 'https://zc-jb.github.io/tech-blog/vip.html', tag: '在线工具' },
+    { id: 'blog', icon: '⚡', name: '技术驿站', tagline: '能跑通、能看懂、能用上的技术长文', desc: '就是本站。11 篇实战技术长文、全文搜索、深色模式、评论互动与 RSS 订阅，一个安静的充电站。', features: ['11 篇长文', '全文搜索', '评论互动'], accent: 'linear-gradient(135deg,#8b5cf6,#06b6d4)', url: '#/', tag: '个人博客', free: true },
+    { id: 'hotel', icon: '🏨', name: '酒店管理系统', tagline: '从预订到退房结算，全流程在线跑通', desc: '房型、房间、客人、预订、入住、退房、账单一体化；房态自动流转、金额自动核算，数据实时落盘 MySQL。', features: ['房态流转', '自动算价', '真实可体验'], accent: 'linear-gradient(135deg,#0f766e,#2563eb)', badge: '✨ 新品', url: 'http://localhost:8080', tag: '全栈项目', direct: true },
   ];
   const st = await Api.worksStatus();
   const wl = await Api.workLikes();
@@ -1056,16 +1241,23 @@ async function vWorks() {
     return `<span class="work-state">免费体验 ${s.left}/3 次</span>`;
   };
   app.innerHTML = `<div class="card page-box"><h1>🧰 我的作品</h1><p class="muted">堆码不易，感谢支持！！！</p>
-    <div class="works-grid">${works.map(w => `<a class="work-card" href="javascript:void 0" data-id="${w.id}">
-      <div class="work-icon">${w.icon}</div>
-      <div class="work-info"><div class="work-name">${w.name}<span class="work-tag">${w.tag}</span>${stateOf(w)}</div>
+    <div class="works-grid">${works.map(w => `<a class="work-card${w.badge ? ' has-badge' : ''}" href="javascript:void 0" data-id="${w.id}" style="--accent:${w.accent}">
+      ${w.badge ? `<span class="work-badge">${w.badge}</span>` : ''}
+      <div class="work-top">
+        <div class="work-icon">${w.icon}</div>
+        <div class="work-info">
+          <div class="work-name">${w.name}<span class="work-tag">${w.tag}</span>${stateOf(w)}</div>
+          <p class="work-tagline">${w.tagline}</p>
+        </div>
+      </div>
       <p class="work-desc">${w.desc}</p>
-      <div class="work-foot"><span class="work-go">立即体验 →</span><button class="work-like${liked.includes(w.id) ? ' on' : ''}" data-id="${w.id}">❤️ ${likes[w.id] || 0}</button></div></div></a>`).join('')}</div></div>`;
+      <div class="work-chips">${w.features.map(f => `<span>✦ ${f}</span>`).join('')}</div>
+      <div class="work-foot"><span class="work-go">立即体验 →</span><button class="work-like${liked.includes(w.id) ? ' on' : ''}" data-id="${w.id}">❤️ ${likes[w.id] || 0}</button></div></a>`).join('')}</div></div>`;
   document.querySelectorAll('.work-card').forEach(c => c.onclick = () => {
     const w = works.find(x => x.id === c.dataset.id);
     if (!w) return;
-    if (w.direct) return goWork(w.url);
-    openWork(w);
+    if (w.free) return openWork(w);
+    showAdModal(w, () => (w.direct ? goWork(w.url) : openWork(w)));
   });
   document.querySelectorAll('.work-like').forEach(b => b.onclick = async e => {
     e.preventDefault();
@@ -1204,6 +1396,32 @@ function renderUserChip() {
 function afterLogin() {
   renderUserChip();
   route();
+  checkCodeReminder();
+}
+
+/* ---------- 开通码临期提醒（未兑换 15 天作废，剩 3 天提醒） ---------- */
+async function checkCodeReminder() {
+  if (!Auth.user() || Auth.isGuest()) return;
+  const list = await Api.myCodes().catch(() => []);
+  const near = list.filter(c => c.remind);
+  if (!near.length) return;
+  const minDays = Math.max(0, Math.min(...near.map(c => c.days_left)));
+  let el = $('#codeRemind');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'codeRemind';
+    el.className = 'code-remind';
+    document.body.appendChild(el);
+    el.addEventListener('click', e => {
+      if (e.target.closest('.cr-close')) { el.classList.remove('show'); return; }
+      if (e.target.closest('.cr-go')) { el.classList.remove('show'); location.hash = '#/works'; }
+    });
+  }
+  el.innerHTML = `<span class="cr-ico">⏰</span>
+    <div class="cr-txt">你有 <b>${near.length}</b> 张开通码将在 <b>${minDays}</b> 天后自动作废<small>生成后 15 天内有效，请尽快到作品页激活</small></div>
+    <button class="cr-go" type="button">去激活</button>
+    <button class="cr-close" type="button" title="关闭">✕</button>`;
+  requestAnimationFrame(() => el.classList.add('show'));
 }
 
 /* ---------- 路由 ---------- */
@@ -1397,10 +1615,15 @@ window.addEventListener('hashchange', route);
 })();
 
 /* ---------- 启动 ---------- */
-$('#logoutBtn').onclick = async () => { await Auth.logout(); renderUserChip(); route(); };
+$('#logoutBtn').onclick = async () => {
+  await Auth.logout();
+  const cr = $('#codeRemind'); if (cr) cr.remove();
+  renderUserChip(); route();
+};
 (async () => {
   await Api.boot();
   renderUserChip();
   route();
+  checkCodeReminder();
 })();
 })();

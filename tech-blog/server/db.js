@@ -100,6 +100,23 @@ const TABLES = [
     issued_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_issued_user (username)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  `CREATE TABLE IF NOT EXISTS renewals (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    batch VARCHAR(24) NOT NULL,
+    user_id INT NOT NULL,
+    scope VARCHAR(10) NOT NULL,
+    work_key VARCHAR(20) NOT NULL,
+    plan VARCHAR(10) NOT NULL,
+    prev_plan VARCHAR(10) NULL,
+    prev_remaining INT NULL,
+    prev_expires_at DATETIME NULL,
+    new_remaining INT NULL,
+    new_expires_at DATETIME NULL,
+    revoked TINYINT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_renew_user (user_id, id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 ];
 
 export async function initSchema() {

@@ -1,6 +1,7 @@
 import express from 'express';
 import crypto from 'node:crypto';
 import path from 'node:path';
+import fs from 'node:fs';
 import { ROOT } from './env.js';
 import { pool, initSchema, ensureDatabase } from './db.js';
 import { clientIp, limiter, sameOrigin, makeAdminGuard } from './guard.js';
@@ -50,7 +51,10 @@ const fmt = d => {
 
 /* ---------------- 开通码规则（与服务端一致，防绕过） ---------------- */
 const PLAN_MS = { once: 0, week: 7 * 864e5, month: 30 * 864e5, year: 365 * 864e5 };
+const CODE_TTL_DAYS = 15;    // 开通码有效期：生成后 15 天未兑换自动作废
+const CODE_REMIND_DAYS = 3;  // 到期前 3 天提醒
 const CODE_PLAN = { 6: 'once', 18: 'week', 59: 'month', 666: 'year' };
+const codeDeadline = issued => new Date(new Date(issued).getTime() + CODE_TTL_DAYS * 864e5);
 const RE_BOUND = /^YZ(6|18|59|666)-([A-Z]{2})(\d{3})(\d)$/;
 const RE_COMMON = /^YZ(6|18|59|666)-(\d{3})(\d)$/;
 
@@ -314,9 +318,17 @@ app.post('/api/works/:key/redeem', needLogin, async (req, res) => {
   const code = String(req.body.code || '').trim().toUpperCase();
   const parsed = parseCode(code, req.user.name);
   if (parsed.err) return res.status(400).json({ error: parsed.err });
+  if (req.user.guest && parsed.plan !== 'once') {
+    return res.status(400).json({ error: '游客账号仅可购买单次套餐，其他套餐请注册正式账号后购买' });
+  }
 
   const [used] = await pool.query('SELECT code FROM codes WHERE code=?', [code]);
   if (used[0]) return res.status(409).json({ error: '该开通码已被使用，每个码仅限一次' });
+
+  const [issued] = await pool.query('SELECT issued_at FROM issued_codes WHERE code=? LIMIT 1', [code]);
+  if (issued[0] && Date.now() > codeDeadline(issued[0].issued_at).getTime()) {
+    return res.status(400).json({ error: `该开通码已超过 ${CODE_TTL_DAYS} 天有效期，已自动作废，请联系客服重新生成` });
+  }
 
   try {
     await pool.query('INSERT INTO codes (code, plan, user_id) VALUES (?,?,?)', [code, parsed.plan, req.user.id]);
@@ -345,6 +357,28 @@ app.post('/api/works/:key/redeem', needLogin, async (req, res) => {
     );
   }
   res.json({ ok: true, plan: parsed.plan });
+});
+
+/* 我的未兑换开通码（用于到期前提醒） */
+app.get('/api/codes/mine', needLogin, async (req, res) => {
+  const [rows] = await pool.query(
+    `SELECT i.code, i.plan, i.issued_at FROM issued_codes i
+     WHERE i.username = ? AND NOT EXISTS (SELECT 1 FROM codes c WHERE c.code = i.code)
+     ORDER BY i.issued_at ASC`,
+    [req.user.name]
+  );
+  const now = Date.now();
+  const list = [];
+  for (const r of rows) {
+    const end = codeDeadline(r.issued_at);
+    const daysLeft = Math.ceil((end.getTime() - now) / 864e5);
+    if (now > end.getTime()) continue; // 已作废的不再提醒
+    list.push({
+      code: r.code, plan: r.plan, expires_at: end,
+      days_left: daysLeft, remind: daysLeft <= CODE_REMIND_DAYS,
+    });
+  }
+  res.json({ list, ttlDays: CODE_TTL_DAYS, remindDays: CODE_REMIND_DAYS });
 });
 
 /* ---------------- 违规告知（取管理台禁言账号） ---------------- */
@@ -450,6 +484,68 @@ const needAdmin = (req, res, next) => {
   next();
 };
 
+/* ---------------- 作品部署包管理 ---------------- */
+const PKG_DIR = path.resolve(ROOT, '..', '_packages');
+const PKG_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,60}\.zip$/;
+try { fs.mkdirSync(PKG_DIR, { recursive: true }); } catch (_) {}
+
+function pkgManifest() {
+  try { return JSON.parse(fs.readFileSync(path.join(PKG_DIR, 'manifest.json'), 'utf8')); }
+  catch (_) { return { packages: [] }; }
+}
+
+function pkgList() {
+  const man = pkgManifest();
+  const meta = new Map((man.packages || []).map(p => [p.file, p]));
+  let files = [];
+  try { files = fs.readdirSync(PKG_DIR).filter(f => PKG_RE.test(f)); } catch (_) {}
+  return files.map(f => {
+    const st = fs.statSync(path.join(PKG_DIR, f));
+    const m = meta.get(f) || {};
+    return {
+      file: f,
+      id: f.replace(/\.zip$/, ''),
+      title: m.title || f.replace(/\.zip$/, ''),
+      desc: m.desc || '',
+      stack: m.stack || '',
+      version: m.version || '',
+      size: st.size,
+      updated: st.mtime,
+    };
+  }).sort((a, b) => a.file.localeCompare(b.file));
+}
+
+app.get('/api/admin/works/packages', needAdmin, (req, res) => {
+  res.json({ list: pkgList() });
+});
+
+app.get('/api/admin/works/packages/:file', needAdmin, (req, res) => {
+  const f = String(req.params.file || '');
+  if (!PKG_RE.test(f)) return res.status(400).json({ error: '包名不合法' });
+  const abs = path.join(PKG_DIR, f);
+  if (!fs.existsSync(abs)) return res.status(404).json({ error: '该部署包不存在' });
+  res.download(abs, f);
+});
+
+app.post('/api/admin/works/packages/:file', needAdmin, express.raw({ type: '*/*', limit: '200mb' }), (req, res) => {
+  const f = String(req.params.file || '');
+  if (!PKG_RE.test(f)) return res.status(400).json({ error: '包名不合法，仅支持字母数字点横线下划线 + .zip' });
+  const buf = req.body;
+  if (!Buffer.isBuffer(buf) || !buf.length) return res.status(400).json({ error: '未收到包内容' });
+  if (buf.length < 4 || buf[0] !== 0x50 || buf[1] !== 0x4B) return res.status(400).json({ error: '仅支持 zip 压缩包' });
+  fs.writeFileSync(path.join(PKG_DIR, f), buf);
+  res.json({ ok: true, file: f, size: buf.length });
+});
+
+app.delete('/api/admin/works/packages/:file', needAdmin, (req, res) => {
+  const f = String(req.params.file || '');
+  if (!PKG_RE.test(f)) return res.status(400).json({ error: '包名不合法' });
+  const abs = path.join(PKG_DIR, f);
+  if (!fs.existsSync(abs)) return res.status(404).json({ error: '该部署包不存在' });
+  fs.unlinkSync(abs);
+  res.json({ ok: true });
+});
+
 app.post('/api/admin/codes', needAdmin, async (req, res) => {
   const name = String(req.body.username || '').trim();
   const plan = String(req.body.plan || '');
@@ -458,7 +554,7 @@ app.post('/api/admin/codes', needAdmin, async (req, res) => {
 
   const [u] = await pool.query('SELECT is_guest FROM users WHERE username = ?', [name]);
   if (!u[0]) return res.status(404).json({ error: '该账号尚未注册，请让用户先注册再付款' });
-  if (u[0].is_guest) return res.status(400).json({ error: '游客账号不能开通套餐，请使用正式注册账号' });
+  if (u[0].is_guest && plan !== '6') return res.status(400).json({ error: '游客账号仅可购买单次套餐，其他套餐请使用正式注册账号' });
 
   const X = acc2code(name);
   let code = '';
@@ -503,15 +599,26 @@ app.get('/api/admin/codes', needAdmin, async (req, res) => {
         (SELECT c.used_at FROM codes c WHERE c.code = i.code LIMIT 1) AS used_at
      FROM issued_codes i${cond} ORDER BY i.issued_at DESC, i.code DESC LIMIT 100`, args
   );
+  const now = Date.now();
   res.json({
     total: Number(cnt[0].n),
-    rows: rows.map(r => ({ code: r.code, username: r.username, plan: r.plan, issued_at: r.issued_at,
-      used_at: r.used_at, used: !!r.used_at, forever: r.plan === 'year' })),
+    rows: rows.map(r => {
+      const expires = codeDeadline(r.issued_at);
+      const left = Math.ceil((expires.getTime() - now) / 864e5);
+      return {
+        code: r.code, username: r.username, plan: r.plan, issued_at: r.issued_at,
+        used_at: r.used_at, used: !!r.used_at, forever: r.plan === 'year',
+        expires_at: expires,
+        days_left: r.used_at ? null : Math.max(0, left),
+        expired: !r.used_at && now > expires.getTime(),
+        expiring: !r.used_at && now <= expires.getTime() && left <= CODE_REMIND_DAYS,
+      };
+    }),
   });
 });
 
 /* 套餐价格（用于统计收入） */
-const PRICES = { once: 6, week: 18.88, month: 59.99, year: 666 };
+const PRICES = { once: 2.5, week: 16.66, month: 39.99, year: 398 };
 const PLAN_LABEL = { once: '单次', week: '包周', month: '包月', year: '包年' };
 
 app.get('/api/admin/stats', needAdmin, async (req, res) => {
@@ -525,6 +632,13 @@ app.get('/api/admin/stats', needAdmin, async (req, res) => {
       COALESCE(SUM(created_at>=CURDATE()),0) AS today FROM comments`);
   const issued = await one(`SELECT COUNT(*) AS total,
       COALESCE(SUM(issued_at>=CURDATE()),0) AS today FROM issued_codes`);
+  const codeHealth = await one(`SELECT
+      COALESCE(SUM(NOT EXISTS (SELECT 1 FROM codes c WHERE c.code=i.code)
+        AND i.issued_at < DATE_SUB(NOW(), INTERVAL ${CODE_TTL_DAYS - CODE_REMIND_DAYS} DAY)
+        AND i.issued_at >= DATE_SUB(NOW(), INTERVAL ${CODE_TTL_DAYS} DAY)),0) AS expiring,
+      COALESCE(SUM(NOT EXISTS (SELECT 1 FROM codes c WHERE c.code=i.code)
+        AND i.issued_at < DATE_SUB(NOW(), INTERVAL ${CODE_TTL_DAYS} DAY)),0) AS expired
+      FROM issued_codes i`);
   const redeemed = await one(`SELECT COUNT(*) AS total,
       COALESCE(SUM(used_at>=CURDATE()),0) AS today FROM codes`);
   const active = await one(`SELECT COUNT(*) AS n FROM entitlements
@@ -569,10 +683,18 @@ app.get('/api/admin/stats', needAdmin, async (req, res) => {
     codes: { issued: Number(issued.total), issuedToday: Number(issued.today),
              redeemed: Number(redeemed.total), redeemedToday: Number(redeemed.today),
              unused: Math.max(0, Number(issued.total) - Number(redeemed.total)),
+             expiring: Number(codeHealth.expiring || 0), expired: Number(codeHealth.expired || 0),
+             ttlDays: CODE_TTL_DAYS, remindDays: CODE_REMIND_DAYS,
              active: Number(active.n), revenue: Math.round(revenue * 100) / 100 },
     byPlan: byPlan.map(r => ({ plan: r.plan, label: PLAN_LABEL[r.plan] || r.plan, n: Number(r.n), amount: (PRICES[r.plan] || 0) * Number(r.n) })),
     series: days.map(d => ({ d, users: um.get(d) || 0, redeemed: cm.get(d) || 0 })),
-    recentIssued: recentIssued.map(r => ({ ...r, used: Number(r.used) })),
+    recentIssued: recentIssued.map(r => {
+      const end = codeDeadline(r.issued_at);
+      const left = Math.ceil((end.getTime() - Date.now()) / 864e5);
+      return { ...r, used: Number(r.used),
+        days_left: Number(r.used) ? null : Math.max(0, left),
+        expired: !Number(r.used) && Date.now() > end.getTime() };
+    }),
     recentRedeemed,
   });
 });
@@ -634,7 +756,36 @@ app.get('/api/admin/list', needAdmin, async (req, res) => {
          (SELECT COUNT(*) FROM codes c WHERE c.user_id = u.id) AS redeemed
        FROM users u ${where} ORDER BY u.id DESC LIMIT ${LIMIT}`, args
     );
-    return res.json({ type, total: Number(t[0].n), rows });
+    const ids = rows.map(r => r.id);
+    const vipMap = new Map();
+    if (ids.length) {
+      const [ents] = await pool.query(
+        `SELECT user_id, plan, remaining, expires_at FROM entitlements
+         WHERE user_id IN (?) AND plan <> 'free'`, [ids]
+      );
+      const now = Date.now();
+      const RANK = { once: 1, week: 1, month: 2, year: 3 };
+      const TYPE = { once: '体验', week: '体验', month: '畅享', year: '永久' };
+      for (const e of ents) {
+        const active = e.plan === 'once'
+          ? Number(e.remaining) > 0
+          : (e.expires_at && new Date(e.expires_at).getTime() > now);
+        if (!active) continue;
+        const rank = RANK[e.plan] || 0;
+        const cur = vipMap.get(e.user_id);
+        if (!cur || rank >= cur.rank) {
+          vipMap.set(e.user_id, { rank, type: TYPE[e.plan] || e.plan, until: e.expires_at });
+        }
+      }
+    }
+    return res.json({
+      type,
+      total: Number(t[0].n),
+      rows: rows.map(r => {
+        const v = vipMap.get(r.id);
+        return { ...r, vip: !!v, vipType: v ? v.type : null, vipUntil: v ? v.until : null };
+      }),
+    });
   }
 
   if (type === 'comments' || type === 'comments_today') {
@@ -681,6 +832,110 @@ app.post('/api/admin/users/:id/mute', needAdmin, async (req, res) => {
     [muted, muted ? new Date() : null, id]
   );
   res.json({ ok: true, id, username: u[0].username, muted: !!muted });
+});
+
+/* 管理员续会：会员续会（全部应用）/ 应用续会（指定应用），并记录可撤销的历史 */
+app.post('/api/admin/users/:id/renew', needAdmin, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ error: '账号参数无效' });
+  const scope = req.body && req.body.scope === 'app' ? 'app' : 'member';
+  const plan = String((req.body && req.body.plan) || '');
+  const workKey = String((req.body && req.body.workKey) || '');
+  if (!Object.prototype.hasOwnProperty.call(PLAN_MS, plan)) return res.status(400).json({ error: '套餐无效' });
+  if (scope === 'app' && !WORKS.includes(workKey)) return res.status(400).json({ error: '应用无效' });
+  const [u] = await pool.query('SELECT username, is_guest FROM users WHERE id = ?', [id]);
+  if (!u[0]) return res.status(404).json({ error: '账号不存在' });
+  if (u[0].is_guest) return res.status(400).json({ error: '游客账号不能续会，请使用正式注册账号' });
+
+  const batch = crypto.randomBytes(6).toString('hex');
+  const keys = scope === 'member' ? WORKS.slice() : [workKey];
+  const works = [];
+  for (const key of keys) {
+    const [rows] = await pool.query(
+      'SELECT plan, remaining, expires_at FROM entitlements WHERE user_id=? AND work_key=?',
+      [id, key]
+    );
+    const cur = rows[0];
+    let newRemaining = null, newExpires = null;
+    if (plan === 'once') {
+      newRemaining = (cur && cur.plan === 'once' ? cur.remaining : 0) + 1;
+      await pool.query(
+        'INSERT INTO entitlements (user_id, work_key, plan, remaining) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE plan=?, remaining=?',
+        [id, key, 'once', newRemaining, 'once', newRemaining]
+      );
+      works.push({ workKey: key, plan: 'once', remaining: newRemaining });
+    } else {
+      const base = cur && cur.expires_at ? Math.max(Date.now(), new Date(cur.expires_at).getTime()) : Date.now();
+      newExpires = new Date(base + PLAN_MS[plan]);
+      await pool.query(
+        'INSERT INTO entitlements (user_id, work_key, plan, remaining, expires_at) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE plan=?, expires_at=?, remaining=0',
+        [id, key, plan, 0, newExpires, plan, newExpires]
+      );
+      works.push({ workKey: key, plan, until: newExpires });
+    }
+    await pool.query(
+      `INSERT INTO renewals (batch, user_id, scope, work_key, plan, prev_plan, prev_remaining, prev_expires_at, new_remaining, new_expires_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?)`,
+      [batch, id, scope, key, plan, cur ? cur.plan : null, cur ? cur.remaining : null, cur ? cur.expires_at : null, newRemaining, newExpires]
+    );
+  }
+  res.json({ ok: true, id, username: u[0].username, scope, plan, batch, works });
+});
+
+/* 最近续会记录（按批次归并，便于一键撤销） */
+app.get('/api/admin/users/:id/renewals', needAdmin, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ error: '账号参数无效' });
+  const [rows] = await pool.query(
+    `SELECT batch, scope, work_key, plan, prev_plan, new_remaining, new_expires_at, revoked, created_at
+       FROM renewals WHERE user_id=? ORDER BY id DESC LIMIT 40`,
+    [id]
+  );
+  const map = new Map();
+  for (const r of rows) {
+    if (!map.has(r.batch)) {
+      map.set(r.batch, {
+        batch: r.batch, scope: r.scope, plan: r.plan, revoked: true,
+        created_at: r.created_at, works: [], until: r.new_expires_at || null, remaining: r.new_remaining,
+      });
+    }
+    const it = map.get(r.batch);
+    it.works.push({ workKey: r.work_key, prevPlan: r.prev_plan });
+    if (!r.revoked) it.revoked = false;
+  }
+  res.json({ items: [...map.values()] });
+});
+
+/* 撤销一次续会（恢复续会前的套餐 / 次数 / 到期时间） */
+app.post('/api/admin/users/:id/renewals/:batch/undo', needAdmin, async (req, res) => {
+  const id = Number(req.params.id);
+  const batch = String(req.params.batch || '');
+  if (!Number.isFinite(id) || id <= 0) return res.status(400).json({ error: '账号参数无效' });
+  const [rows] = await pool.query('SELECT * FROM renewals WHERE user_id=? AND batch=? ORDER BY id', [id, batch]);
+  if (!rows.length) return res.status(404).json({ error: '续会记录不存在' });
+  if (rows.some(r => r.revoked)) return res.status(409).json({ error: '该次续会已撤销，请勿重复操作' });
+  for (const r of rows) {
+    const [later] = await pool.query(
+      'SELECT id FROM renewals WHERE user_id=? AND work_key=? AND id>? AND revoked=0 LIMIT 1',
+      [id, r.work_key, r.id]
+    );
+    if (later[0]) {
+      return res.status(409).json({ error: `「${r.work_key}」之后已有新的续会记录，请先撤销更新的续会` });
+    }
+  }
+  for (const r of rows) {
+    if (r.prev_plan == null) {
+      await pool.query('DELETE FROM entitlements WHERE user_id=? AND work_key=?', [id, r.work_key]);
+    } else {
+      await pool.query(
+        'INSERT INTO entitlements (user_id, work_key, plan, remaining, expires_at) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE plan=?, remaining=?, expires_at=?',
+        [id, r.work_key, r.prev_plan, r.prev_remaining == null ? 0 : r.prev_remaining, r.prev_expires_at,
+         r.prev_plan, r.prev_remaining == null ? 0 : r.prev_remaining, r.prev_expires_at]
+      );
+    }
+  }
+  await pool.query('UPDATE renewals SET revoked=1 WHERE user_id=? AND batch=?', [id, batch]);
+  res.json({ ok: true, batch, restored: rows.length });
 });
 
 /* 违规申诉列表 / 审核（通过即解除禁言） */

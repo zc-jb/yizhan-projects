@@ -214,6 +214,7 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .pill{font-size:10.5px;border-radius:999px;padding:2px 9px;border:1px solid var(--line);color:var(--dim);white-space:nowrap}
 .pill.on{color:var(--green);border-color:rgba(46,230,168,.38);background:rgba(46,230,168,.08)}
 .pill.off{color:var(--gold);border-color:rgba(255,192,67,.34);background:rgba(255,192,67,.07)}
+.pill.dead{color:#ff9aa3;border-color:rgba(255,122,122,.35);background:rgba(255,80,80,.08)}
 
 /* ---------- 账号卡 ---------- */
 .user{
@@ -259,6 +260,73 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .modal-box header button{background:none;border:none;color:var(--dim);font-size:17px;cursor:pointer;line-height:1;padding:4px 8px;border-radius:8px}
 .modal-box header button:hover{color:var(--txt);background:rgba(255,255,255,.05)}
 .modal-body{overflow:auto}
+.modal-box.narrow{width:min(430px,96vw)}
+.rn-hist-empty{padding:16px 0;text-align:center;font-size:11px;color:var(--dim)}
+/* 续会弹窗 v2 */
+.modal-box.renew-box{width:min(470px,96vw);padding:0;overflow:hidden;max-height:calc(100vh - 34px);display:flex;flex-direction:column}
+.rn-head{padding:14px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:1px solid var(--line);background:linear-gradient(120deg,rgba(77,159,255,.10),rgba(111,75,255,.09))}
+.rn-head>button{background:none;border:0;color:var(--dim);font-size:15px;cursor:pointer;width:28px;height:28px;border-radius:8px;flex:none;font-family:inherit}
+.rn-head>button:hover{background:rgba(255,255,255,.06);color:var(--txt)}
+.rn-title{display:flex;align-items:center;gap:11px;min-width:0}
+.rn-ava{width:38px;height:38px;border-radius:12px;flex:none;display:grid;place-items:center;font-size:15px;font-weight:800;color:#fff;background:linear-gradient(135deg,#3672ff,#6f4bff);box-shadow:0 8px 18px -8px rgba(90,100,255,.7)}
+.rn-title h3{font-size:13.5px;font-weight:600;color:var(--dim2);display:flex;align-items:center;gap:6px;min-width:0}
+.rn-title h3 b{color:var(--txt);font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
+.rn-title p{font-size:10.5px;color:var(--dim);margin-top:3px}
+.rn-title p.on{color:var(--green)}
+.rn-body{padding:14px 18px 16px;display:flex;flex-direction:column;gap:13px;overflow:auto;flex:1;min-height:0}
+.rn-body>*{flex:none}
+.rn-sec{display:flex;flex-direction:column;gap:7px}
+.rn-sec[hidden]{display:none}
+.rn-label{font-size:11px;color:var(--dim2);letter-spacing:.3px;display:flex;justify-content:space-between;align-items:center}
+.rn-label-tip{font-size:10px;color:var(--dim)}
+.rn-cards{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.rn-card{position:relative;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;text-align:left;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;gap:1px;transition:.18s cubic-bezier(.2,.8,.2,1);color:var(--dim)}
+.rn-card:hover{border-color:var(--line2);transform:translateY(-1px)}
+.rn-card .rn-ico{font-size:15px;line-height:1.2}
+.rn-card b{font-size:12.5px;color:var(--txt);font-weight:600;margin-top:2px}
+.rn-card small{font-size:10px;color:var(--dim)}
+.rn-card.on{border-color:var(--blue);background:rgba(77,159,255,.10);box-shadow:0 0 0 3px rgba(77,159,255,.09)}
+.rn-card.on::after{content:'✓';position:absolute;right:8px;top:8px;width:15px;height:15px;border-radius:50%;background:var(--blue);color:#fff;font-size:9px;display:grid;place-items:center}
+.rn-apps{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rn-app{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:9px 0;font-size:12px;color:var(--dim);cursor:pointer;font-family:inherit;transition:.18s}
+.rn-app.on{border-color:var(--blue);color:#cfe4ff;background:rgba(77,159,255,.10)}
+.rn-plans{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.rn-plan{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:8px 0 7px;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:1px;transition:.18s;color:var(--dim)}
+.rn-plan:hover{border-color:var(--line2)}
+.rn-plan b{font-size:12px;color:var(--txt);font-weight:600}
+.rn-plan small{font-size:9.5px;color:var(--dim)}
+.rn-plan.on{border-color:var(--blue);background:rgba(77,159,255,.10);box-shadow:0 0 0 3px rgba(77,159,255,.09)}
+.rn-plan.on b{color:#cfe4ff}
+.rn-preview{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--dim);background:rgba(255,255,255,.02);border:1px dashed var(--line);border-radius:10px;padding:9px 12px}
+.rn-preview b{color:var(--green);font-size:12px;font-weight:600}
+.rn-actions{display:grid;grid-template-columns:84px 1fr;gap:9px}
+.rn-btn{background:var(--card2);border:1px solid var(--line2);color:var(--txt);padding:10px 0;border-radius:10px;font-size:12.5px;text-align:center;cursor:pointer;font-family:inherit;transition:.18s}
+.rn-btn:hover{background:rgba(255,255,255,.06)}
+.rn-btn.pri{font-size:13px;background:linear-gradient(120deg,#3672ff,#6f4bff);border-color:transparent;color:#fff;font-weight:700;box-shadow:0 10px 22px -10px rgba(90,100,255,.8)}
+.rn-btn.pri:disabled{opacity:.55;cursor:default}
+.rn-msg{min-height:14px;margin-top:-4px;font-size:12px;line-height:1.65;color:var(--dim)}
+.rn-msg.ok{color:var(--green)}
+.rn-msg.err{color:#ff9aa3}
+.rn-hist{border-top:1px solid var(--line);padding-top:12px}
+.rn-hist-head{font-size:11px;color:var(--dim2);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.rn-hist-head span{color:var(--dim);font-size:10px}
+.rn-hist-list{max-height:172px;overflow:auto;display:flex;flex-direction:column;gap:7px;padding-right:2px}
+.rn-body::-webkit-scrollbar,.rn-hist-list::-webkit-scrollbar{width:5px}
+.rn-body::-webkit-scrollbar-thumb,.rn-hist-list::-webkit-scrollbar-thumb{background:rgba(77,159,255,.35);border-radius:3px}
+.rn-body::-webkit-scrollbar-thumb:hover,.rn-hist-list::-webkit-scrollbar-thumb:hover{background:rgba(77,159,255,.55)}
+.rn-body::-webkit-scrollbar-track,.rn-hist-list::-webkit-scrollbar-track{background:transparent}
+.rn-hist-item{position:relative;overflow:hidden;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:9px 11px 9px 13px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.rn-hist-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--blue)}
+.rn-hist-item.rev{opacity:.6}
+.rn-hist-item.rev::before{background:var(--dim)}
+.rn-hist-info{min-width:0}
+.rn-hist-title{font-size:11.5px;font-weight:600;color:var(--txt);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.rn-hist-meta{font-size:10px;color:var(--dim);margin-top:3px;line-height:1.5}
+.rn-hist-tag{font-size:9.5px;color:#ffc043;border:1px solid rgba(255,192,67,.35);border-radius:999px;padding:0 7px;line-height:1.6}
+.rn-undo{flex:none;border:1px solid rgba(255,122,122,.3);color:#ff9aa3;background:rgba(255,80,80,.06);border-radius:8px;padding:5px 11px;font-size:10.5px;cursor:pointer;font-family:inherit;transition:.18s}
+.rn-undo:hover{background:rgba(255,80,80,.14)}
+.rn-undo:disabled{opacity:.6;cursor:default}
+@media (max-width:520px){.rn-plans{grid-template-columns:1fr 1fr}.rn-title h3 b{max-width:130px}}
 .tbl{width:100%;border-collapse:collapse;font-size:12.5px}
 .tbl th{
   position:sticky;top:0;background:var(--card);color:var(--dim2);font-weight:600;text-align:left;
@@ -306,11 +374,12 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .appeal-tbl .mini:disabled{opacity:.5;cursor:default}
 .appeal-tbl .none{color:var(--dim2)}
 
-/* ---------- 悬浮数据报表 ---------- */
+/* ---------- 右下角悬浮操作区 ---------- */
+.fab-dock{position:fixed;right:22px;bottom:26px;z-index:72;display:flex;align-items:center;gap:10px}
 .fab{
-  position:fixed;right:22px;bottom:26px;z-index:60;display:inline-flex;align-items:center;gap:8px;
+  display:inline-flex;align-items:center;gap:8px;height:44px;
   background:linear-gradient(120deg,#2f7cff,#8b5cf6);border:none;color:#fff;border-radius:14px;
-  padding:12px 17px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;
+  padding:0 17px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;
   box-shadow:0 10px 28px rgba(47,124,255,.4),0 0 0 1px rgba(143,195,255,.2);transition:transform .16s,box-shadow .16s;
 }
 .fab:hover{transform:translateY(-2px);box-shadow:0 16px 38px rgba(47,124,255,.5)}
@@ -372,6 +441,97 @@ footer{max-width:1340px;margin:0 auto;padding:18px 26px;color:var(--dim2);font-s
   .kpi b{font-size:25px}
   .donut-wrap{flex-direction:column;align-items:flex-start}
   .legend-list{width:100%}
+  .fab-dock{right:14px;bottom:16px;gap:8px}
+  .fab{height:42px;padding:0 14px;font-size:12.5px}
+  .report-fab{right:14px;bottom:72px}
+}
+
+/* ---------- 用户列表弹窗（美化） ---------- */
+#mBox{width:min(920px,96vw)}
+#mBox.user-box{width:min(1010px,96vw)}
+#mBox header{background:linear-gradient(120deg,rgba(77,159,255,.08),rgba(139,92,246,.05))}
+#mBox header h3{display:flex;align-items:center;gap:9px;min-width:0;font-size:15px}
+#mBox header h3::before{content:'';width:3px;height:14px;border-radius:2px;flex:none;background:linear-gradient(180deg,var(--blue),var(--purple));box-shadow:0 0 10px rgba(77,159,255,.5)}
+#mBox header h3 em{font-style:normal;font-size:11px;font-weight:500;color:var(--dim);border:1px solid var(--line);background:rgba(255,255,255,.02);border-radius:999px;padding:2px 9px;white-space:nowrap}
+.msearch{position:relative;gap:10px;padding:12px 15px;background:rgba(8,15,26,.55)}
+.msearch::before{content:'🔍';position:absolute;left:28px;top:50%;transform:translateY(-50%);font-size:12.5px;opacity:.7;pointer-events:none}
+.msearch input{padding-left:35px;background:rgba(255,255,255,.025)}
+.msearch .btn{padding:9px 18px;font-weight:650;box-shadow:0 6px 16px rgba(47,124,255,.22)}
+.appeal-box{padding:9px 15px}
+.appeal-empty.ok{display:inline-flex;align-items:center;gap:8px;font-size:11.5px;color:var(--dim);border:1px solid rgba(46,230,168,.26);background:rgba(46,230,168,.05);border-radius:999px;padding:4px 12px}
+.appeal-empty.ok i{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px rgba(46,230,168,.85);flex:none}
+.user-tbl th{position:sticky;top:0;z-index:1;background:rgba(9,17,29,.97);backdrop-filter:blur(6px);font-size:11.5px;letter-spacing:.4px}
+.user-tbl td{padding:10px 15px;vertical-align:middle}
+.user-tbl tbody tr:nth-child(even) td{background:rgba(255,255,255,.013)}
+.user-tbl tbody tr:hover td{background:rgba(77,159,255,.07)}
+.user-tbl tbody tr:hover td:first-child{box-shadow:inset 3px 0 0 var(--blue)}
+.user-tbl td:nth-child(6){color:var(--dim);font-size:11.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.uacc{display:flex;align-items:center;gap:10px;min-width:150px}
+.uava{width:30px;height:30px;border-radius:9px;flex:none;display:grid;place-items:center;font-size:12.5px;font-weight:800;color:#dce9ff;background:linear-gradient(135deg,rgba(77,159,255,.32),rgba(139,92,246,.3));border:1px solid rgba(77,159,255,.3);text-transform:uppercase}
+.uava.guest{background:linear-gradient(135deg,rgba(255,192,67,.2),rgba(255,122,122,.16));border-color:rgba(255,192,67,.28);color:#ffe0a3}
+.uacc b{display:block;font-size:12.5px;font-weight:650;color:var(--txt);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.uacc small{display:block;font-size:10.5px;color:var(--dim2);margin-top:2px}
+.pill.blue{color:#8fc3ff;border-color:rgba(77,159,255,.38);background:rgba(77,159,255,.08)}
+.utype b{display:block;font-size:11.5px;font-weight:600;color:var(--txt)}
+.utype small{display:block;font-size:10px;color:var(--dim2);margin-top:2px;font-variant-numeric:tabular-nums}
+.unone{color:var(--dim2);font-size:12px}
+.ucnt{display:inline-grid;place-items:center;min-width:22px;height:20px;padding:0 6px;border-radius:7px;font-size:11px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--dim);border:1px solid var(--line);background:rgba(255,255,255,.02);vertical-align:middle}
+.ucnt.hot{color:#8ff5d4;border-color:rgba(46,230,168,.35);background:rgba(46,230,168,.07)}
+.acts{display:flex;align-items:center;gap:6px;flex-wrap:nowrap}
+.tbl .mini{display:inline-flex;align-items:center;gap:4px;padding:4px 11px;font-weight:600;white-space:nowrap;transition:.16s}
+.tbl .mini:not(.warn):not(.ok){border:1px solid rgba(77,159,255,.45);background:rgba(77,159,255,.07);color:#8fc3ff}
+.tbl .mini:not(.warn):not(.ok):hover{background:rgba(77,159,255,.16);border-color:rgba(77,159,255,.72)}
+
+/* ---------- 作品管理（悬浮部署包） ---------- */
+.pkg-fab{display:flex;align-items:center;gap:8px;height:44px;border:1px solid rgba(120,170,255,.42);background:linear-gradient(120deg,rgba(21,36,60,.94),rgba(15,26,45,.94));color:#cfe4ff;border-radius:999px;padding:0 16px 0 13px;font-size:12.5px;font-weight:750;font-family:inherit;cursor:pointer;box-shadow:0 14px 30px -16px rgba(0,0,0,.9),0 0 0 4px rgba(77,159,255,.05);transition:transform .18s,box-shadow .18s,border-color .18s,color .18s}
+.pkg-fab:hover{transform:translateY(-2px);border-color:rgba(77,159,255,.75);color:#fff;box-shadow:0 18px 36px -16px rgba(0,0,0,1),0 0 0 5px rgba(77,159,255,.1)}
+.pkg-fab .ico{font-size:15px}
+.pkg-fab .n{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:rgba(77,159,255,.24);color:#cfe4ff;font-size:10.5px;font-weight:800}
+.pkg-box{width:min(760px,96vw);max-height:84vh;display:flex;flex-direction:column;overflow:hidden;background:var(--card);border:1px solid var(--line2);border-radius:16px;box-shadow:0 26px 74px rgba(0,0,0,.6);animation:pop .18s ease}
+.pkg-box header{background:linear-gradient(120deg,rgba(77,159,255,.09),rgba(139,92,246,.06))}
+.pkg-box header h3{display:flex;align-items:center;gap:9px;font-size:14.5px;font-weight:750;min-width:0}
+.pkg-box header h3::before{content:'';width:3px;height:14px;border-radius:2px;flex:none;background:linear-gradient(180deg,var(--blue),var(--purple));box-shadow:0 0 10px rgba(77,159,255,.5)}
+.pkg-box header h3 em{font-style:normal;font-size:11px;font-weight:500;color:var(--dim);border:1px solid var(--line);background:rgba(255,255,255,.02);border-radius:999px;padding:2px 10px;white-space:nowrap}
+.pkg-hops{display:flex;gap:6px;flex:none;margin-left:auto}
+.pkg-box .pkg-hops button{display:grid;place-items:center;border:1px solid var(--line);background:rgba(255,255,255,.02);color:var(--dim);width:28px;height:28px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12.5px;line-height:1;padding:0;transition:.16s}
+.pkg-box .pkg-hops button:hover{color:var(--txt);border-color:var(--line2);background:rgba(77,159,255,.1)}
+.pkg-box .pkg-hops button:active{transform:scale(.94)}
+.pkg-box header h3 em b{color:#8fc3ff;font-weight:750}
+.pkg-list{flex:1;min-height:0;overflow:auto;padding:16px 18px;display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px;align-content:start}
+.pkg-list::-webkit-scrollbar{width:6px}
+.pkg-list::-webkit-scrollbar-thumb{background:rgba(77,159,255,.35);border-radius:3px}
+.pkg-item{position:relative;overflow:hidden;padding:11px 12px 10px;border:1px solid var(--line);border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,.008));transition:border-color .18s,background .18s,transform .18s,box-shadow .18s}
+.pkg-item::before{content:'';position:absolute;left:0;top:9px;bottom:9px;width:2px;border-radius:0 2px 2px 0;background:linear-gradient(180deg,var(--blue),var(--purple));opacity:.6}
+.pkg-item:hover{border-color:rgba(77,159,255,.45);background:linear-gradient(180deg,rgba(77,159,255,.07),rgba(77,159,255,.015));transform:translateY(-1px);box-shadow:0 12px 26px -16px rgba(0,0,0,.9)}
+.pkg-top{display:flex;align-items:center;gap:10px}
+.pkg-ico{width:34px;height:34px;flex:none;border-radius:10px;display:grid;place-items:center;font-size:16px;background:linear-gradient(135deg,rgba(77,159,255,.22),rgba(139,92,246,.2));border:1px solid rgba(77,159,255,.28)}
+.pkg-main{flex:1;min-width:0}
+.pkg-main b{display:block;font-size:12.5px;font-weight:750;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.2px}
+.pkg-main .file{display:block;font-size:9.5px;font-family:ui-monospace,Consolas,monospace;color:var(--dim2);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pkg-ver{flex:none;align-self:flex-start;margin-top:1px;font-size:9.5px;font-weight:800;color:#9fc5ff;border:1px solid rgba(77,159,255,.35);background:rgba(77,159,255,.1);border-radius:6px;padding:2px 7px;letter-spacing:.3px}
+.pkg-meta{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+.pkg-chip{font-size:10px;color:var(--dim);border:1px solid rgba(64,110,168,.3);background:rgba(255,255,255,.025);border-radius:6px;padding:2px 7px;white-space:nowrap}
+.pkg-desc{margin-top:8px;font-size:10.5px;line-height:1.6;color:var(--dim2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pkg-acts{display:flex;align-items:center;gap:6px;margin-top:10px;padding-top:9px;border-top:1px dashed rgba(90,140,205,.18)}
+.pkg-acts .sp{flex:1}
+.pkg-btn{display:inline-flex;align-items:center;justify-content:center;gap:4px;border:1px solid var(--line);background:rgba(255,255,255,.02);color:var(--dim);border-radius:8px;padding:5px 12px;font-size:10.5px;font-weight:650;font-family:inherit;cursor:pointer;transition:.16s;white-space:nowrap}
+.pkg-btn.pri{border-color:rgba(77,159,255,.55);background:linear-gradient(120deg,rgba(47,124,255,.92),rgba(111,75,255,.92));color:#fff;box-shadow:0 6px 16px -8px rgba(70,100,255,.9)}
+.pkg-btn.pri:hover{background:linear-gradient(120deg,#3b85ff,#7b5cff);box-shadow:0 8px 20px -8px rgba(70,100,255,1)}
+.pkg-btn.ghost{border-color:var(--line);background:rgba(255,255,255,.02);color:var(--dim)}
+.pkg-btn.ghost:hover{color:var(--txt);border-color:var(--line2);background:rgba(255,255,255,.05)}
+.pkg-btn.del{border-color:rgba(255,122,122,.3);background:rgba(255,80,80,.05);color:#ff9aa3}
+.pkg-btn.del:hover{background:rgba(255,80,80,.13);border-color:rgba(255,122,122,.5)}
+.pkg-foot{padding:12px 18px 14px;border-top:1px solid var(--line);background:rgba(6,12,20,.6)}
+.pkg-drop{display:flex;align-items:center;justify-content:center;gap:6px;padding:10px;border:1px dashed rgba(77,159,255,.38);border-radius:10px;background:rgba(77,159,255,.035);font-size:11px;color:var(--dim);cursor:pointer;transition:.18s;text-align:center}
+.pkg-drop:hover,.pkg-drop.hot{border-color:var(--blue);background:rgba(77,159,255,.1);color:var(--txt)}
+.pkg-drop .plus{font-size:13px;font-weight:800;color:#8fc3ff;line-height:1}
+.pkg-drop b{color:#8fc3ff;font-weight:700}
+.pkg-tip{font-size:10px;color:var(--dim2);margin-top:6px;min-height:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pkg-empty{padding:34px 0;text-align:center;font-size:11.5px;color:var(--dim2);line-height:1.9;grid-column:1/-1}
+@media(max-width:760px){
+  .pkg-fab{height:42px;padding:0 13px 0 11px;font-size:12px}
+  .pkg-fab .ico{font-size:13px}
+  .pkg-list{padding:12px;grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -432,10 +592,10 @@ footer{max-width:1340px;margin:0 auto;padding:18px 26px;color:var(--dim2);font-s
         <div class="field"><label>确认账号</label><input id="acc2" placeholder="再输入一次防手误" autocomplete="off"></div>
         <div class="field"><label>套餐</label>
           <select id="plan">
-            <option value="6">单次 · ¥6</option>
-            <option value="18" selected>包周 · ¥18.88</option>
-            <option value="59">包月 · ¥59.99</option>
-            <option value="666">包年 · ¥666</option>
+            <option value="6">单次 · ¥2.5</option>
+            <option value="18" selected>包周 · ¥16.66</option>
+            <option value="59">包月 · ¥39.99</option>
+            <option value="666">包年 · ¥398</option>
           </select>
         </div>
         <button class="btn" id="gen" style="margin-top:4px">生成专属开通码</button>
@@ -462,7 +622,7 @@ footer{max-width:1340px;margin:0 auto;padding:18px 26px;color:var(--dim2);font-s
   </div>
 
   <div class="panel" style="margin-top:13px">
-    <div class="panel-h"><h2>开通码查询 <em>支持账号、码、生成时间、使用状态、是否永久筛选</em></h2></div>
+    <div class="panel-h"><h2>开通码查询 <em>支持账号、码、生成时间、使用状态、是否永久筛选 · 未兑换 15 天自动作废</em></h2></div>
     <div class="qfilters">
       <div class="field" style="margin:0"><label>账号</label><input id="cqUser" placeholder="账号关键字" autocomplete="off"></div>
       <div class="field" style="margin:0"><label>开通码</label><input id="cqCode" placeholder="码包含片段，如 YZ18" autocomplete="off"></div>
@@ -489,10 +649,13 @@ footer{max-width:1340px;margin:0 auto;padding:18px 26px;color:var(--dim2);font-s
   </div>
 </div>
 
-<button class="fab" id="reportBtn" title="查看数据报表">
-  <svg viewBox="0 0 24 24"><path d="M4 19.5V14M9.5 19.5V9M15 19.5V12M20.5 19.5V5.5"/><path d="M3.5 21.5h17"/></svg>
-  数据报表
-</button>
+<div class="fab-dock">
+  <button class="pkg-fab" id="pkgFab" title="作品管理 · 部署包"><span class="ico">📦</span>作品管理<span class="n" id="pkgCount">0</span></button>
+  <button class="fab" id="reportBtn" title="查看数据报表">
+    <svg viewBox="0 0 24 24"><path d="M4 19.5V14M9.5 19.5V9M15 19.5V12M20.5 19.5V5.5"/><path d="M3.5 21.5h17"/></svg>
+    数据报表
+  </button>
+</div>
 
 <div class="report-fab" id="reportPanel">
   <div class="hd"><h3>数据报表</h3><button class="x" id="reportClose" title="收起">✕</button></div>
@@ -514,9 +677,73 @@ footer{max-width:1340px;margin:0 auto;padding:18px 26px;color:var(--dim2);font-s
 </div>
 
 <div id="modal" class="modal">
-  <div class="modal-box">
+  <div class="modal-box" id="mBox">
     <header><h3 id="mTitle">明细</h3><button id="mClose" title="关闭">✕</button></header>
     <div class="modal-body" id="mBody"></div>
+  </div>
+</div>
+
+<div id="renewModal" class="modal">
+  <div class="modal-box renew-box">
+    <div class="rn-head">
+      <div class="rn-title">
+        <span class="rn-ava" id="rnAva">U</span>
+        <div><h3>续会 · <b id="rnName">—</b></h3><p id="rnStatus">—</p></div>
+      </div>
+      <button id="rnClose" title="关闭">✕</button>
+    </div>
+    <div class="rn-body">
+      <div class="rn-sec">
+        <div class="rn-label">续会类型</div>
+        <div class="rn-cards" id="rnSeg">
+          <button class="rn-card on" data-scope="member"><span class="rn-ico">🏅</span><b>会员续会</b><small>海报 + 影视 双应用</small></button>
+          <button class="rn-card" data-scope="app"><span class="rn-ico">🧩</span><b>应用续会</b><small>只续所选应用</small></button>
+        </div>
+      </div>
+      <div class="rn-sec" id="rnAppRow" hidden>
+        <div class="rn-label">选择应用</div>
+        <div class="rn-apps" id="rnApps">
+          <button class="rn-app on" data-app="poster">🎨 海报制作</button>
+          <button class="rn-app" data-app="video">🎬 影视解析</button>
+        </div>
+      </div>
+      <div class="rn-sec">
+        <div class="rn-label">续会套餐 <span class="rn-label-tip">已有到期时间自动累加</span></div>
+        <div class="rn-plans" id="rnPlans">
+          <button class="rn-plan on" data-plan="week"><b>包周</b><small>7 天</small></button>
+          <button class="rn-plan" data-plan="month"><b>包月</b><small>30 天</small></button>
+          <button class="rn-plan" data-plan="year"><b>包年</b><small>365 天</small></button>
+          <button class="rn-plan" data-plan="once"><b>单次</b><small>+1 次</small></button>
+        </div>
+      </div>
+      <div class="rn-preview"><span>预计续会后</span><b id="rnPreview">—</b></div>
+      <div class="rn-actions">
+        <button class="rn-btn" id="rnCancel">取消</button>
+        <button class="rn-btn pri" id="rnOk">确认续会</button>
+      </div>
+      <div class="rn-msg" id="rnMsg"></div>
+      <div class="rn-hist">
+        <div class="rn-hist-head">最近续会记录 <span>误操作可及时撤销</span></div>
+        <div class="rn-hist-list" id="rnHist"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="pkgModal" class="modal">
+  <div class="modal-box pkg-box">
+    <header>
+      <h3>作品管理 <em id="pkgSub">部署包 · 导出 / 导入</em></h3>
+      <div class="pkg-hops">
+        <button id="pkgReload" title="刷新列表">⟳</button>
+        <button id="pkgClose" title="关闭">✕</button>
+      </div>
+    </header>
+    <div class="pkg-list" id="pkgList"><div class="pkg-empty">加载中…</div></div>
+    <div class="pkg-foot">
+      <label class="pkg-drop" id="pkgDrop"><span class="plus">＋</span>拖入 zip 到此处，或 <b>点击导入</b><input type="file" id="pkgFile" accept=".zip" hidden></label>
+      <div class="pkg-tip" id="pkgTip">仅支持 .zip；同名文件会覆盖</div>
+    </div>
   </div>
 </div>
 
@@ -725,10 +952,12 @@ function drawTicker(d) {
     `留言 <b>${d.comments.total}</b>`,
     `已发码 <b>${d.codes.issued}</b>`,
     `未兑换 <b>${d.codes.unused}</b>`,
+    d.codes.expiring ? `<span style="color:#ffc043">临期码 <b style="color:#ffc043">${d.codes.expiring}</b> 张</span>` : null,
+    d.codes.expired ? `已作废 <b>${d.codes.expired}</b>` : null,
     `已兑换 <b>${d.codes.redeemed}</b>`,
     `有效权益 <b>${d.codes.active}</b>`,
     `累计收入 <b>${money(d.codes.revenue)}</b>`,
-  ];
+  ].filter(Boolean);
   const html = segs.map(x => `<span>${x}</span>`).join('');
   if (html === lastTicker) return;
   lastTicker = html;
@@ -755,11 +984,13 @@ async function renderStats() {
   drawDonut($('#donut'), d.byPlan);
 
   $('#issued').innerHTML = d.recentIssued.length ? d.recentIssued.map(r => `
-    <div class="sitem ${r.used ? 'done' : ''}">
+    <div class="sitem ${r.used || r.expired ? 'done' : ''}">
       <b>${esc(r.code)}</b>
       <span>${esc(r.username)} · ${PLAN[r.plan] || r.plan}</span>
       <time>${day(r.issued_at)}</time>
-      <em class="pill ${r.used ? 'on' : 'off'}">${r.used ? '已兑换' : '待兑换'}</em>
+      <em class="pill ${r.used ? 'on' : r.expired ? 'dead' : r.days_left <= 3 ? 'off' : ''}">${
+        r.used ? '已兑换' : r.expired ? '已作废' : r.days_left <= 3 ? `临期 · 剩 ${r.days_left} 天` : `待兑换 · 剩 ${r.days_left} 天`
+      }</em>
     </div>`).join('') : '<div class="empty">暂无发放记录</div>';
 
   $('#redeemed').innerHTML = d.recentRedeemed.length ? d.recentRedeemed.map(r => `
@@ -782,6 +1013,7 @@ function connect() {
       setEnv('已连接（' + location.host + '）', true);
       if (timer) clearInterval(timer);
       timer = setInterval(() => loadStats().catch(() => {}), 3000);
+      refreshPkgCount();
     })
     .catch(e => {
       setEnv(e.message, false);
@@ -806,7 +1038,7 @@ $('#gen').onclick = async () => {
     const d = await api('/api/admin/codes', { method: 'POST', body: { username, plan } });
     out.innerHTML = `
       <div class="codebox"><b>${esc(d.code)}</b><button class="mini" id="copy">复制</button></div>
-      <p class="msg ok">已生成：${esc(d.username)} · ${PLAN[d.plan] || d.plan}，仅该账号可用，且只能用一次。</p>`;
+      <p class="msg ok">已生成：${esc(d.username)} · ${PLAN[d.plan] || d.plan}，仅该账号可用，且只能用一次。<br>有效期 15 天，请提醒用户在到期前兑换（剩 3 天系统会自动提醒）。</p>`;
     $('#copy').onclick = () => {
       const done = () => { $('#copy').textContent = '已复制 ✓'; setTimeout(() => { $('#copy').textContent = '复制'; }, 1500); };
       try { navigator.clipboard.writeText(d.code).then(done).catch(done); } catch (_) { done(); }
@@ -886,17 +1118,23 @@ async function queryCodes() {
     if (!d.rows.length) { box.innerHTML = '<div class="empty">没有符合条件的开通码</div>'; return; }
     box.innerHTML =
       `<table class="tbl">
-        <thead><tr><th>开通码</th><th>账号</th><th>套餐</th><th>是否永久</th><th>生成时间</th><th>是否已用</th></tr></thead>
+        <thead><tr><th>开通码</th><th>账号</th><th>套餐</th><th>是否永久</th><th>生成时间</th><th>状态</th></tr></thead>
         <tbody>${d.rows.map(r => `<tr>
           <td><span class="mono">${esc(r.code)}</span></td>
           <td>${esc(r.username)}</td>
           <td>${PLAN[r.plan] || r.plan}</td>
           <td>${r.forever ? '<span class="pill on">永久</span>' : '<span class="pill">非永久</span>'}</td>
           <td>${day(r.issued_at)}</td>
-          <td>${r.used ? `<span class="pill on">已用 ${day(r.used_at)}</span>` : '<span class="pill off">未使用</span>'}</td>
+          <td>${r.used
+            ? `<span class="pill on">已用 ${day(r.used_at)}</span>`
+            : r.expired
+              ? `<span class="pill dead">已作废</span>`
+              : r.expiring
+                ? `<span class="pill off">临期 · 剩 ${r.days_left} 天</span>`
+                : `<span class="pill">未使用 · 剩 ${r.days_left} 天</span>`}</td>
         </tr>`).join('')}</tbody>
       </table>
-      <div class="empty">共 ${d.total} 条${d.total > d.rows.length ? `，仅显示最近 ${d.rows.length} 条` : ''}</div>`;
+      <div class="empty">共 ${d.total} 条${d.total > d.rows.length ? `，仅显示最近 ${d.rows.length} 条` : ''} · 未兑换开通码自生成起 15 天自动作废，到期前 3 天提醒</div>`;
   } catch (e) {
     box.innerHTML = `<div class="empty">${esc(e.message)}</div>`;
   } finally {
@@ -954,6 +1192,7 @@ async function openList(type, title) {
   mQuery = '';
   const users = isUserList(type);
   $('#mTitle').textContent = title;
+  $('#mBox').classList.toggle('user-box', users);
   $('#mBody').innerHTML = (users ? appealBox() : '') + (users ? mSearchBar() : '') + '<div class="empty">加载中…</div>';
   $('#modal').classList.add('on');
   bindMSearch();
@@ -968,7 +1207,7 @@ async function loadAppeals() {
   try {
     const d = await api('/api/admin/appeals?status=pending');
     if (!d.list || !d.list.length) {
-      box.innerHTML = '<div class="appeal-empty">暂无待处理申诉</div>';
+      box.innerHTML = '<div class="appeal-empty ok"><i></i><span>申诉队列 · 暂无待处理</span></div>';
       return;
     }
     box.innerHTML = `<div class="appeal-cap">待处理申诉（${d.list.length}）</div>
@@ -997,7 +1236,7 @@ async function loadList() {
   bindMSearch();
   try {
     const d = await api('/api/admin/list?type=' + mType + (users && mQuery ? '&q=' + encodeURIComponent(mQuery) : ''));
-    $('#mTitle').textContent = `${mTitle}（共 ${d.total} 条）`;
+    $('#mTitle').innerHTML = `${esc(mTitle)} <em>共 ${d.total} 条</em>`;
     if (!d.rows || !d.rows.length) {
       $('#mBody').innerHTML = box + (users ? mSearchBar() : '') + '<div class="empty">没有匹配的数据</div>';
       bindMSearch();
@@ -1005,20 +1244,26 @@ async function loadList() {
       return;
     }
     const t = LIST_TPL[mType] || LIST_TPL.comments;
-    const head = users ? ['账号', '操作', '类型', '注册时间', '已兑换'] : t.head;
+    const head = users ? ['账号', '操作', '类型', '会员', '会员类型', '注册时间', '已兑换'] : t.head;
     const body = users
-      ? d.rows.map(r => `<tr>
-          <td>${esc(r.username)}</td>
-          <td>${r.muted
-            ? `<button class="mini ok" data-mute data-id="${r.id}" data-muted="1">解禁</button> <span class="pill off">已禁言</span>`
-            : `<button class="mini warn" data-mute data-id="${r.id}" data-muted="0">禁用</button>`}</td>
-          <td>${r.is_guest ? '游客' : '正式'}</td>
+      ? d.rows.map(r => {
+          const ini = esc(((r.username || '?').trim()[0] || '?').toUpperCase());
+          return `<tr>
+          <td><div class="uacc"><span class="uava ${r.is_guest ? 'guest' : ''}">${ini}</span>
+            <div><b title="${esc(r.username)}">${esc(r.username)}</b><small>${r.is_guest ? '游客账号' : '正式账号'}</small></div></div></td>
+          <td><div class="acts">${r.muted
+            ? `<button class="mini ok" data-mute data-id="${r.id}" data-muted="1">解禁</button><span class="pill off">已禁言</span>`
+            : `<button class="mini warn" data-mute data-id="${r.id}" data-muted="0">禁用</button>`}<button class="mini" data-renew data-id="${r.id}" data-name="${esc(r.username)}" data-vip="${r.vip ? 1 : 0}" data-vip-type="${esc(r.vipType || '')}" data-vip-until="${esc(r.vipUntil || '')}" title="为 ${esc(r.username)} 续会">续会</button></div></td>
+          <td><span class="pill ${r.is_guest ? '' : 'blue'}">${r.is_guest ? '游客' : '正式'}</span></td>
+          <td>${r.vip ? '<span class="pill on">会员</span>' : '<span class="pill off">非会员</span>'}</td>
+          <td class="utype">${r.vip ? `<b>${esc(r.vipType)}</b>${r.vipType !== '永久' && r.vipUntil ? `<small>${day(r.vipUntil)} 到期</small>` : ''}` : '<span class="unone">—</span>'}</td>
           <td>${day(r.created_at)}</td>
-          <td>${r.redeemed} 张</td>
-        </tr>`).join('')
+          <td><span class="ucnt ${r.redeemed > 0 ? 'hot' : ''}">${r.redeemed}</span></td>
+        </tr>`;
+        }).join('')
       : d.rows.map(r => `<tr>${t.row(r).map(c => `<td>${c}</td>`).join('')}</tr>`).join('');
     $('#mBody').innerHTML = box + (users ? mSearchBar() : '') +
-      `<table class="tbl"><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+      `<table class="tbl${users ? ' user-tbl' : ''}"><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead>
        <tbody>${body}</tbody></table>` +
       (d.total > d.rows.length ? `<div class="empty">仅显示最近 ${d.rows.length} 条</div>` : '');
     bindMSearch();
@@ -1036,6 +1281,8 @@ $('#stats').addEventListener('click', e => {
 });
 
 $('#mBody').addEventListener('click', async e => {
+  const rb = e.target.closest('[data-renew]');
+  if (rb) { openRenew(Number(rb.dataset.id), rb.dataset.name || '', { vip: rb.dataset.vip, vipType: rb.dataset.vipType, vipUntil: rb.dataset.vipUntil }); return; }
   const ab = e.target.closest('[data-appeal]');
   if (ab) {
     const aid = Number(ab.dataset.id);
@@ -1072,10 +1319,163 @@ $('#mBody').addEventListener('click', async e => {
   }
 });
 
+/* ---- 续会（会员续会 / 应用续会） ---- */
+let rnId = 0, rnScope = 'member', rnPlan = 'week', rnAppKey = 'poster', rnMeta = {};
+const RN_DAYS = { week: 7, month: 30, year: 365 };
+const rnBox = $('#renewModal');
+const rnMsg = $('#rnMsg');
+const rnHist = $('#rnHist');
+const rnSegEl = $('#rnSeg');
+const rnAppsEl = $('#rnApps');
+const rnPlansEl = $('#rnPlans');
+
+const rnMark = (group, sel, cur) => group.querySelectorAll(sel).forEach(x => x.classList.toggle('on', x === cur));
+const rnDate = t => {
+  const p = n => String(n).padStart(2, '0');
+  return `${t.getFullYear()}-${p(t.getMonth() + 1)}-${p(t.getDate())}`;
+};
+
+function rnPreview() {
+  const el = $('#rnPreview');
+  if (rnPlan === 'once') { el.textContent = '次数 +1（立即生效）'; return; }
+  const until = rnMeta.vipUntil ? new Date(rnMeta.vipUntil).getTime() : 0;
+  const base = until > Date.now() ? until : Date.now();
+  el.textContent = `${PLAN[rnPlan]} · ${rnDate(new Date(base + RN_DAYS[rnPlan] * 864e5))} 到期`;
+}
+
+function openRenew(id, name, meta) {
+  rnId = id;
+  rnMeta = meta || {};
+  rnScope = 'member'; rnPlan = 'week'; rnAppKey = 'poster';
+  $('#rnName').textContent = name || ('#' + id);
+  $('#rnAva').textContent = ((name || 'U').trim()[0] || 'U').toUpperCase();
+  const st = $('#rnStatus');
+  const vip = String(rnMeta.vip) === '1';
+  st.textContent = vip
+    ? `会员 · ${rnMeta.vipType || '体验'}${rnMeta.vipUntil ? ' · ' + day(rnMeta.vipUntil) + ' 到期' : ''}`
+    : '当前非会员 · 续会后立即生效';
+  st.classList.toggle('on', vip);
+  rnMark(rnSegEl, '.rn-card', rnSegEl.querySelector('.rn-card[data-scope="member"]'));
+  rnMark(rnAppsEl, '.rn-app', rnAppsEl.querySelector('.rn-app[data-app="poster"]'));
+  rnMark(rnPlansEl, '.rn-plan', rnPlansEl.querySelector('.rn-plan[data-plan="week"]'));
+  $('#rnAppRow').hidden = true;
+  rnMsg.textContent = '';
+  rnMsg.className = 'rn-msg';
+  $('#rnOk').disabled = false;
+  $('#rnOk').textContent = '确认续会';
+  rnPreview();
+  rnBox.classList.add('on');
+  loadRenewals(id);
+}
+const closeRenew = () => rnBox.classList.remove('on');
+
+async function loadRenewals(id) {
+  rnHist.innerHTML = '<div class="rn-hist-empty">加载中…</div>';
+  try {
+    const d = await api('/api/admin/users/' + id + '/renewals');
+    if (!d.items.length) { rnHist.innerHTML = '<div class="rn-hist-empty">暂无续会记录</div>'; return; }
+    rnHist.innerHTML = d.items.map(it => {
+      const appName = it.works[0] && it.works[0].workKey === 'video' ? '影视解析' : '海报制作';
+      const title = `${it.scope === 'member' ? '会员续会' : '应用续会 · ' + appName} · ${PLAN[it.plan] || it.plan}`;
+      const when = day(it.created_at);
+      const extra = it.plan === 'once'
+        ? `单次 · 共 ${it.remaining == null ? 1 : it.remaining} 次`
+        : `顺延至 ${it.until ? day(it.until) : '—'}`;
+      return `<div class="rn-hist-item${it.revoked ? ' rev' : ''}">
+        <div class="rn-hist-info">
+          <div class="rn-hist-title">${esc(title)}${it.revoked ? '<span class="rn-hist-tag">已撤销</span>' : ''}</div>
+          <div class="rn-hist-meta">${esc(when)} · ${esc(extra)}</div>
+        </div>
+        ${it.revoked ? '' : `<button class="rn-undo" data-undo="${esc(it.batch)}">撤销</button>`}
+      </div>`;
+    }).join('');
+  } catch (err) {
+    rnHist.innerHTML = `<div class="rn-hist-empty">${esc(err.message)}</div>`;
+  }
+}
+
+rnHist.addEventListener('click', async e => {
+  const b = e.target.closest('[data-undo]');
+  if (!b) return;
+  if (!confirm('确定撤销这次续会吗？将恢复续会前的会员套餐、次数与到期时间。')) return;
+  b.disabled = true;
+  b.textContent = '撤销中…';
+  try {
+    await api(`/api/admin/users/${rnId}/renewals/${b.dataset.undo}/undo`, { method: 'POST', body: {} });
+    rnMsg.className = 'rn-msg ok';
+    rnMsg.textContent = '已撤销该次续会，会员状态已恢复';
+    loadRenewals(rnId);
+    loadList();
+    searchUsers($('#q').value.trim());
+  } catch (err) {
+    rnMsg.className = 'rn-msg err';
+    rnMsg.textContent = err.message;
+    b.disabled = false;
+    b.textContent = '撤销';
+  }
+});
+
+$('#rnSeg').addEventListener('click', e => {
+  const b = e.target.closest('.rn-card');
+  if (!b) return;
+  rnScope = b.dataset.scope === 'app' ? 'app' : 'member';
+  rnMark(rnSegEl, '.rn-card', b);
+  $('#rnAppRow').hidden = rnScope !== 'app';
+  rnPreview();
+});
+
+$('#rnApps').addEventListener('click', e => {
+  const b = e.target.closest('.rn-app');
+  if (!b) return;
+  rnAppKey = b.dataset.app === 'video' ? 'video' : 'poster';
+  rnMark(rnAppsEl, '.rn-app', b);
+  rnPreview();
+});
+
+$('#rnPlans').addEventListener('click', e => {
+  const b = e.target.closest('.rn-plan');
+  if (!b) return;
+  rnPlan = b.dataset.plan;
+  rnMark(rnPlansEl, '.rn-plan', b);
+  rnPreview();
+});
+
+$('#rnOk').onclick = async () => {
+  const btn = $('#rnOk');
+  btn.disabled = true;
+  btn.textContent = '提交中…';
+  rnMsg.className = 'rn-msg';
+  rnMsg.textContent = '正在写入权益…';
+  try {
+    const d = await api('/api/admin/users/' + rnId + '/renew', {
+      method: 'POST',
+      body: { scope: rnScope, workKey: rnAppKey, plan: rnPlan }
+    });
+    const timed = d.works.find(x => x.until);
+    rnMsg.classList.add('ok');
+    rnMsg.textContent = timed
+      ? `续会成功：${d.scope === 'member' ? '会员（海报制作 + 影视解析）' : '所选应用'} 已顺延至 ${new Date(timed.until).toLocaleString('zh-CN', { hour12: false })}`
+      : '续会成功：单次次数 +1';
+    loadRenewals(rnId);
+    loadList();
+    searchUsers($('#q').value.trim());
+  } catch (err) {
+    rnMsg.classList.add('err');
+    rnMsg.textContent = err.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '确认续会';
+  }
+};
+
+$('#rnClose').onclick = closeRenew;
+$('#rnCancel').onclick = closeRenew;
+rnBox.addEventListener('click', e => { if (e.target.id === 'renewModal') closeRenew(); });
+
 const closeModal = () => $('#modal').classList.remove('on');
 $('#mClose').onclick = closeModal;
 $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal(); closeRenew(); } });
 
 /* ---- 悬浮数据报表（周 / 月 / 年） ---- */
 let rptRange = 'week';
@@ -1084,6 +1484,7 @@ let rptLast = 0;
 let rptData = null;
 
 $('#reportBtn').onclick = () => {
+  if (pkgModal.classList.contains('on')) pkgToggle(false);
   $('#reportPanel').classList.add('on');
   loadReport(rptRange);
 };
@@ -1303,6 +1704,142 @@ function tickClock() {
 }
 tickClock();
 setInterval(tickClock, 1000);
+
+/* ---- 作品管理（部署包导出 / 导入） ---- */
+const PKG_API = '/api/admin/works/packages';
+const pkgModal = $('#pkgModal'), pkgList = $('#pkgList'), pkgTip = $('#pkgTip');
+
+const fmtSize = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : n >= 1024 ? Math.round(n / 1024) + ' KB' : n + ' B';
+
+function pkgToggle(open) {
+  const on = open === undefined ? !pkgModal.classList.contains('on') : !!open;
+  pkgModal.classList.toggle('on', on);
+  if (on) {
+    $('#reportPanel').classList.remove('on');
+    loadPackages();
+  }
+}
+
+async function refreshPkgCount() {
+  if (!token) return;
+  try {
+    const d = await api(PKG_API);
+    $('#pkgCount').textContent = (d.list || []).length;
+  } catch (_) {}
+}
+
+async function loadPackages() {
+  if (!token) {
+    pkgList.innerHTML = '<div class="pkg-empty">请先在顶部输入站长口令并连接</div>';
+    $('#pkgSub').textContent = '部署包 · 导出 / 导入';
+    return;
+  }
+  pkgList.innerHTML = '<div class="pkg-empty">加载中…</div>';
+  try {
+    const d = await api(PKG_API);
+    const list = d.list || [];
+    const total = list.reduce((a, p) => a + (Number(p.size) || 0), 0);
+    $('#pkgCount').textContent = list.length;
+    $('#pkgSub').innerHTML = `共 <b>${list.length}</b> 个包 · 合计 ${fmtSize(total)}`;
+    pkgList.innerHTML = list.length ? list.map(p => {
+      const date = p.updated ? new Date(p.updated).toLocaleDateString('zh-CN') : '';
+      return `<div class="pkg-item">
+        <div class="pkg-top">
+          <div class="pkg-ico">📦</div>
+          <div class="pkg-main">
+            <b title="${esc(p.title)}">${esc(p.title)}</b>
+            <span class="file" title="${esc(p.file)}">${esc(p.file)}</span>
+          </div>
+          <span class="pkg-ver">${esc(p.version || 'v1')}</span>
+        </div>
+        <div class="pkg-meta">
+          <span class="pkg-chip">${fmtSize(p.size)}</span>
+          ${p.stack ? `<span class="pkg-chip">${esc(p.stack)}</span>` : ''}
+          ${date ? `<span class="pkg-chip">${date}</span>` : ''}
+        </div>
+        ${p.desc ? `<p class="pkg-desc">${esc(p.desc)}</p>` : ''}
+        <div class="pkg-acts">
+          <span class="sp"></span>
+          <button class="pkg-btn pri" data-dl="${esc(p.file)}">下载</button>
+          <label class="pkg-btn ghost">导入<input type="file" accept=".zip" data-up="${esc(p.file)}" hidden></label>
+          <button class="pkg-btn del" data-del="${esc(p.file)}">删除</button>
+        </div>
+      </div>`;
+    }).join('') : '<div class="pkg-empty">暂无部署包<br>可直接拖入 zip 上传</div>';
+  } catch (e) {
+    pkgList.innerHTML = `<div class="pkg-empty">${esc(e.message)}</div>`;
+  }
+}
+
+async function downloadPkg(file) {
+  pkgTip.textContent = '正在准备下载 ' + file + ' …';
+  try {
+    const r = await fetch(PKG_API + '/' + encodeURIComponent(file), { headers: { 'X-Admin-Token': token }, cache: 'no-store' });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      throw new Error(d.error || ('下载失败 HTTP ' + r.status));
+    }
+    const b = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(b);
+    a.download = file;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    pkgTip.textContent = '已导出 ' + file + '（' + fmtSize(b.size) + '）';
+  } catch (e) { pkgTip.textContent = e.message; }
+}
+
+async function uploadPkg(file, name) {
+  if (!token) { pkgTip.textContent = '请先输入站长口令并连接'; return; }
+  const f = name || file.name;
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,60}\.zip$/i.test(f)) {
+    pkgTip.textContent = '文件名仅支持字母、数字、点、横线、下划线，且以 .zip 结尾';
+    return;
+  }
+  pkgTip.textContent = '正在导入 ' + f + '（' + fmtSize(file.size) + '）…';
+  try {
+    const r = await fetch(PKG_API + '/' + encodeURIComponent(f), {
+      method: 'POST',
+      headers: { 'X-Admin-Token': token, 'Content-Type': 'application/zip' },
+      body: file,
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || ('导入失败 HTTP ' + r.status));
+    pkgTip.textContent = '已导入 ' + f + '（' + fmtSize(file.size) + '）';
+    loadPackages();
+  } catch (e) { pkgTip.textContent = e.message; }
+}
+
+$('#pkgFab').onclick = () => pkgToggle();
+$('#pkgClose').onclick = () => pkgToggle(false);
+$('#pkgReload').onclick = () => loadPackages();
+$('#pkgModal').addEventListener('mousedown', e => { if (e.target.id === 'pkgModal') pkgToggle(false); });
+$('#pkgList').addEventListener('click', async e => {
+  const dl = e.target.closest('[data-dl]');
+  if (dl) { downloadPkg(dl.dataset.dl); return; }
+  const del = e.target.closest('[data-del]');
+  if (del) {
+    if (!confirm('确定删除部署包 ' + del.dataset.del + ' ？此操作不可恢复')) return;
+    try { await api(PKG_API + '/' + encodeURIComponent(del.dataset.del), { method: 'DELETE' }); loadPackages(); }
+    catch (err) { pkgTip.textContent = err.message; }
+  }
+});
+$('#pkgList').addEventListener('change', e => {
+  const up = e.target.closest('[data-up]');
+  if (up && up.files && up.files[0]) uploadPkg(up.files[0], up.dataset.up);
+});
+$('#pkgFile').onchange = e => {
+  const f = e.target.files[0];
+  if (f) uploadPkg(f);
+  e.target.value = '';
+};
+const pkgDrop = $('#pkgDrop');
+['dragenter', 'dragover'].forEach(k => pkgDrop.addEventListener(k, e => { e.preventDefault(); pkgDrop.classList.add('hot'); }));
+['dragleave', 'drop'].forEach(k => pkgDrop.addEventListener(k, e => { e.preventDefault(); pkgDrop.classList.remove('hot'); }));
+pkgDrop.addEventListener('drop', e => {
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (f) uploadPkg(f);
+});
 
 /* ---- 初始化 ---- */
 buildKpis();

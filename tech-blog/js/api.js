@@ -310,6 +310,12 @@ window.Api = (function () {
     return null;
   }
 
+  /* ---------------- 开通码到期提醒 ---------------- */
+  async function myCodes() {
+    if (!online || !me) return [];
+    try { return (await req('/codes/mine')).list || []; } catch (e) { return []; }
+  }
+
   /* ---------------- 作品点赞 ---------------- */
   async function workLikes() {
     if (online) {
@@ -335,6 +341,6 @@ window.Api = (function () {
     boot, get online() { return online; }, user, isGuest,
     login, register, guestLogin, logout,
     comments, addComment, delComment, likeComment, notice, submitAppeal,
-    worksStatus, useWork, redeem, workLikes, toggleWorkLike, acc2code
+    worksStatus, useWork, redeem, myCodes, workLikes, toggleWorkLike, acc2code
   };
 })();
