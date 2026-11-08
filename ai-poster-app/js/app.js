@@ -80,10 +80,6 @@ function renderTplGrid(cat) {
     }, 30);
   }
 }
-function drawTplPreview(c2, t, scale) {
-  const scene = { canvas: clone(t.bg), objects: t.els.map(convertTplEl) };
-  Engine.drawScene(c2, scene, scale);
-}
 /* 模板元素 → 引擎对象 */
 function convertTplEl(e) {
   const o = clone(e);

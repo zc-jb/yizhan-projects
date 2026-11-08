@@ -88,6 +88,6 @@ while (Date.now() < deadline) {
 if (ok) {
   console.log(`\n✔ 发布完成：http://localhost:${PORT}（数据库 ${DB.trim()}）\n`);
 } else {
-  console.error(`\n✖ 正式服启动失败，请查看 ${logPath}\n`);
+  console.error(`\n✖ 正式服启动失败，请查看 ${path.join(OUT, 'prod.log')}\n`);
   process.exit(1);
 }

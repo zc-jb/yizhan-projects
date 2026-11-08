@@ -197,7 +197,6 @@ const Engine = (() => {
   function drawImg(c2d, o, x, y, w, h) {
     const im = o._img;
     if (o.shadow) { c2d.shadowColor = o.shadow.c; c2d.shadowBlur = o.shadow.b || 0; c2d.shadowOffsetY = o.shadow.y || 0; }
-    const needClip = (o.r || o.circle) && c2d.roundRect !== undefined || (o.r || o.circle);
     if (o.circle) { c2d.beginPath(); c2d.ellipse(0, 0, w / 2, h / 2, 0, 0, 7); c2d.clip(); }
     else if (o.r) { roundRect(c2d, x, y, w, h, o.r); c2d.clip(); }
     if (im && im.complete && im.naturalWidth) {
@@ -307,7 +306,6 @@ const Engine = (() => {
   }
 
   /* ---------- 视图 ---------- */
-  function viewScale() { return S.zoom; }
   function toWorld(px, py) { return { x: (px - S.panX) / S.zoom, y: (py - S.panY) / S.zoom }; }
   function toScreen(wx, wy) { return { x: wx * S.zoom + S.panX, y: wy * S.zoom + S.panY }; }
   function fit() {

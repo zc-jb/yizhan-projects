@@ -903,9 +903,6 @@ function parseCode2(code) {
   if (sum !== +m[4]) return null;
   return { plan: CODE_PLAN[m[1]], acc: m[2] };
 }
-// 免费体验次数与已开通套餐均按「当前登录账号」隔离存储
-const UKEY = () => 'blog-work-uses@' + (Auth.user() || 'anon');
-const PKEY = () => 'blog-work-plan@' + (Auth.user() || 'anon');
 
 function toast(msg) {
   let t = document.getElementById('toast');
