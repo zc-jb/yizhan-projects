@@ -1948,6 +1948,28 @@ function showcaseList() {
 
 app.get('/api/works/showcase', (req, res) => res.json({ list: showcaseList() }));
 
+/* 热门作品：按作品的下单量统计，下单最多的作品自动标记为热门 */
+const WORK_OF_APP = slug => {
+  if (/^ai-poster/i.test(slug)) return 'poster';
+  if (/^video-parse/i.test(slug)) return 'video';
+  if (/^hotel/i.test(slug)) return 'hotel';
+  if (/^library/i.test(slug)) return 'library';
+  return '';
+};
+app.get('/api/works/hot', (req, res) => {
+  const counts = { poster: 0, video: 0, hotel: 0, library: 0 };
+  for (const a of appsRead().apps) {
+    const k = WORK_OF_APP(a.slug);
+    if (k) counts[k] += Number(a.orderCount || 0);
+  }
+  const total = Object.values(counts).reduce((x, y) => x + y, 0);
+  /* 暂无任何下单时默认主推图书管理系统 */
+  const hot = total > 0
+    ? Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0]
+    : 'library';
+  res.json({ hot, counts });
+});
+
 /* 下单：记录到作品上，管理端「作品管理」可查看下单状态 */
 app.post('/api/works/order', (req, res) => {
   const slug = String((req.body && req.body.slug) || '');

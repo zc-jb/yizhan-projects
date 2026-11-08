@@ -322,6 +322,12 @@ window.Api = (function () {
     try { return (await req('/works/showcase')).list || []; } catch (e) { return []; }
   }
 
+  /* 热门作品（下单量最高） */
+  async function worksHot() {
+    if (!online) return { hot: '', counts: {} };
+    try { return await req('/works/hot'); } catch (e) { return { hot: '', counts: {} }; }
+  }
+
   /* 下单（记录到后台作品管理） */
   async function orderWork(slug, note) {
     if (!online) throw new Error('当前处于离线模式，无法下单');
@@ -354,6 +360,6 @@ window.Api = (function () {
     login, register, guestLogin, logout,
     comments, addComment, delComment, likeComment, notice, submitAppeal,
     worksStatus, useWork, redeem, myCodes, workLikes, toggleWorkLike, acc2code,
-    showcase, orderWork
+    showcase, orderWork, worksHot
   };
 })();

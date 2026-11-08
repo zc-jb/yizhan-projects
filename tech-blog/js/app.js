@@ -1264,14 +1264,19 @@ function vTools() {
 
 async function vWorks() {
   const works = [
-    { id: 'poster', icon: '🎨', name: 'AI 海报制作', tagline: '30 秒做出一张能直接发的商业海报', desc: 'HTML / CSS / JS 的纯前端海报工坊：30+ 套模板/画布拖拽编辑/AI 文案与配图/二维码生成，一键导出 PNG、JPG、PDF，无需后端与数据库，打开网页即可使用。', features: ['30+ 模板', 'AI 文案配图', '一键导出'], accent: 'linear-gradient(135deg,#6366f1,#06b6d4)', badge: '🔥 热门', url: 'http://127.0.0.1:5173/', tag: '在线工具', },
+    { id: 'poster', icon: '🎨', name: 'AI 海报制作', tagline: '30 秒做出一张能直接发的商业海报', desc: 'HTML / CSS / JS 的纯前端海报工坊：30+ 套模板/画布拖拽编辑/AI 文案与配图/二维码生成，一键导出 PNG、JPG、PDF，无需后端与数据库，打开网页即可使用。', features: ['30+ 模板', 'AI 文案配图', '一键导出'], accent: 'linear-gradient(135deg,#6366f1,#06b6d4)', url: 'http://127.0.0.1:5173/', tag: '在线工具', },
     { id: 'video', icon: '🎬', name: '影视快看 · 视频解析', tagline: '粘贴链接就能看，免会员高清直达', desc: 'HTML / CSS / JS 的纯前端影视聚合站：链接一键解析/全网影视搜索/剧集选集/沉浸播放，深色界面适配手机，无需后端与数据库，打开网页即可使用。', features: ['全网解析', '免会员观看', '手机适配'], accent: 'linear-gradient(135deg,#ec4899,#f59e0b)', url: 'http://127.0.0.1:3100/vip.html', tag: '在线工具', },
-    { id: 'hotel', icon: '🏨', name: '酒店管理系统', tagline: '从预订到退房结算，全流程在线跑通', desc: 'Spring Boot 3 + Vue3 + MySQL 8 的酒店管理后台：房型/房间/客人/预订/入住/退房/账单一体化，房态自动流转、金额自动核算，首次启动自动生成演示数据，前端已打进 jar。', features: ['房态流转', '自动算价', '真实可体验'], accent: 'linear-gradient(135deg,#0f766e,#2563eb)', badge: '✨ 新品', url: 'http://127.0.0.1:8080/', tag: '全栈项目', },
+    { id: 'hotel', icon: '🏨', name: '酒店管理系统', tagline: '从预订到退房结算，全流程在线跑通', desc: 'Spring Boot 3 + Vue3 + MySQL 8 的酒店管理后台：房型/房间/客人/预订/入住/退房/账单一体化，房态自动流转、金额自动核算，首次启动自动生成演示数据，前端已打进 jar。', features: ['房态流转', '自动算价', '真实可体验'], accent: 'linear-gradient(135deg,#0f766e,#2563eb)', badge: '✨ 新品', newSince: '2026-11-08T00:00:00+08:00', url: 'http://127.0.0.1:8080/', tag: '全栈项目', },
   ];
   const st = await Api.worksStatus();
+  const hotD = await Api.worksHot();
+  const hotId = hotD.hot || '';
   const wl = await Api.workLikes();
   const likes = wl.likes || {};
   const liked = wl.liked || [];
+  const isNew = w => !!(w.newSince && Date.now() - new Date(w.newSince).getTime() < 3 * 864e5);
+  /* 热门由下单量决定；新品 3 天后自动取消 */
+  const badgeOf = w => (hotId === w.id ? '🔥 热门' : (isNew(w) ? w.badge : ''));
   const stateOf = w => {
     if (w.free) return '<span class="work-state free">永久免费</span>';
     const s = st[w.id] || { type: 'free', left: 0 };
@@ -1305,7 +1310,7 @@ async function vWorks() {
           <div class="work-icon">${icon}</div>
           <div class="work-info">
             <div class="work-name">${esc(s.title)}</div>
-            <div class="work-meta"><span class="work-tag">${esc(s.version || 'v1.0')}</span><span class="work-state">${modeTxt}</span></div>
+            <div class="work-meta">${hotId === 'library' && /^library/i.test(s.slug) ? '<span class="work-tag" style="color:#f59e0b">🔥 热门</span>' : ''}<span class="work-tag">${esc(s.version || 'v1.0')}</span><span class="work-state">${modeTxt}</span></div>
             <p class="work-tagline">${esc(s.note || '')}</p>
           </div>
         </div>
@@ -1342,7 +1347,7 @@ async function vWorks() {
         <div class="work-icon">${w.icon}</div>
         <div class="work-info">
           <div class="work-name">${esc(w.title)}</div>
-          <div class="work-meta"><span class="work-tag">v1.0</span><span class="work-state">售货区 · 仅下单</span></div>
+          <div class="work-meta">${hotId === w.key ? '<span class="work-tag" style="color:#f59e0b">🔥 热门</span>' : ''}<span class="work-tag">v1.0</span><span class="work-state">售货区 · 仅下单</span></div>
           <p class="work-tagline">${esc(w.tagline)}</p>
         </div>
       </div>
@@ -1355,8 +1360,8 @@ async function vWorks() {
       <button class="wf on" data-f="run">✅ 可体验 ${impRun + works.length}</button>
       <button class="wf" data-f="env">🟡 售货区 ${saleCopies.length}</button>
     </div>
-    <div class="works-grid">${impCards}${saleCards}${works.map(w => `<a class="work-card${w.badge ? ' has-badge' : ''}" href="javascript:void 0" data-id="${w.id}" data-cat="run" style="--accent:${w.accent}">
-      ${w.badge ? `<span class="work-badge">${w.badge}</span>` : ''}
+    <div class="works-grid">${impCards}${saleCards}${works.map(w => `<a class="work-card${badgeOf(w) ? ' has-badge' : ''}" href="javascript:void 0" data-id="${w.id}" data-cat="run" style="--accent:${w.accent}">
+      ${badgeOf(w) ? `<span class="work-badge">${badgeOf(w)}</span>` : ''}
       <div class="work-top">
         <div class="work-icon">${w.icon}</div>
         <div class="work-info">
