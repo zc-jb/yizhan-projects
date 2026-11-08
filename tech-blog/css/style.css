@@ -557,6 +557,7 @@ html[data-theme=dark] .post-card .cover{background:linear-gradient(135deg,#181f3
   background:var(--card);color:var(--text);transition:all .22s var(--ease);
 }
 .work-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-hover);border-color:rgba(79,70,229,.35);color:var(--text)}
+.work-card.showcase{cursor:default}
 .work-icon{
   width:56px;height:56px;flex:none;border-radius:16px;display:grid;place-items:center;
   font-size:27px;background:linear-gradient(135deg,var(--pri-soft),#f5edff);

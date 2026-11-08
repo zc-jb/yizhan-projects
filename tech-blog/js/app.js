@@ -1042,12 +1042,14 @@ async function vWorks() {
     { id: 'poster', icon: '🎨', name: 'AI 海报制作', desc: '在线海报设计工具：30+ 套精美模板、画布拖拽编辑、AI 智能文案与配图、二维码生成、一键导出 PNG/JPG/PDF。', url: 'https://ai-poster-yizhan.netlify.app/', tag: '在线工具' },
     { id: 'video', icon: '🎬', name: '影视快看 · 视频解析', desc: 'VIP 视频解析工具：粘贴各大平台视频链接一键解析，免会员在线观看，深色沉浸界面，手机端完美适配。', url: 'https://zc-jb.github.io/tech-blog/vip.html', tag: '在线工具' },
     { id: 'blog', icon: '⚡', name: '技术驿站', desc: '就是本站——专注实用技术的个人博客：11 篇技术长文、全文搜索、深色模式、评论互动、RSS 订阅。', url: '#/', tag: '个人博客', free: true },
+    { id: 'hotel', icon: '🏨', name: '酒店管理系统', desc: '前后端分离的酒店管理系统：后端 Java + Spring Boot，前端 Vue3 + Element Plus，MySQL 8.0 作为主库存业务数据，Redis 仅作缓存加速，数据最终落盘 MySQL。', url: 'http://localhost:8080', tag: '全栈项目', direct: true },
   ];
   const st = await Api.worksStatus();
   const wl = await Api.workLikes();
   const likes = wl.likes || {};
   const liked = wl.liked || [];
   const stateOf = w => {
+    if (w.direct) return '<span class="work-state free">可在线体验</span>';
     if (w.free) return '<span class="work-state free">永久免费</span>';
     const s = st[w.id] || { type: 'free', left: 0 };
     if (s.type === 'vip') return `<span class="work-state vip">✨ 已开通${s.until ? ' · ' + new Date(s.until).toLocaleDateString() + ' 到期' : ' · 剩 ' + s.left + ' 次'}</span>`;
@@ -1059,7 +1061,12 @@ async function vWorks() {
       <div class="work-info"><div class="work-name">${w.name}<span class="work-tag">${w.tag}</span>${stateOf(w)}</div>
       <p class="work-desc">${w.desc}</p>
       <div class="work-foot"><span class="work-go">立即体验 →</span><button class="work-like${liked.includes(w.id) ? ' on' : ''}" data-id="${w.id}">❤️ ${likes[w.id] || 0}</button></div></div></a>`).join('')}</div></div>`;
-  document.querySelectorAll('.work-card').forEach(c => c.onclick = () => openWork(works.find(x => x.id === c.dataset.id)));
+  document.querySelectorAll('.work-card').forEach(c => c.onclick = () => {
+    const w = works.find(x => x.id === c.dataset.id);
+    if (!w) return;
+    if (w.direct) return goWork(w.url);
+    openWork(w);
+  });
   document.querySelectorAll('.work-like').forEach(b => b.onclick = async e => {
     e.preventDefault();
     e.stopPropagation();

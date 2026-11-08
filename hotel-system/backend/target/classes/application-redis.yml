@@ -1,0 +1,6 @@
+spring:
+  cache:
+    type: redis
+    redis:
+      time-to-live: 60s
+      cache-null-values: false
