@@ -1656,7 +1656,17 @@ async function appDeploy(file) {
     rec.note = '未能识别项目类型，已保留完整解压目录，请参考包内部署说明';
   }
 
-  if (old >= 0) d.apps[old] = rec; else d.apps.push(rec);  appsWrite(d);
+  if (old >= 0) {
+    const prev = d.apps[old];
+    rec.hidden = !!prev.hidden;
+    rec.orderCount = prev.orderCount || 0;
+    rec.lastOrderAt = prev.lastOrderAt || '';
+    rec.orders = prev.orders || [];
+    d.apps[old] = rec;
+  } else {
+    d.apps.push(rec);
+  }
+  appsWrite(d);
   return rec;
 }
 
@@ -1923,6 +1933,22 @@ function showcaseList() {
 
 app.get('/api/works/showcase', (req, res) => res.json({ list: showcaseList() }));
 
+/* 下单：记录到作品上，管理端「作品管理」可查看下单状态 */
+app.post('/api/works/order', (req, res) => {
+  const slug = String((req.body && req.body.slug) || '');
+  const rec = appFind(slug);
+  if (!rec) return res.status(404).json({ error: '该作品尚未部署' });
+  const at = new Date().toISOString();
+  const entry = { id: crypto.randomBytes(6).toString('hex'), at, user: req.user ? req.user.name : '游客', ip: String(clientIp(req) || '').replace(/^::ffff:/, ''), note: String((req.body && req.body.note) || '').trim().slice(0, 200), processed: false };
+  const orders = [...(rec.orders || []).slice(-19), entry];
+  const updated = appPatch(slug, {
+    orders,
+    orderCount: (rec.orderCount || 0) + 1,
+    lastOrderAt: at,
+  });
+  res.json({ ok: true, app: updated });
+});
+
 /* ---------- 管理端：部署 / 启停 / 下线 ---------- */
 app.get('/api/admin/apps', needAdmin, (req, res) => {
   const list = appsRead().apps.map(a => Object.assign({}, a, {
@@ -1946,6 +1972,51 @@ app.post('/api/admin/apps/:slug/stop', needAdmin, (req, res) => {
   const rec = appPatch(req.params.slug, { status: 'deployed', port: 0, note: '已停止，可随时重新启动' });
   if (!rec) return res.status(404).json({ error: '该作品尚未部署' });
   res.json({ ok: true, app: rec });
+});
+
+app.post('/api/admin/apps/:slug/hide', needAdmin, (req, res) => {
+  const hidden = !(req.body && req.body.hidden === false);
+  const rec = appPatch(req.params.slug, { hidden });
+  if (!rec) return res.status(404).json({ error: '该作品尚未部署' });
+  res.json({ ok: true, app: rec });
+});
+
+/* 下单区：实时汇总全部作品的下单记录，处理状态由人工确认 */
+const orderId = (slug, o) => o.id || (slug + '#' + o.at);
+
+app.get('/api/admin/orders', needAdmin, (req, res) => {
+  const list = [];
+  for (const a of appsRead().apps) {
+    for (const o of (a.orders || [])) {
+      list.push({
+        id: orderId(a.slug, o),
+        slug: a.slug,
+        title: a.title || a.file || a.slug,
+        at: o.at || '',
+        user: o.user || '游客',
+        ip: o.ip || '',
+        note: o.note || '',
+        processed: !!o.processed,
+      });
+    }
+  }
+  list.sort((x, y) => String(y.at).localeCompare(String(x.at)));
+  res.json({ list, total: list.length, pending: list.filter(x => !x.processed).length });
+});
+
+app.post('/api/admin/orders/:id/process', needAdmin, (req, res) => {
+  const wanted = String(req.params.id);
+  const processed = !(req.body && req.body.processed === false);
+  const d = appsRead();
+  let hit = false;
+  for (const a of d.apps) {
+    for (const o of (a.orders || [])) {
+      if (orderId(a.slug, o) === wanted) { o.processed = processed; hit = true; }
+    }
+  }
+  if (!hit) return res.status(404).json({ error: '下单记录不存在' });
+  appsWrite(d);
+  res.json({ ok: true, processed });
 });
 
 app.delete('/api/admin/apps/:slug', needAdmin, (req, res) => {

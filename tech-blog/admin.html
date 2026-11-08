@@ -487,6 +487,11 @@ footer{max-width:1340px;margin:0 auto;padding:18px 26px;color:var(--dim2);font-s
 .pkg-fab:hover{transform:translateY(-2px);border-color:rgba(77,159,255,.75);color:#fff;box-shadow:0 18px 36px -16px rgba(0,0,0,1),0 0 0 5px rgba(77,159,255,.1)}
 .pkg-fab .ico{font-size:15px}
 .pkg-fab .n{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:rgba(77,159,255,.24);color:#cfe4ff;font-size:10.5px;font-weight:800}
+/* 有待处理下单时：悬浮入口文字变红并呼吸提示 */
+@keyframes pkgPulse{0%,100%{box-shadow:0 14px 30px -16px rgba(0,0,0,.9),0 0 0 0 rgba(255,93,108,0)}50%{box-shadow:0 14px 30px -16px rgba(0,0,0,.9),0 0 0 6px rgba(255,93,108,.16)}}
+.pkg-fab.alert{color:#ff5d6c;border-color:rgba(255,93,108,.62);animation:pkgPulse 2.2s ease-in-out infinite}
+.pkg-fab.alert .n{background:rgba(255,93,108,.24);color:#ffb3bb}
+.pkg-fab.alert:hover{color:#ff8a95;border-color:rgba(255,93,108,.85)}
 @media(max-width:760px){
   .pkg-fab{height:42px;padding:0 13px 0 11px;font-size:12px}
   .pkg-fab .ico{font-size:13px}
@@ -955,6 +960,7 @@ function connect() {
       if (timer) clearInterval(timer);
       timer = setInterval(() => loadStats().catch(() => {}), 3000);
       refreshPkgCount();
+      refreshPendingOrders();
     })
     .catch(e => {
       setEnv(e.message, false);
@@ -1657,6 +1663,19 @@ async function refreshPkgCount() {
 }
 
 $('#pkgFab').onclick = () => { location.href = 'works.html'; };
+
+/* ---- 待处理下单提醒：悬浮「作品管理」文字变红 ---- */
+async function refreshPendingOrders() {
+  if (!token) return;
+  try {
+    const d = await api('/api/admin/orders');
+    const p = d.pending || 0;
+    $('#pkgFab').classList.toggle('alert', p > 0);
+    $('#pkgFab').title = p ? '作品管理 · ' + p + ' 条待处理下单' : '打开作品管理页面';
+    if (p) $('#pkgCount').textContent = p;
+  } catch (_) {}
+}
+setInterval(refreshPendingOrders, 15000);
 
 /* ---- 初始化 ---- */
 buildKpis();

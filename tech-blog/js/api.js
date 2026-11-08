@@ -322,6 +322,12 @@ window.Api = (function () {
     try { return (await req('/works/showcase')).list || []; } catch (e) { return []; }
   }
 
+  /* 下单（记录到后台作品管理） */
+  async function orderWork(slug, note) {
+    if (!online) throw new Error('当前处于离线模式，无法下单');
+    return await req('/works/order', { method: 'POST', body: JSON.stringify({ slug, note: note || '' }) });
+  }
+
   /* ---------------- 作品点赞 ---------------- */
   async function workLikes() {
     if (online) {
@@ -348,6 +354,6 @@ window.Api = (function () {
     login, register, guestLogin, logout,
     comments, addComment, delComment, likeComment, notice, submitAppeal,
     worksStatus, useWork, redeem, myCodes, workLikes, toggleWorkLike, acc2code,
-    showcase
+    showcase, orderWork
   };
 })();

@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-11-08T08:22:33.308Z",
+  "updated_at": "2026-11-08T11:55:30.384Z",
   "apps": [
     {
       "file": "hotel-system_v1.zip",
@@ -20,7 +20,31 @@
       "deployAt": "2026-11-08T08:13:02.458Z",
       "startAt": "",
       "status": "needs-env",
-      "note": "需 JDK + Maven/Tomcat + MySQL 环境；部署文件已自动补齐，可照包内「部署说明.md」运行"
+      "note": "需 JDK + Maven/Tomcat + MySQL 环境；部署文件已自动补齐，可照包内「部署说明.md」运行",
+      "orders": [
+        {
+          "id": "a34c23c83fbb",
+          "at": "2026-11-08T10:53:07.421Z",
+          "user": "游客",
+          "processed": true
+        },
+        {
+          "id": "8a61ce9c0b42",
+          "at": "2026-11-08T11:07:28.361Z",
+          "user": "游客",
+          "ip": "::ffff:127.0.0.1",
+          "processed": true
+        },
+        {
+          "id": "bc21cbbfdb5c",
+          "at": "2026-11-08T11:07:28.451Z",
+          "user": "游客",
+          "ip": "::ffff:127.0.0.1",
+          "processed": true
+        }
+      ],
+      "orderCount": 3,
+      "lastOrderAt": "2026-11-08T11:07:28.451Z"
     },
     {
       "file": "hotel-system-jar_v1.zip",
@@ -44,7 +68,17 @@
       "deployAt": "2026-11-08T08:08:19.282Z",
       "startAt": "",
       "status": "needs-env",
-      "note": "本机未检测到 Java 运行环境，请安装 JDK 17+ 后重试（部署文件已补全）"
+      "note": "本机未检测到 Java 运行环境，请安装 JDK 17+ 后重试（部署文件已补全）",
+      "orders": [
+        {
+          "id": "32d0cbee5980",
+          "at": "2026-11-08T10:54:35.960Z",
+          "user": "游客",
+          "processed": true
+        }
+      ],
+      "orderCount": 1,
+      "lastOrderAt": "2026-11-08T10:54:35.960Z"
     },
     {
       "file": "图书馆管理系统源码+sql(1).zip",
@@ -65,7 +99,93 @@
       "deployAt": "2026-11-08T08:14:13.887Z",
       "startAt": "",
       "status": "needs-env",
-      "note": "需 JDK + Maven/Tomcat + MySQL 环境；部署文件已自动补齐，可照包内「部署说明.md」运行"
+      "note": "需 JDK + Maven/Tomcat + MySQL 环境；部署文件已自动补齐，可照包内「部署说明.md」运行",
+      "orders": [
+        {
+          "at": "2026-11-08T10:38:10.531Z",
+          "user": "游客",
+          "processed": true
+        },
+        {
+          "at": "2026-11-08T10:38:40.743Z",
+          "user": "游客_71V8",
+          "processed": true
+        },
+        {
+          "at": "2026-11-08T10:38:48.570Z",
+          "user": "游客_IPZK",
+          "processed": true
+        },
+        {
+          "at": "2026-11-08T10:39:11.752Z",
+          "user": "游客_71V8",
+          "processed": true
+        },
+        {
+          "id": "1198055c7f4a",
+          "at": "2026-11-08T11:05:21.957Z",
+          "user": "游客_IPZK",
+          "processed": true
+        },
+        {
+          "id": "96f28a15cfd2",
+          "at": "2026-11-08T11:06:11.070Z",
+          "user": "游客_IPZK",
+          "processed": true
+        },
+        {
+          "id": "c1e59e6fd210",
+          "at": "2026-11-08T11:06:31.035Z",
+          "user": "游客",
+          "ip": "::ffff:127.0.0.1",
+          "processed": true
+        },
+        {
+          "id": "41cb728074dd",
+          "at": "2026-11-08T11:11:40.689Z",
+          "user": "游客_IPZK",
+          "ip": "127.0.0.1",
+          "processed": true
+        },
+        {
+          "id": "6e3e61ced2cc",
+          "at": "2026-11-08T11:32:23.081Z",
+          "user": "游客_IPZK",
+          "ip": "127.0.0.1",
+          "processed": true
+        },
+        {
+          "id": "8996682d3c44",
+          "at": "2026-11-08T11:32:28.986Z",
+          "user": "游客_IPZK",
+          "ip": "127.0.0.1",
+          "processed": true
+        },
+        {
+          "id": "4514074f3dcb",
+          "at": "2026-11-08T11:33:53.553Z",
+          "user": "游客_IPZK",
+          "ip": "127.0.0.1",
+          "processed": true
+        },
+        {
+          "id": "9784fbd7229a",
+          "at": "2026-11-08T11:34:04.731Z",
+          "user": "游客_IPZK",
+          "ip": "127.0.0.1",
+          "processed": true
+        },
+        {
+          "id": "a2981bd3f867",
+          "at": "2026-11-08T11:35:24.765Z",
+          "user": "游客_71V8",
+          "ip": "127.0.0.1",
+          "note": "需要 Windows 部署 + 微信联系",
+          "processed": true
+        }
+      ],
+      "orderCount": 13,
+      "lastOrderAt": "2026-11-08T11:35:24.765Z"
     },
     {
       "file": "ai-poster-app_v1.zip",
@@ -85,8 +205,9 @@
       "log": "",
       "deployAt": "2026-11-08T08:09:00.580Z",
       "startAt": "",
-      "status": "running",
-      "note": "静态站点已托管上线，可直接访问体验"
+      "status": "deployed",
+      "note": "已停止，可随时重新启动",
+      "hidden": true
     }
   ]
 }

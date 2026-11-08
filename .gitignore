@@ -2,3 +2,6 @@
 .trae-html-share-packages/
 _packages/
 *.log
+node_modules/
+target/
+dist/

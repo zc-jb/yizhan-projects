@@ -1010,6 +1010,49 @@ const AD_PLANS = [
   { k: 'year', n: '包年会员', price: '398', old: '666', desc: '365 天 · 永久划算' }
 ];
 
+/* 确认订单弹框：下单人信息 + 商品备注 */
+function showOrderModal(s) {
+  const old = document.getElementById('ocModal');
+  if (old) old.remove();
+  const name = Auth.user();
+  const m = document.createElement('div');
+  m.id = 'ocModal';
+  m.className = 'ad-mask';
+  m.innerHTML = `<div class="oc-box">
+    <button class="ad-x" id="ocX" aria-label="关闭">✕</button>
+    <h3>🧾 确认订单</h3>
+    <div class="oc-row"><span class="oc-k">商品</span><div class="oc-v">${esc(s.title)}<small>${esc(s.stack || '')}${s.version ? ' · ' + esc(s.version) : ''}</small></div></div>
+    <div class="oc-row"><span class="oc-k">下单人</span><div class="oc-v"><span class="oc-who">${esc(name || '游客')}${Auth.isGuest() ? '（游客）' : ''}</span></div></div>
+    <div class="oc-row col"><span class="oc-k">商品备注</span>
+      <textarea id="ocNote" maxlength="200" placeholder="补充需求：部署环境、需要的功能、联系方式等（选填）"></textarea>
+    </div>
+    <div class="oc-btns">
+      <button class="oc-c" id="ocCancel" type="button">取消</button>
+      <button class="oc-ok" id="ocOk" type="button">确认下单</button>
+    </div>
+  </div>`;
+  document.body.appendChild(m);
+
+  const close = () => m.remove();
+  $('#ocX').onclick = close;
+  $('#ocCancel').onclick = close;
+  m.onclick = e => { if (e.target === m) close(); };
+  $('#ocOk').onclick = async () => {
+    const btn = $('#ocOk');
+    btn.disabled = true;
+    btn.textContent = '提交中…';
+    try {
+      const r = await Api.orderWork(s.slug, $('#ocNote').value.trim());
+      close();
+      toast(`下单成功：第 ${(r.app && r.app.orderCount) || 1} 单，后台「作品管理」可查看下单状态`);
+    } catch (e) {
+      toast('下单失败：' + e.message);
+      btn.disabled = false;
+      btn.textContent = '确认下单';
+    }
+  };
+}
+
 /* 进入应用前的会员广告弹框（含下单入口 + 开通码校验） */
 function showAdModal(w, onEnter) {
   const old = document.getElementById('adModal');
@@ -1250,39 +1293,44 @@ async function vWorks() {
     stopped: { t: '已停止', bg: 'rgba(100,116,139,.16)', fg: '#64748b' },
     pending: { t: '未上线', bg: 'rgba(100,116,139,.16)', fg: '#64748b' },
   };
-  const impBlock = imp.length ? `<div id="impSec">
-    <h1 style="font-size:18px;margin:20px 0 4px">📦 导入作品 · 在线体验</h1>
-    <div class="works-grid">${imp.map(s => {
+  const impCards = imp.map(s => {
       const st2 = impState[s.status] || impState.pending;
       const icon = s.mode === 'static' ? '🌐' : s.mode === 'jar' ? '☕' : s.mode === 'node' ? '🟢' : '🗂️';
+      const modeMap = {
+        static: ['静态站点', 'linear-gradient(135deg,#2563eb,#22d3ee)'],
+        jar: ['运行包', 'linear-gradient(135deg,#0d9488,#22d3ee)'],
+        node: ['Node 应用', 'linear-gradient(135deg,#16a34a,#0ea5e9)'],
+        'java-web': ['源码工程', 'linear-gradient(135deg,#7c3aed,#2563eb)'],
+      };
+      const [modeTxt, modeAccent] = modeMap[s.mode] || ['部署包', 'linear-gradient(135deg,#475569,#64748b)'];
       const size = s.size >= 1048576 ? (s.size / 1048576).toFixed(1) + ' MB' : s.size >= 1024 ? Math.round(s.size / 1024) + ' KB' : (s.size || 0) + ' B';
-      return `<a class="work-card has-badge" href="javascript:void 0" data-imp="${esc(s.slug)}" data-cat="${s.url ? 'run' : 'env'}" style="--accent:linear-gradient(135deg,#2563eb,#22d3ee)">
-        <span class="work-badge" style="background:${st2.bg};color:${st2.fg}">${st2.t}</span>
+      return `<a class="work-card${s.url ? ' has-badge' : ''}" href="javascript:void 0" data-imp="${esc(s.slug)}" data-cat="${s.url ? 'run' : 'env'}" style="--accent:${modeAccent}">
+        ${s.url ? `<span class="work-badge" style="background:${st2.bg};color:${st2.fg}">${st2.t}</span>` : ''}
         <div class="work-top">
           <div class="work-icon">${icon}</div>
           <div class="work-info">
-            <div class="work-name">${esc(s.title)}<span class="work-tag">${esc(s.version || '')}</span></div>
+            <div class="work-name">${esc(s.title)}</div>
+            <div class="work-meta"><span class="work-tag">${esc(s.version || 'v1.0')}</span><span class="work-state">${modeTxt}</span></div>
             <p class="work-tagline">${esc(s.note || '')}</p>
           </div>
         </div>
         <p class="work-desc">${esc(s.desc || '')}</p>
         <div class="work-chips"><span>✦ ${esc(s.stack || '未标注技术栈')}</span><span>✦ ${size}</span></div>
-        <div class="work-foot"><span class="work-go">${s.url ? '立即体验 →' : '查看状态 →'}</span></div>
+        <div class="work-foot"><span class="work-go">${s.url ? '立即体验 →' : '去下单 →'}</span></div>
       </a>`;
-    }).join('')}</div></div>` : '';
+  }).join('');
   app.innerHTML = `<div class="card page-box"><h1>🧰 我的作品</h1><p class="muted">堆码不易，感谢支持！！！</p>
     <div class="wf-bar">
-      <button class="wf on" data-f="all">全部 ${imp.length + works.length}</button>
-      <button class="wf" data-f="run">✅ 可体验 ${impRun + works.length}</button>
-      <button class="wf" data-f="env">🟡 需要环境 ${imp.length - impRun}</button>
+      <button class="wf on" data-f="run">✅ 可体验 ${impRun + works.length}</button>
+      <button class="wf" data-f="env">🟡 售货区 ${imp.length - impRun}</button>
     </div>
-    ${impBlock}
-    <div class="works-grid">${works.map(w => `<a class="work-card${w.badge ? ' has-badge' : ''}" href="javascript:void 0" data-id="${w.id}" data-cat="run" style="--accent:${w.accent}">
+    <div class="works-grid">${impCards}${works.map(w => `<a class="work-card${w.badge ? ' has-badge' : ''}" href="javascript:void 0" data-id="${w.id}" data-cat="run" style="--accent:${w.accent}">
       ${w.badge ? `<span class="work-badge">${w.badge}</span>` : ''}
       <div class="work-top">
         <div class="work-icon">${w.icon}</div>
         <div class="work-info">
-          <div class="work-name">${w.name}<span class="work-tag">${w.tag}</span>${stateOf(w)}</div>
+          <div class="work-name">${w.name}</div>
+          <div class="work-meta"><span class="work-tag">${w.tag}</span>${stateOf(w)}</div>
           <p class="work-tagline">${w.tagline}</p>
         </div>
       </div>
@@ -1292,21 +1340,20 @@ async function vWorks() {
   document.querySelectorAll('[data-imp]').forEach(c => c.onclick = () => {
     const s = imp.find(x => x.slug === c.dataset.imp);
     if (!s) return;
-    if (s.url) window.open(s.url, '_blank', 'noopener');
-    else toast(s.status === 'pending'
-      ? '该作品还没上线，可在后台「作品管理」点击「上线体验」'
-      : (s.note || '该作品需要本地运行环境才能体验'));
+    if (s.url) { window.open(s.url, '_blank', 'noopener'); return; }
+    if (s.status === 'pending') {
+      toast('该作品还没上线，可在后台「作品管理」点击「上线体验」');
+      return;
+    }
+    showOrderModal(s);
   });
   const wfApply = k => {
-    document.querySelectorAll('[data-cat]').forEach(el => {
+    const cards = [...app.querySelectorAll('.works-grid > .work-card')];
+    cards.forEach(el => {
       el.style.display = (k === 'all' || el.dataset.cat === k) ? '' : 'none';
     });
-    const sec = app.querySelector('#impSec');
-    if (sec) {
-      const any = [...sec.querySelectorAll('[data-cat]')].some(el => el.style.display !== 'none');
-      sec.style.display = any ? '' : 'none';
-    }
   };
+  wfApply('run');
   document.querySelectorAll('.wf').forEach(b => b.onclick = () => {
     document.querySelectorAll('.wf').forEach(x => x.classList.toggle('on', x === b));
     wfApply(b.dataset.f);

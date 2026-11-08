@@ -126,6 +126,7 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .meta .st{margin-left:auto}
 .chip{font-size:10.5px;color:var(--dim);border:1px solid rgba(64,110,168,.28);background:rgba(255,255,255,.025);
   border-radius:7px;padding:3px 9px;white-space:nowrap}
+.chip.order{color:#ffc150;border-color:rgba(255,193,80,.35);background:rgba(255,193,80,.08)}
 .desc{margin-top:10px;font-size:11.5px;line-height:1.75;color:#7b90ad;display:-webkit-box;-webkit-line-clamp:2;
   -webkit-box-orient:vertical;overflow:hidden}
 .acts{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:auto;padding-top:12px;
@@ -139,6 +140,14 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .act:hover{color:var(--txt);border-color:var(--line2);background:rgba(255,255,255,.05)}
 .act.del{border-color:rgba(255,122,122,.3);background:rgba(255,80,80,.05);color:#ff9aa3}
 .act.del:hover{background:rgba(255,80,80,.13);border-color:rgba(255,122,122,.5)}
+.mini{display:flex;align-items:center;gap:4px;margin-left:auto}
+.mi{width:28px;height:28px;display:grid;place-items:center;border:1px solid var(--line);border-radius:8px;
+  background:rgba(255,255,255,.02);color:var(--dim);font-size:12.5px;font-family:inherit;cursor:pointer;transition:.16s}
+.mi:hover{color:var(--txt);border-color:var(--line2);background:rgba(77,159,255,.1)}
+.mi.del{color:#ff9aa3;border-color:rgba(255,122,122,.26)}
+.mi.del:hover{background:rgba(255,80,80,.14);border-color:rgba(255,122,122,.5)}
+.item.hid{opacity:.6}
+.item.hid:hover{opacity:.92}
 .act.run{border-color:rgba(46,230,168,.45);color:#5ff0c0;background:rgba(46,230,168,.08)}
 .act.run:hover{background:rgba(46,230,168,.16)}
 .st{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:750;border-radius:999px;
@@ -157,6 +166,75 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
 .act label{cursor:pointer}
 .empty{grid-column:1/-1;padding:54px 0;text-align:center;font-size:12px;color:var(--dim2);line-height:1.9}
 .foot{margin-top:26px;text-align:center;font-size:10.5px;color:var(--dim2)}
+
+/* 状态提示条 */
+.tipbar{margin-top:10px;min-height:17px;display:flex;align-items:center}
+.tipbar .tip{font-size:11.5px;color:var(--dim2)}
+.tipbar .tip.ok{color:var(--green)}
+.tipbar .tip.err{color:#ff9aa3}
+
+/* 悬浮下单区 */
+.ofab{position:fixed;right:22px;bottom:22px;z-index:40;width:56px;height:56px;border-radius:50%;
+  border:1px solid rgba(255,193,80,.45);background:linear-gradient(140deg,rgba(255,193,80,.92),rgba(255,138,60,.92));
+  color:#1a1206;font-size:20px;display:grid;place-items:center;cursor:pointer;
+  box-shadow:0 12px 28px -10px rgba(255,160,60,.7);transition:.18s}
+.ofab:hover{transform:translateY(-2px)}
+.ofab-n{position:absolute;top:-4px;right:-4px;min-width:20px;height:20px;border-radius:10px;background:#ff5d6c;color:#fff;
+  font-size:10.5px;font-weight:800;display:none;place-items:center;padding:0 5px;position:absolute}
+.opanel{position:fixed;right:22px;bottom:90px;z-index:41;width:404px;max-width:calc(100vw - 32px);max-height:64vh;display:none;
+  flex-direction:column;border:1px solid rgba(64,110,168,.3);border-radius:16px;overflow:hidden;
+  background:linear-gradient(180deg,rgba(18,30,48,.97),rgba(8,14,24,.98));box-shadow:0 26px 60px rgba(0,0,0,.6);backdrop-filter:blur(16px)}
+.opanel.on{display:flex}
+.op-head{display:flex;align-items:center;gap:9px;padding:13px 15px;border-bottom:1px solid var(--line);font-size:13px;font-weight:750}
+.op-sub{font-size:10.5px;color:var(--dim2);margin-left:auto;font-weight:600}
+.op-x{border:none;background:none;color:var(--dim2);font-size:14px;cursor:pointer;padding:2px 4px}
+.op-x:hover{color:var(--txt)}
+.op-tabs{display:flex;gap:7px;padding:9px 12px;border-bottom:1px solid var(--line)}
+.op-tabs button{flex:1;border:1px solid var(--line);background:rgba(255,255,255,.02);color:var(--dim);border-radius:8px;
+  padding:6px 0;font-size:11px;font-weight:700;font-family:inherit;cursor:pointer;transition:.16s}
+.op-tabs button.on{color:#fff;border-color:rgba(77,159,255,.5);background:rgba(77,159,255,.14)}
+.op-tabs em{font-style:normal;color:#8fc3ff;margin-left:5px}
+.op-list{overflow:auto;padding:9px 11px 12px;display:flex;flex-direction:column;gap:8px}
+.oitem{border:1px solid rgba(64,110,168,.22);border-left:3px solid rgba(255,193,80,.5);border-radius:10px;padding:10px 12px;
+  background:rgba(255,255,255,.02);transition:border-color .16s,background .16s}
+.oitem:hover{border-color:rgba(77,159,255,.42);background:rgba(77,159,255,.05)}
+.oitem.ok{border-color:rgba(46,230,168,.26);border-left-color:rgba(46,230,168,.55);background:rgba(46,230,168,.045)}
+.o-top{display:flex;align-items:center;gap:8px}
+.o-top b{flex:1;min-width:0;font-size:12.5px;font-weight:720;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ost{flex:none;font-size:10px;font-weight:800;letter-spacing:.3px;border-radius:6px;padding:2px 7px}
+.ost.p{color:#ffc150;background:rgba(255,193,80,.12);border:1px solid rgba(255,193,80,.35)}
+.ost.d{color:var(--green);background:rgba(46,230,168,.1);border:1px solid rgba(46,230,168,.32)}
+.ometa{display:flex;align-items:center;gap:10px;margin-top:9px;font-size:10.5px;color:var(--dim2);min-width:0}
+.o-note{position:relative;margin-top:8px;font-size:10.5px;line-height:1.65;color:#9db0c8;background:rgba(77,159,255,.06);
+  border-left:2px solid rgba(77,159,255,.35);border-radius:0 7px 7px 0;padding:5px 62px 5px 9px;cursor:zoom-in;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;transition:.16s}
+.o-note:hover{background:rgba(77,159,255,.13);color:#c3d7ee}
+.o-note::after{content:'双击展开';position:absolute;right:8px;top:5px;font-size:9.5px;color:#6f8db0;opacity:.85}
+.o-note::after:hover{opacity:1}
+.o-time,.o-user{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.o-user{flex:1}
+.oact{flex:none;margin-left:auto;border:1px solid rgba(255,193,80,.4);background:rgba(255,193,80,.1);color:#ffc150;
+  border-radius:8px;padding:4px 13px;font-size:10.5px;font-weight:700;font-family:inherit;cursor:pointer;transition:.16s}
+.oact:hover{background:rgba(255,193,80,.2);border-color:rgba(255,193,80,.6)}
+.oitem.ok .oact{border-color:rgba(46,230,168,.4);background:rgba(46,230,168,.1);color:var(--green)}
+.oitem.ok .oact:hover{background:rgba(46,230,168,.2)}
+
+/* 需求详情弹层 */
+.od-mask{position:fixed;inset:0;z-index:60;display:none;place-items:center;background:rgba(4,8,16,.7);backdrop-filter:blur(6px)}
+.od-mask.on{display:grid}
+.od-box{position:relative;width:min(440px,calc(100vw - 36px));border:1px solid var(--line2);border-radius:16px;
+  background:linear-gradient(180deg,rgba(18,30,48,.98),rgba(8,14,24,.99));box-shadow:0 30px 70px rgba(0,0,0,.65);
+  padding:20px 20px 18px;animation:odIn .18s ease}
+@keyframes odIn{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+.od-box h3{font-size:14.5px;font-weight:750;padding-right:26px}
+.od-row{display:flex;gap:10px;margin-top:11px;font-size:12px}
+.od-k{flex:none;width:52px;color:var(--dim2);font-size:11px;padding-top:1px}
+.od-v{flex:1;color:var(--txt);font-weight:650;min-width:0;word-break:break-word}
+.od-note{margin-top:13px;padding:11px 13px;border-radius:10px;background:rgba(77,159,255,.07);
+  border-left:2px solid rgba(77,159,255,.45);font-size:12.5px;line-height:1.75;color:#c6d6ea;
+  white-space:pre-wrap;word-break:break-word;max-height:42vh;overflow:auto}
+.od-x{position:absolute;right:13px;top:11px}
+
 @media(max-width:640px){
   .topbar{padding:11px 14px}
   .main{padding:16px 14px 0}
@@ -192,14 +270,24 @@ body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
       <span class="hint" id="hint"></span>
       <label class="import">＋ 导入 zip<input type="file" id="file" accept=".zip"></label>
     </div>
-    <div class="drop" id="drop">
+    <div class="drop" id="drop" style="display:none">
       <span class="big">＋</span>拖入 zip 到此处即可导入，同名覆盖
-      <span class="tip" id="tip"></span>
     </div>
+    <div class="tipbar"><span class="tip" id="tip"></span></div>
     <div class="grid" id="grid"></div>
     <div class="foot">包目录：e:\AI海报制作\_packages · 上传上限 200 MB</div>
   </section>
 </main>
+
+<button class="ofab" id="ofab" title="下单区">🛒<span class="ofab-n" id="ofabN">0</span></button>
+<div class="opanel" id="opanel">
+  <div class="op-head">🛒 下单区<span class="op-sub" id="opSub">实时更新</span><button class="op-x" id="opClose" title="收起">✕</button></div>
+  <div class="op-tabs">
+    <button class="on" data-tab="pending">待处理<em id="tPend">0</em></button>
+    <button data-tab="done">已处理<em id="tDone">0</em></button>
+  </div>
+  <div class="op-list" id="opList"><div class="empty">暂无下单</div></div>
+</div>
 
 <script>
 'use strict';
@@ -289,7 +377,13 @@ function card(p) {
   const rec = appMap.get(p.file);
   const st = rec ? (STATUS[rec.status] || { t: rec.status, c: 'stop' }) : { t: '未上线', c: 'stop' };
   const live = rec && rec.status === 'running';
-  return `<div class="item s-${st.c}">
+  const hid = !!(rec && rec.hidden);
+  const oc = rec ? (rec.orderCount || 0) : 0;
+  const oTxt = oc && rec.lastOrderAt ? (() => {
+    const d = new Date(rec.lastOrderAt), p = n => String(n).padStart(2, '0');
+    return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  })() : '';
+  return `<div class="item s-${st.c}${hid ? ' hid' : ''}">
     <div class="top">
       <div class="ico">📦</div>
       <div class="main-t"><b title="${esc(p.title)}">${esc(p.title)}</b><span class="file" title="${esc(p.file)}">${esc(p.file)}</span></div>
@@ -299,19 +393,22 @@ function card(p) {
       <span class="chip">${fmtSize(p.size)}</span>
       ${p.stack ? `<span class="chip">${esc(p.stack)}</span>` : ''}
       ${date ? `<span class="chip">${date}</span>` : ''}
-      <span class="st ${st.c}"><i></i>${esc(st.t)}${live && rec.port ? ' · ' + rec.port : ''}</span>
+      ${hid ? '<span class="chip">已隐藏</span>' : ''}
+      ${rec ? `<span class="chip order">${oc ? `🛒 已下单 ${oc} 次 · ${oTxt}` : '🛒 暂无下单'}</span>` : ''}
+      ${st.c === 'env' ? '' : `<span class="st ${st.c}"><i></i>${esc(st.t)}${live && rec.port ? ' · ' + rec.port : ''}</span>`}
     </div>
     ${p.desc ? `<p class="desc">${esc(p.desc)}</p>` : ''}
     ${rec && rec.note ? `<div class="note">${esc(rec.note)}</div>` : ''}
     <div class="acts">
       <span class="sp"></span>
-      <button class="act pri" data-deploy="${esc(p.file)}">${rec ? '重新部署' : '上线体验'}</button>
-      ${rec ? (live
+      ${rec ? '' : `<button class="act pri" data-deploy="${esc(p.file)}">上线体验</button>`}
+      ${rec && live
         ? `<button class="act run" data-open="${esc(rec.slug)}">打开</button><button class="act" data-stop="${esc(rec.slug)}">停止</button>`
-        : `<button class="act run" data-start="${esc(rec.slug)}">启动</button>`) : ''}
-      <button class="act" data-dl="${esc(p.file)}">下载</button>
-      <label class="act">导入<input type="file" accept=".zip" data-up="${esc(p.file)}" hidden></label>
-      <button class="act del" data-del="${esc(p.file)}">删除</button>
+        : ''}
+      <div class="mini">
+        <button class="mi" data-dl="${esc(p.file)}" title="下载部署包">⤓</button>
+        <button class="mi del" data-del="${esc(p.file)}" title="删除部署包">✕</button>
+      </div>
     </div>
   </div>`;
 }
@@ -412,6 +509,18 @@ async function stopApp(slug) {
   } catch (e) { tip('停止失败：' + e.message, 'err'); }
 }
 
+async function toggleHide(slug, hidden) {
+  try {
+    await api('/api/admin/apps/' + encodeURIComponent(slug) + '/hide', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hidden }),
+    });
+    tip(hidden ? '已隐藏，「我的作品」中不再展示（作品仍保留，可随时显示）' : '已恢复展示', 'ok');
+    load();
+  } catch (e) { tip('操作失败：' + e.message, 'err'); }
+}
+
 async function download(file) {
   tip('正在准备下载 ' + file + ' …');
   try {
@@ -436,6 +545,88 @@ async function remove(file) {
     tip('已删除 ' + file, 'ok'); load();
   }
   catch (e) { tip('删除失败：' + e.message, 'err'); }
+}
+
+/* ---------- 下单区（实时） ---------- */
+let opOpen = false, opTimer = null, opTab = 'pending', opData = null;
+
+function fmtAt(at) {
+  const d = new Date(at);
+  if (isNaN(d.getTime())) return '—';
+  const p = n => String(n).padStart(2, '0');
+  return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function renderOrders(d) {
+  const all = d.list || [], pend = d.pending || 0, done = all.length - pend;
+  const badge = $('#ofabN');
+  badge.textContent = pend;
+  badge.style.display = pend ? 'grid' : 'none';
+  $('#opSub').textContent = all.length ? `共 ${all.length} 条` : '实时更新';
+  $('#tPend').textContent = pend;
+  $('#tDone').textContent = done;
+  document.querySelectorAll('.op-tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === opTab));
+  const list = all.filter(o => opTab === 'done' ? o.processed : !o.processed);
+  $('#opList').innerHTML = list.length ? list.map(o => `<div class="oitem${o.processed ? ' ok' : ''}">
+    <div class="o-top"><b>${esc(o.title)}</b><span class="ost ${o.processed ? 'd' : 'p'}">${o.processed ? '已处理' : '待处理'}</span></div>
+    ${o.note ? `<div class="o-note">📝 ${esc(o.note)}</div>` : ''}
+    <div class="ometa">
+      <span class="o-time">🕘 ${fmtAt(o.at)}</span>
+      <span class="o-user">👤 ${esc(o.user)}</span>
+      <button class="oact" data-pid="${esc(o.id)}" data-p="${o.processed ? 1 : 0}">${o.processed ? '撤销' : '处理'}</button>
+    </div></div>`).join('') : `<div class="empty">${opTab === 'done' ? '暂无已处理订单' : '暂无待处理订单'}</div>`;
+}
+
+async function loadOrders() {
+  try {
+    opData = await api('/api/admin/orders');
+    renderOrders(opData);
+  } catch (e) {
+    if (opOpen) $('#opSub').textContent = '加载失败：' + e.message;
+  }
+}
+
+/* 双击备注查看完整需求 */
+function showOrderDetail(o) {
+  const old = document.getElementById('odMask');
+  if (old) old.remove();
+  const m = document.createElement('div');
+  m.id = 'odMask';
+  m.className = 'od-mask on';
+  m.innerHTML = `<div class="od-box">
+    <button class="op-x od-x" id="odX" title="关闭">✕</button>
+    <h3>📝 需求详情</h3>
+    <div class="od-row"><span class="od-k">商品</span><div class="od-v">${esc(o.title)}</div></div>
+    <div class="od-row"><span class="od-k">下单人</span><div class="od-v">${esc(o.user)}</div></div>
+    <div class="od-row"><span class="od-k">时间</span><div class="od-v">${fmtAt(o.at)}</div></div>
+    <div class="od-row"><span class="od-k">状态</span><div class="od-v">${o.processed ? '已处理' : '待处理'}</div></div>
+    <div class="od-note">${esc(o.note || '（客户未填写备注）')}</div>
+  </div>`;
+  document.body.appendChild(m);
+  m.onclick = e => { if (e.target === m) m.remove(); };
+  $('#odX').onclick = () => m.remove();
+}
+
+async function processOrder(id, processed) {
+  try {
+    await api('/api/admin/orders/' + encodeURIComponent(id) + '/process', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ processed }),
+    });
+    tip(processed ? '已确认处理该订单' : '已撤销处理状态', 'ok');
+    loadOrders();
+  } catch (e) { tip('处理失败：' + e.message, 'err'); }
+}
+
+function toggleOrders(open) {
+  opOpen = typeof open === 'boolean' ? open : !opOpen;
+  $('#opanel').classList.toggle('on', opOpen);
+  clearInterval(opTimer);
+  if (opOpen) {
+    loadOrders();
+    opTimer = setInterval(loadOrders, 8000);
+  }
 }
 
 /* ---------- 事件 ---------- */
@@ -466,7 +657,9 @@ $('#grid').addEventListener('click', e => {
   const sp = e.target.closest('[data-stop]');
   if (sp) { stopApp(sp.dataset.stop); return; }
   const op = e.target.closest('[data-open]');
-  if (op) { window.open('/apps/' + encodeURIComponent(op.dataset.open) + '/', '_blank'); }
+  if (op) { window.open('/apps/' + encodeURIComponent(op.dataset.open) + '/', '_blank'); return; }
+  const hb = e.target.closest('[data-hide]');
+  if (hb) { toggleHide(hb.dataset.hide, hb.dataset.h !== '1'); }
 });
 $('#grid').addEventListener('change', e => {
   const up = e.target.closest('[data-up]');
@@ -488,9 +681,31 @@ drop.addEventListener('drop', e => {
 });
 drop.addEventListener('click', () => $('#file').click());
 
+$('#ofab').onclick = () => toggleOrders();
+$('#opClose').onclick = () => toggleOrders(false);
+$('#opList').addEventListener('click', e => {
+  const b = e.target.closest('[data-pid]');
+  if (b) processOrder(b.dataset.pid, b.dataset.p !== '1');
+});
+$('#opList').addEventListener('dblclick', e => {
+  const note = e.target.closest('.o-note');
+  if (!note) return;
+  const item = note.closest('.oitem');
+  const btn = item && item.querySelector('[data-pid]');
+  const o = btn && opData && (opData.list || []).find(x => x.id === btn.dataset.pid);
+  if (o) showOrderDetail(o);
+});
+$('.op-tabs').addEventListener('click', e => {
+  const b = e.target.closest('[data-tab]');
+  if (!b || b.dataset.tab === opTab) return;
+  opTab = b.dataset.tab;
+  if (opData) renderOrders(opData);
+  loadOrders();
+});
+
 /* ---------- 启动 ---------- */
 ensurePinyin().then(() => { if (query) render(); });
-if (token) load(); else showGate('');
+if (token) { load(); loadOrders(); } else showGate('');
 </script>
 </body>
 </html>
