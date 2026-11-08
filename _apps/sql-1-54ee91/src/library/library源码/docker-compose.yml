@@ -1,0 +1,17 @@
+services:
+  db:
+    image: mysql:5.7
+    command: --character-set-server=utf8 --collation-server=utf8_general_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: books
+    ports:
+      - "33060:3306"
+    volumes:
+      - ./database/books.sql:/docker-entrypoint-initdb.d/books.sql:ro
+  web:
+    build: .
+    ports:
+      - "8088:8080"
+    depends_on:
+      - db

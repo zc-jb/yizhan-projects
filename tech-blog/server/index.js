@@ -2,6 +2,10 @@ import express from 'express';
 import crypto from 'node:crypto';
 import path from 'node:path';
 import fs from 'node:fs';
+import os from 'node:os';
+import http from 'node:http';
+import net from 'node:net';
+import { spawn, spawnSync } from 'node:child_process';
 import { ROOT } from './env.js';
 import { pool, initSchema, ensureDatabase } from './db.js';
 import { clientIp, limiter, sameOrigin, makeAdminGuard } from './guard.js';
@@ -486,7 +490,16 @@ const needAdmin = (req, res, next) => {
 
 /* ---------------- 作品部署包管理 ---------------- */
 const PKG_DIR = path.resolve(ROOT, '..', '_packages');
-const PKG_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,60}\.zip$/;
+/* 包名规则：支持中文等 Unicode 名称，必须以 .zip 结尾，禁止路径分隔符与通配符 */
+const PKG_BAD = /[\\/:*?"<>|\x00-\x1f]/;
+function pkgName(n) {
+  const f = String(n || '').trim();
+  if (f.length < 5 || f.length > 80) return '';
+  if (!/\.zip$/i.test(f)) return '';
+  if (f.startsWith('.') || f.includes('..')) return '';
+  if (PKG_BAD.test(f)) return '';
+  return f;
+}
 try { fs.mkdirSync(PKG_DIR, { recursive: true }); } catch (_) {}
 
 function pkgManifest() {
@@ -498,7 +511,7 @@ function pkgList() {
   const man = pkgManifest();
   const meta = new Map((man.packages || []).map(p => [p.file, p]));
   let files = [];
-  try { files = fs.readdirSync(PKG_DIR).filter(f => PKG_RE.test(f)); } catch (_) {}
+  try { files = fs.readdirSync(PKG_DIR).filter(f => pkgName(f)); } catch (_) {}
   return files.map(f => {
     const st = fs.statSync(path.join(PKG_DIR, f));
     const m = meta.get(f) || {};
@@ -520,16 +533,16 @@ app.get('/api/admin/works/packages', needAdmin, (req, res) => {
 });
 
 app.get('/api/admin/works/packages/:file', needAdmin, (req, res) => {
-  const f = String(req.params.file || '');
-  if (!PKG_RE.test(f)) return res.status(400).json({ error: '包名不合法' });
+  const f = pkgName(req.params.file);
+  if (!f) return res.status(400).json({ error: '包名不合法' });
   const abs = path.join(PKG_DIR, f);
   if (!fs.existsSync(abs)) return res.status(404).json({ error: '该部署包不存在' });
   res.download(abs, f);
 });
 
 app.post('/api/admin/works/packages/:file', needAdmin, express.raw({ type: '*/*', limit: '200mb' }), (req, res) => {
-  const f = String(req.params.file || '');
-  if (!PKG_RE.test(f)) return res.status(400).json({ error: '包名不合法，仅支持字母数字点横线下划线 + .zip' });
+  const f = pkgName(req.params.file);
+  if (!f) return res.status(400).json({ error: '包名不合法：需以 .zip 结尾，且不能含 \\ / : * ? " < > |' });
   const buf = req.body;
   if (!Buffer.isBuffer(buf) || !buf.length) return res.status(400).json({ error: '未收到包内容' });
   if (buf.length < 4 || buf[0] !== 0x50 || buf[1] !== 0x4B) return res.status(400).json({ error: '仅支持 zip 压缩包' });
@@ -538,8 +551,8 @@ app.post('/api/admin/works/packages/:file', needAdmin, express.raw({ type: '*/*'
 });
 
 app.delete('/api/admin/works/packages/:file', needAdmin, (req, res) => {
-  const f = String(req.params.file || '');
-  if (!PKG_RE.test(f)) return res.status(400).json({ error: '包名不合法' });
+  const f = pkgName(req.params.file);
+  if (!f) return res.status(400).json({ error: '包名不合法' });
   const abs = path.join(PKG_DIR, f);
   if (!fs.existsSync(abs)) return res.status(404).json({ error: '该部署包不存在' });
   fs.unlinkSync(abs);
@@ -1055,6 +1068,897 @@ app.post('/api/work-likes/:key', needLogin, async (req, res) => {
   res.json({ liked: !ex[0], likes: Number(cnt[0].n) });
 });
 
+/* ---------------- 作品上线 / 在线体验 ---------------- */
+const APPS_DIR = path.resolve(ROOT, '..', '_apps');
+const APPS_STORE = path.join(APPS_DIR, 'apps.json');
+try { fs.mkdirSync(APPS_DIR, { recursive: true }); } catch (_) {}
+
+const APP_MIME = {
+  '.html': 'text/html; charset=utf-8', '.htm': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif', '.webp': 'image/webp', '.ico': 'image/x-icon', '.bmp': 'image/bmp',
+  '.woff': 'font/woff', '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.otf': 'font/otf',
+  '.eot': 'application/vnd.ms-fontobject', '.mp4': 'video/mp4', '.webm': 'video/webm',
+  '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.pdf': 'application/pdf',
+  '.txt': 'text/plain; charset=utf-8', '.md': 'text/markdown; charset=utf-8',
+  '.xml': 'application/xml; charset=utf-8', '.map': 'application/json; charset=utf-8',
+  '.wasm': 'application/wasm',
+};
+
+const MODE_LABEL = {
+  static: '静态站点', node: 'Node 服务', jar: 'Java Jar', 'java-web': 'Java Web / Spring Boot', pending: '未部署', unknown: '未知类型',
+};
+
+/* 部分文件名不友好，上线时补一份展示用标题（manifest 里有则以 manifest 为准） */
+const APP_TITLES = {
+  '图书馆管理系统源码+sql(1).zip': {
+    title: '图书馆管理系统（JSP/Servlet + MySQL）',
+    desc: '经典 JSP + Servlet + MySQL 图书借阅系统：管理员后台、图书/分类/读者管理、借还书与借阅历史，包内附建库 SQL。',
+    stack: 'JSP / Servlet + MySQL',
+    version: 'v1.0',
+  },
+};
+
+function appsRead() {
+  try {
+    const d = JSON.parse(fs.readFileSync(APPS_STORE, 'utf8'));
+    if (Array.isArray(d.apps)) return d;
+  } catch (_) {}
+  return { apps: [] };
+}
+function appsWrite(data) {
+  try {
+    fs.writeFileSync(APPS_STORE, JSON.stringify({ updated_at: new Date().toISOString(), apps: data.apps }, null, 2));
+  } catch (_) {}
+}
+function appSlug(file) {
+  const base = String(file).replace(/\.zip$/i, '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 22);
+  const h = crypto.createHash('md5').update(String(file)).digest('hex').slice(0, 6);
+  return (base || 'app') + '-' + h;
+}
+function appFind(slug) { return appsRead().apps.find(a => a.slug === slug) || null; }
+function appPatch(slug, patch) {
+  const d = appsRead();
+  const a = d.apps.find(x => x.slug === slug);
+  if (!a) return null;
+  Object.assign(a, patch);
+  appsWrite(d);
+  return a;
+}
+const relFromApps = abs => path.relative(APPS_DIR, abs).split(path.sep).join('/');
+
+/* 服务重启后，上次遗留的运行状态一律复位 */
+try {
+  const d = appsRead();
+  for (const a of d.apps) {
+    if (a.mode !== 'static' && a.status === 'running') { a.status = 'stopped'; a.note = '服务已重启，进程已结束，请重新启动'; }
+  }
+  appsWrite(d);
+} catch (_) {}
+
+/* ---------- PowerShell 辅助 ---------- */
+function psRun(cmd, env) {
+  return new Promise((resolve, reject) => {
+    const p = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', cmd], {
+      env: Object.assign({}, process.env, env || {}), windowsHide: true,
+    });
+    let out = '', err = '';
+    p.stdout.on('data', d => { out += d; });
+    p.stderr.on('data', d => { err += d; });
+    p.on('error', reject);
+    p.on('close', code => resolve({ code, out: out.trim(), err: err.trim() }));
+  });
+}
+
+async function unzipTo(zipAbs, dest) {
+  fs.rmSync(dest, { recursive: true, force: true });
+  fs.mkdirSync(dest, { recursive: true });
+  const r = await psRun('Expand-Archive -LiteralPath $env:YZ_SRC -DestinationPath $env:YZ_DEST -Force', { YZ_SRC: zipAbs, YZ_DEST: dest });
+  if (r.code !== 0) throw new Error('解压失败：' + (r.err || r.out || '未知错误'));
+}
+
+async function zipAdd(zipAbs, entries) {
+  if (!entries.length) return;
+  const specPath = path.join(os.tmpdir(), 'yz-zip-' + crypto.randomBytes(6).toString('hex') + '.json');
+  fs.writeFileSync(specPath, JSON.stringify({ entries }, null, 2), 'utf8');
+  try {
+    const r = await psRun('& $env:YZ_PS1', {
+      YZ_ZIP: zipAbs, YZ_SPEC: specPath,
+      YZ_PS1: path.join(ROOT, 'server', 'zip-add.ps1'),
+    });
+    if (r.code !== 0) throw new Error('回写压缩包失败：' + (r.err || r.out || '未知错误'));
+  } finally {
+    try { fs.unlinkSync(specPath); } catch (_) {}
+  }
+}
+
+/* ---------- 包结构探测 ---------- */
+const dirOf = (root, rel) => {
+  const seg = rel.split('/').slice(0, -1);
+  return seg.length ? path.join(root, ...seg) : root;
+};
+
+function detectApp(root) {
+  const files = [];
+  const skip = /^(node_modules|\.git|\.idea|classes|target|out)$/i;
+  (function go(dir, rel, depth) {
+    if (depth > 6) return;
+    let items = [];
+    try { items = fs.readdirSync(dir, { withFileTypes: true }); } catch (_) { return; }
+    for (const it of items) {
+      const r = rel ? rel + '/' + it.name : it.name;
+      if (it.isDirectory()) { if (!skip.test(it.name)) go(path.join(dir, it.name), r, depth + 1); continue; }
+      let size = 0;
+      try { size = fs.statSync(path.join(dir, it.name)).size; } catch (_) {}
+      files.push({ rel: r, abs: path.join(dir, it.name), name: it.name, size, depth });
+    }
+  })(root, '', 0);
+  const lv = f => f.rel.split('/').length;
+
+  const webXml = files.filter(f => /(^|\/)WEB-INF\/web\.xml$/i.test(f.rel)).sort((a, b) => lv(a) - lv(b))[0];
+  const jsp = files.filter(f => /\.jsp$/i.test(f.name)).sort((a, b) => lv(a) - lv(b))[0];
+  if (webXml || jsp) {
+    const anchor = webXml || jsp;
+    const seg = anchor.rel.split('/');
+    const wi = seg.findIndex(s => s.toUpperCase() === 'WEB-INF');
+    let webRel = wi >= 0 ? seg.slice(0, wi).join('/') : seg.slice(0, -1).join('/');
+    let projRel = webRel;
+    const base = webRel.split('/').pop() || '';
+    if (/src\/main\/webapp$/i.test(webRel)) projRel = webRel.replace(/\/?src\/main\/webapp$/i, '');
+    else if (/^(WebContent|webapp|WebRoot)$/i.test(base)) projRel = webRel.split('/').slice(0, -1).join('/');
+    const abs = r => (r ? path.join(root, ...r.split('/')) : root);
+    return { mode: 'java-web', kind: 'jsp', projAbs: abs(projRel), webRel, anchor: anchor.rel, files };
+  }
+
+  const jar = files.filter(f => /\.jar$/i.test(f.name) && !/WEB-INF/i.test(f.rel) && lv(f) <= 3 && f.size > 1024 * 1024)
+    .sort((a, b) => lv(a) - lv(b))[0];
+  if (jar) return { mode: 'jar', entryRel: jar.rel, projAbs: dirOf(root, jar.rel), anchor: jar.rel, files };
+
+  const pom = files.filter(f => /pom\.xml$/i.test(f.name) && lv(f) <= 3).sort((a, b) => lv(a) - lv(b))[0];
+  if (pom) return { mode: 'java-web', kind: 'spring', projAbs: dirOf(root, pom.rel), anchor: pom.rel, files };
+
+  const pkg = files.filter(f => f.name === 'package.json' && lv(f) <= 3).sort((a, b) => lv(a) - lv(b))[0];
+  if (pkg) {
+    let start = '';
+    try { start = (JSON.parse(fs.readFileSync(pkg.abs, 'utf8')).scripts || {}).start || ''; } catch (_) {}
+    if (start) return { mode: 'node', projAbs: dirOf(root, pkg.rel), anchor: pkg.rel, files, start };
+  }
+
+  const idx = files.filter(f => /^index\.html?$/i.test(f.name)).sort((a, b) => lv(a) - lv(b))[0];
+  if (idx) return { mode: 'static', rootAbs: dirOf(root, idx.rel), anchor: idx.rel, files };
+
+  return { mode: 'unknown', projAbs: root, files };
+}
+
+/* ---------- 自动补全部署文件 ---------- */
+function writeGen(projAbs, files) {
+  const added = [];
+  for (const f of files) {
+    const abs = path.join(projAbs, f.name);
+    if (fs.existsSync(abs)) continue;
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, f.content, 'utf8');
+    added.push(abs);
+  }
+  return added;
+}
+
+function jspPom(meta) {
+  const artifact = String(meta.slug || 'library').replace(/[^a-z0-9-]/g, '-');
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<project xmlns="http://maven.apache.org/POM/4.0.0"',
+    '         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"',
+    '         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">',
+    '  <modelVersion>4.0.0</modelVersion>',
+    '  <groupId>com.yizhan</groupId>',
+    '  <artifactId>' + artifact + '</artifactId>',
+    '  <version>1.0</version>',
+    '  <packaging>war</packaging>',
+    '  <name>' + (meta.title || artifact) + '</name>',
+    '  <properties>',
+    '    <maven.compiler.source>1.8</maven.compiler.source>',
+    '    <maven.compiler.target>1.8</maven.compiler.target>',
+    '    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>',
+    '  </properties>',
+    '  <dependencies>',
+    '    <dependency>',
+    '      <groupId>javax.servlet</groupId>',
+    '      <artifactId>javax.servlet-api</artifactId>',
+    '      <version>4.0.1</version>',
+    '      <scope>provided</scope>',
+    '    </dependency>',
+    '    <dependency>',
+    '      <groupId>javax.servlet.jsp</groupId>',
+    '      <artifactId>javax.servlet.jsp-api</artifactId>',
+    '      <version>2.3.3</version>',
+    '      <scope>provided</scope>',
+    '    </dependency>',
+    '    <dependency>',
+    '      <groupId>mysql</groupId>',
+    '      <artifactId>mysql-connector-java</artifactId>',
+    '      <version>5.1.49</version>',
+    '      <scope>provided</scope>',
+    '    </dependency>',
+    '  </dependencies>',
+    '  <build>',
+    '    <finalName>' + artifact + '</finalName>',
+    '    <sourceDirectory>src</sourceDirectory>',
+    '    <plugins>',
+    '      <plugin>',
+    '        <groupId>org.apache.maven.plugins</groupId>',
+    '        <artifactId>maven-compiler-plugin</artifactId>',
+    '        <version>3.11.0</version>',
+    '      </plugin>',
+    '      <plugin>',
+    '        <groupId>org.apache.maven.plugins</groupId>',
+    '        <artifactId>maven-war-plugin</artifactId>',
+    '        <version>3.4.0</version>',
+    '        <configuration>',
+    '          <warSourceDirectory>WebContent</warSourceDirectory>',
+    '          <failOnMissingWebXml>false</failOnMissingWebXml>',
+    '        </configuration>',
+    '      </plugin>',
+    '    </plugins>',
+    '  </build>',
+    '</project>',
+  ].join('\n');
+}
+
+function jspDockerfile() {
+  return [
+    'FROM maven:3.9-eclipse-temurin-8 AS build',
+    'WORKDIR /src',
+    'COPY . .',
+    'RUN mvn -B -DskipTests package',
+    '',
+    'FROM tomcat:9-jdk8-temurin',
+    'RUN rm -rf /usr/local/tomcat/webapps/*',
+    'COPY --from=build /src/target/*.war /usr/local/tomcat/webapps/ROOT.war',
+    'EXPOSE 8080',
+    'CMD ["catalina.sh", "run"]',
+    '',
+  ].join('\n');
+}
+
+function jspCompose() {
+  return [
+    'services:',
+    '  db:',
+    '    image: mysql:5.7',
+    '    command: --character-set-server=utf8 --collation-server=utf8_general_ci',
+    '    environment:',
+    '      MYSQL_ROOT_PASSWORD: root',
+    '      MYSQL_DATABASE: books',
+    '    ports:',
+    '      - "33060:3306"',
+    '    volumes:',
+    '      - ./database/books.sql:/docker-entrypoint-initdb.d/books.sql:ro',
+    '  web:',
+    '    build: .',
+    '    ports:',
+    '      - "8088:8080"',
+    '    depends_on:',
+    '      - db',
+    '',
+  ].join('\n');
+}
+
+function jspReadme(meta, info) {
+  const hasPom = fs.existsSync(path.join(info.projAbs, 'pom.xml'));
+  return [
+    '# ' + (meta.title || 'Java Web 项目') + '',
+    '',
+    '> 本部署说明由「技术驿站 · 作品上线」自动补齐（' + new Date().toLocaleString('zh-CN') + '），可直接照着跑。',
+    '',
+    '## 环境要求',
+    '- JDK 8 或更高版本',
+    '- Maven 3.6+（本包已自动补 `pom.xml`）',
+    '- MySQL 5.5 ~ 5.7（建库脚本：`database/books.sql`）',
+    '- Tomcat 9（或直接用下面的 Docker 方式）',
+    '',
+    '## 1. 初始化数据库',
+    '```',
+    'mysql -uroot -proot < database/books.sql',
+    '```',
+    '默认库名 `books`，账号 `root / root`。若与本机不同，请修改 `src/com/rain/util/DBUtil.java` 中的 url / username / password。',
+    '',
+    '## 2. 构建并启动（Tomcat）',
+    '```',
+    (hasPom ? 'mvn clean package' : 'mvn clean package   # pom.xml 缺失时可先用包内已生成的配置'),
+    'copy target\\*.war  %TOMCAT_HOME%\\webapps\\ROOT.war   # Windows',
+    '```',
+    '启动 Tomcat 后访问 <http://localhost:8080>。',
+    '',
+    '## 3. 一键容器运行（推荐）',
+    '```',
+    'docker compose up -d',
+    '```',
+    '访问 <http://localhost:8088>。容器内数据库地址为 `db:3306`，如连接失败请把 `DBUtil.java` 的 `localhost` 改成 `db` 后重新 `docker compose up -d --build`。',
+    '',
+    '## 目录结构',
+    '- `WebContent/`：JSP 页面、`WEB-INF`、静态资源',
+    '- `src/`：Servlet / DAO / Bean / 工具类源码',
+    '- `database/`：建库 SQL',
+    '- `pom.xml`、`Dockerfile`、`docker-compose.yml`：自动补齐的构建与容器配置',
+    '',
+  ].join('\n');
+}
+
+function springDockerfile() {
+  return [
+    'FROM maven:3.9-eclipse-temurin-17 AS build',
+    'WORKDIR /src',
+    'COPY . .',
+    'RUN mvn -B -DskipTests package',
+    '',
+    'FROM eclipse-temurin:17-jre',
+    'WORKDIR /app',
+    'COPY --from=build /src/target/*.jar /app/app.jar',
+    'EXPOSE 8080',
+    'ENTRYPOINT ["java", "-jar", "/app/app.jar"]',
+    '',
+  ].join('\n');
+}
+
+function springCompose() {
+  return [
+    'services:',
+    '  db:',
+    '    image: mysql:8.0',
+    '    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci',
+    '    environment:',
+    '      MYSQL_ROOT_PASSWORD: root',
+    '      MYSQL_DATABASE: hotel_db',
+    '    ports:',
+    '      - "33061:3306"',
+    '  app:',
+    '    build: .',
+    '    ports:',
+    '      - "8089:8080"',
+    '    depends_on:',
+    '      - db',
+    '    environment:',
+    '      HOTEL_DB_HOST: db',
+    '      HOTEL_DB_PORT: "3306"',
+    '      HOTEL_DB_NAME: hotel_db',
+    '      HOTEL_DB_USER: root',
+    '      HOTEL_DB_PASS: root',
+    '',
+  ].join('\n');
+}
+
+function springReadme(meta) {
+  return [
+    '# ' + (meta.title || 'Spring Boot 项目'),
+    '',
+    '> 本部署说明由「技术驿站 · 作品上线」自动补齐（' + new Date().toLocaleString('zh-CN') + '）。',
+    '',
+    '## 环境要求',
+    '- JDK 17+、Maven 3.6+、MySQL 8（Redis 可选）',
+    '',
+    '## 本地运行',
+    '```',
+    'mvn -DskipTests package',
+    'java -jar target\\*.jar',
+    '```',
+    '默认端口 8080；数据库连接见 `src/main/resources/application.yml`，可用环境变量',
+    '`HOTEL_DB_HOST` / `HOTEL_DB_PORT` / `HOTEL_DB_NAME` / `HOTEL_DB_USER` / `HOTEL_DB_PASS` 覆盖。',
+    '首次启动会自动建表（`ddl-auto: update`）并写入演示数据。',
+    '',
+    '## 一键容器运行',
+    '```',
+    'docker compose up -d',
+    '```',
+    '访问 <http://localhost:8089>，MySQL 映射在 33061 端口。',
+    '',
+    '## 前端',
+    '- 已构建产物位于 `src/main/resources/static`（随 jar 一起提供）',
+    '- 前端源码在 `frontend/`，如需改动：`cd frontend && npm install && npm run build`',
+    '',
+  ].join('\n');
+}
+
+function jarDockerfile(jarRel) {
+  const jarName = jarRel.split('/').pop();
+  return [
+    'FROM eclipse-temurin:17-jre',
+    'WORKDIR /app',
+    'COPY . /app',
+    'ENV HOTEL_DB_HOST=db HOTEL_DB_PORT=3306 HOTEL_DB_NAME=hotel_db HOTEL_DB_USER=root HOTEL_DB_PASS=root',
+    'EXPOSE 8080',
+    'ENTRYPOINT ["java", "-jar", "/app/' + jarName + '"]',
+    '',
+  ].join('\n');
+}
+
+function jarCompose() {
+  return [
+    'services:',
+    '  db:',
+    '    image: mysql:8.0',
+    '    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci',
+    '    environment:',
+    '      MYSQL_ROOT_PASSWORD: root',
+    '      MYSQL_DATABASE: hotel_db',
+    '    ports:',
+    '      - "33062:3306"',
+    '  app:',
+    '    build: .',
+    '    ports:',
+    '      - "8090:8080"',
+    '    depends_on:',
+    '      - db',
+    '    environment:',
+    '      HOTEL_DB_HOST: db',
+    '      HOTEL_DB_PORT: "3306"',
+    '      HOTEL_DB_NAME: hotel_db',
+    '      HOTEL_DB_USER: root',
+    '      HOTEL_DB_PASS: root',
+    '',
+  ].join('\n');
+}
+
+function jarReadme(meta) {
+  return [
+    '# ' + (meta.title || 'Java 运行版'),
+    '',
+    '> 本部署说明由「技术驿站 · 作品上线」自动补齐（' + new Date().toLocaleString('zh-CN') + '）。',
+    '',
+    '## 环境要求',
+    '- JDK 17+（Spring Boot 3 需要 17 及以上）',
+    '- MySQL 8（Redis 可选）',
+    '',
+    '## 直接启动',
+    '```',
+    'java -jar *.jar',
+    '```',
+    '默认 8080 端口；数据库地址可用环境变量 `HOTEL_DB_HOST` 等覆盖，见 `application.yml`。',
+    '首次启动会自动建表并写入演示数据。',
+    '',
+    '## 一键容器运行',
+    '```',
+    'docker compose up -d',
+    '```',
+    '访问 <http://localhost:8090>。',
+    '',
+  ].join('\n');
+}
+
+function staticReadme(meta) {
+  return [
+    '# ' + (meta.title || '静态站点'),
+    '',
+    '> 本部署说明由「技术驿站 · 作品上线」自动补齐。',
+    '',
+    '- 纯前端站点，无需后端与数据库',
+    '- 已由技术驿站托管，直接访问 `/apps/<slug>/` 即可体验',
+    '- 也可把目录内文件整体复制到任意 Web 服务器根目录访问',
+    '',
+  ].join('\n');
+}
+
+/* ---------- 部署 ---------- */
+async function appDeploy(file) {
+  const f = pkgName(file);
+  if (!f) throw Object.assign(new Error('包名不合法'), { status: 400 });
+  const zipAbs = path.join(PKG_DIR, f);
+  if (!fs.existsSync(zipAbs)) throw Object.assign(new Error('该部署包不存在'), { status: 404 });
+
+  const slug = appSlug(f);
+  const src = path.join(APPS_DIR, slug, 'src');
+  appStop(slug);
+
+  const man = pkgManifest();
+  const pmeta = (man.packages || []).find(x => x.file === f) || {};
+  const extra = APP_TITLES[f] || {};
+  const meta = {
+    slug,
+    title: pmeta.title || extra.title || f.replace(/\.zip$/i, '').replace(/\(\d+\)$/, ''),
+    desc: pmeta.desc || extra.desc || '',
+    stack: pmeta.stack || extra.stack || '',
+    version: pmeta.version || extra.version || 'v1.0',
+  };
+
+  await unzipTo(zipAbs, src);
+  const info = detectApp(src);
+
+  let added = [];
+  if (info.mode === 'java-web' && info.kind === 'jsp') {
+    added = writeGen(info.projAbs, [
+      { name: 'pom.xml', content: jspPom(meta) },
+      { name: 'Dockerfile', content: jspDockerfile() },
+      { name: 'docker-compose.yml', content: jspCompose() },
+      { name: '部署说明.md', content: jspReadme(meta, info) },
+    ]);
+  } else if (info.mode === 'java-web') {
+    added = writeGen(info.projAbs, [
+      { name: 'Dockerfile', content: springDockerfile() },
+      { name: 'docker-compose.yml', content: springCompose() },
+      { name: '部署说明.md', content: springReadme(meta) },
+    ]);
+  } else if (info.mode === 'jar') {
+    added = writeGen(info.projAbs, [
+      { name: 'Dockerfile', content: jarDockerfile(info.entryRel) },
+      { name: 'docker-compose.yml', content: jarCompose() },
+      { name: '部署说明.md', content: jarReadme(meta) },
+    ]);
+  } else if (info.mode === 'static') {
+    added = writeGen(info.rootAbs, [{ name: '部署说明.md', content: staticReadme(meta) }]);
+  } else if (info.mode === 'node') {
+    added = writeGen(info.projAbs, [{ name: '部署说明.md', content: staticReadme(meta) }]);
+  }
+
+  /* 把自动补齐的文件写回原部署包，保证包本身也完整 */
+  if (added.length) {
+    try {
+      await zipAdd(zipAbs, added.map(abs => ({ name: path.relative(src, abs).split(path.sep).join('/'), src: abs })));
+      man.updated_at = new Date().toISOString();
+      let entry = (man.packages || []).find(x => x.file === f);
+      if (!entry) {
+        entry = { file: f, title: meta.title, desc: meta.desc, stack: meta.stack, version: meta.version };
+        man.packages = man.packages || [];
+        man.packages.push(entry);
+      }
+      entry.gen = (entry.gen || []).concat(added.map(abs => path.basename(abs)).filter(n => !(entry.gen || []).includes(n)));
+      fs.writeFileSync(path.join(PKG_DIR, 'manifest.json'), JSON.stringify(man, null, 2));
+    } catch (e) {
+      console.error('[APP] 回写部署包失败：', e.message);
+    }
+  }
+
+  const rootSel = info.mode === 'static' ? info.rootAbs : info.projAbs;
+  const rec = Object.assign({
+    file: f,
+    slug,
+    title: meta.title,
+    desc: meta.desc,
+    stack: meta.stack,
+    version: meta.version,
+    mode: info.mode,
+    kind: info.kind || '',
+    root: relFromApps(rootSel),
+    entry: info.entryRel || '',
+    anchor: info.anchor || '',
+    gen: added.map(abs => path.basename(abs)),
+    port: 0,
+    url: '',
+    log: '',
+    deployAt: new Date().toISOString(),
+    startAt: '',
+  }, {});
+
+  const d = appsRead();
+  const old = d.apps.findIndex(a => a.slug === slug);
+  if (info.mode === 'static') {
+    rec.status = 'running';
+    rec.url = '/apps/' + slug + '/';
+    rec.note = '静态站点已托管上线，可直接访问体验';
+  } else if (info.mode === 'jar') {
+    const hasJava = javaOk();
+    rec.status = hasJava ? 'deployed' : 'needs-env';
+    rec.note = hasJava
+      ? '部署完成，点击「启动」即可运行（端口自动分配）'
+      : '本机未检测到 Java 运行环境：部署文件（Dockerfile / compose / 说明）已补全，安装 JDK 17+ 后点击「启动」即可';
+  } else if (info.mode === 'node') {
+    rec.status = 'deployed';
+    rec.note = '部署完成，点击「启动」运行 npm start（端口自动分配）';
+  } else if (info.mode === 'java-web') {
+    rec.status = 'needs-env';
+    rec.note = info.kind === 'jsp'
+      ? 'JSP / Servlet 项目：已自动补齐 pom.xml、Dockerfile、docker-compose.yml 与部署说明；需 JDK + Tomcat + MySQL 才能运行'
+      : 'Spring Boot 源码：已自动补齐 Dockerfile、docker-compose.yml 与部署说明；需 JDK 17 + Maven + MySQL 才能运行';
+  } else {
+    rec.status = 'needs-env';
+    rec.note = '未能识别项目类型，已保留完整解压目录，请参考包内部署说明';
+  }
+
+  if (old >= 0) d.apps[old] = rec; else d.apps.push(rec);  appsWrite(d);
+  return rec;
+}
+
+/* ---------- 运行时 ---------- */
+const APP_RT = new Map();
+
+function javaOk() {
+  const r = spawnSync('java', ['-version'], { encoding: 'utf8', timeout: 8000, windowsHide: true });
+  return !r.error && r.status === 0;
+}
+function npmOk() {
+  const r = spawnSync(process.env.ComSpec || 'cmd.exe', ['/c', 'npm -v'], { encoding: 'utf8', timeout: 8000, windowsHide: true });
+  return !r.error && r.status === 0;
+}
+
+function freePort(from = 4010) {
+  return new Promise(resolve => {
+    let p = from;
+    const next = () => {
+      if (p > 4300) return resolve(0);
+      const s = net.createServer();
+      s.once('error', () => { s.close(); p += 1; next(); });
+      s.once('listening', () => s.close(() => resolve(p)));
+      s.listen(p, '127.0.0.1');
+    };
+    next();
+  });
+}
+
+function waitPort(port, timeout = 60000) {
+  const t0 = Date.now();
+  return new Promise(resolve => {
+    const tick = () => {
+      if (Date.now() - t0 > timeout) return resolve(false);
+      const s = net.connect({ port, host: '127.0.0.1' });
+      let done = false;
+      const finish = ok => {
+        if (done) return;
+        done = true;
+        try { s.destroy(); } catch (_) {}
+        if (ok) return resolve(true);
+        setTimeout(tick, 700);
+      };
+      s.once('connect', () => finish(true));
+      s.once('error', () => finish(false));
+      setTimeout(() => finish(false), 1200);
+    };
+    tick();
+  });
+}
+
+function killTree(pid) {
+  if (!pid) return;
+  try { spawnSync('taskkill', ['/pid', String(pid), '/T', '/F'], { timeout: 8000, windowsHide: true }); } catch (_) {}
+}
+
+function appStop(slug) {
+  const rt = APP_RT.get(slug);
+  if (rt) {
+    if (rt.child && rt.child.pid) killTree(rt.child.pid);
+    APP_RT.delete(slug);
+  }
+}
+
+async function appStart(slug) {
+  const d = appsRead();
+  const rec = d.apps.find(a => a.slug === slug);
+  if (!rec) throw Object.assign(new Error('该作品尚未部署'), { status: 404 });
+  appStop(slug);
+
+  if (rec.mode === 'static') {
+    rec.status = 'running';
+    rec.url = '/apps/' + slug + '/';
+    rec.note = '静态站点已托管上线，可直接访问体验';
+    appsWrite(d);
+    return rec;
+  }
+  if (rec.mode === 'java-web' || rec.mode === 'unknown') {
+    rec.status = 'needs-env';
+    rec.note = rec.mode === 'java-web'
+      ? '需 JDK + Maven/Tomcat + MySQL 环境；部署文件已自动补齐，可照包内「部署说明.md」运行'
+      : '未能识别项目类型，无法自动启动';
+    appsWrite(d);
+    return rec;
+  }
+  if (rec.mode === 'jar' && !javaOk()) {
+    rec.status = 'needs-env';
+    rec.note = '本机未检测到 Java 运行环境，请安装 JDK 17+ 后重试（部署文件已补全）';
+    appsWrite(d);
+    return rec;
+  }
+  if (rec.mode === 'node' && !npmOk()) {
+    rec.status = 'needs-env';
+    rec.note = '本机未检测到 npm，请安装 Node.js 18+ 后重试';
+    appsWrite(d);
+    return rec;
+  }
+
+  const port = await freePort();
+  if (!port) {
+    rec.status = 'error';
+    rec.note = '4000-4300 端口已全部占用，无法分配运行端口';
+    appsWrite(d);
+    return rec;
+  }
+
+  const cwd = path.join(APPS_DIR, rec.root);
+  const lines = [];
+  const push = s => {
+    if (!s) return;
+    for (const ln of String(s).split(/\r?\n/)) {
+      if (ln.trim()) lines.push(ln.slice(0, 400));
+    }
+    while (lines.length > 300) lines.shift();
+  };
+
+  let child;
+  if (rec.mode === 'jar') {
+    const jarAbs = path.join(APPS_DIR, rec.root, rec.entry);
+    child = spawn('java', ['-jar', jarAbs, '--server.port=' + port, '--spring.profiles.active=default'], {
+      cwd, windowsHide: true, env: Object.assign({}, process.env, { SERVER_PORT: String(port) }),
+    });
+  } else {
+    child = spawn(process.env.ComSpec || 'cmd.exe', ['/c', 'npm start'], {
+      cwd, windowsHide: true,
+      env: Object.assign({}, process.env, { PORT: String(port), HOST: '127.0.0.1', BROWSER: 'none' }),
+    });
+  }
+
+  const rt = { child, port, lines, text: () => lines.join('\n') };
+  APP_RT.set(slug, rt);
+  child.stdout.on('data', d2 => push(d2.toString()));
+  child.stderr.on('data', d2 => push(d2.toString()));
+  child.on('error', e => { push('[spawn] ' + e.message); });
+  child.on('exit', code => {
+    if (APP_RT.get(slug) !== rt) return;
+    APP_RT.delete(slug);
+    const cur = appsRead();
+    const r2 = cur.apps.find(a => a.slug === slug);
+    if (r2 && r2.status === 'running') {
+      r2.status = 'stopped';
+      r2.note = '进程已退出（code ' + code + '），可重新启动；日志见末尾';
+      r2.log = lines.slice(-40).join('\n');
+      appsWrite(cur);
+    }
+  });
+
+  const ok = await waitPort(port, 60000);
+  const cur = appsRead();
+  const r2 = cur.apps.find(a => a.slug === slug);
+  if (r2) {
+    Object.assign(r2, {
+      port, url: '/apps/' + slug + '/',
+      startAt: new Date().toISOString(),
+      pid: child.pid || 0,
+      status: ok ? 'running' : 'error',
+      note: ok ? '运行中，端口 ' + port : '启动超时（60 秒内端口未就绪），请查看日志排查',
+      log: lines.slice(-40).join('\n'),
+    });
+    appsWrite(cur);
+  }
+  return appsRead().apps.find(a => a.slug === slug);
+}
+
+/* ---------- 静态站点 / 服务代理 ---------- */
+const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+function infoPage(rec) {
+  const badges = {
+    running: '🟢 运行中', deployed: '🔵 已部署 · 待启动', 'needs-env': '🟡 需环境支持', error: '🔴 启动异常', stopped: '⚪ 已停止', pending: '⚪ 未部署',
+  };
+  const mode = MODE_LABEL[rec.mode] || rec.mode;
+  return '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+    + '<title>' + esc(rec.title) + '</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#050a12;color:#e8f1ff;'
+    + 'font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}'
+    + '.c{max-width:560px;padding:28px 30px;border:1px solid rgba(77,159,255,.28);border-radius:16px;background:linear-gradient(180deg,#0e1a2b,#08111d);box-shadow:0 18px 50px rgba(0,0,0,.5)}'
+    + 'h1{font-size:18px;margin:0 0 6px}p{font-size:13px;line-height:1.85;color:#8ba0bd;margin:6px 0}'
+    + '.b{display:inline-block;margin:10px 0 14px;padding:4px 12px;border-radius:999px;font-size:12px;background:rgba(77,159,255,.12);border:1px solid rgba(77,159,255,.3);color:#9fc5ff}'
+    + 'code{background:rgba(255,255,255,.06);padding:2px 6px;border-radius:5px;font-size:12px}</style></head><body><div class="c">'
+    + '<h1>' + esc(rec.title) + '</h1>'
+    + '<span class="b">' + (badges[rec.status] || rec.status) + ' · ' + esc(mode) + '</span>'
+    + '<p>' + esc(rec.note || '该作品暂未上线') + '</p>'
+    + (rec.desc ? '<p>' + esc(rec.desc) + '</p>' : '')
+    + (rec.mode === 'java-web' ? '<p>可照包内 <code>部署说明.md</code> 运行：初始化 MySQL → <code>mvn package</code> → 部署 war/jar，或直接 <code>docker compose up -d</code>。</p>' : '')
+    + '</div></body></html>';
+}
+
+function serveStaticApp(rec, req, res) {
+  const root = path.join(APPS_DIR, rec.root);
+  let rel = req.path || '/';
+  try { rel = decodeURIComponent(rel); } catch (_) {}
+  if (!rel || rel === '/') rel = '/index.html';
+  const abs = path.resolve(root, '.' + rel);
+  if (abs !== root && !abs.startsWith(root + path.sep)) return res.status(403).send('Forbidden');
+  let st = null;
+  try { st = fs.statSync(abs); } catch (_) {}
+  if (st && st.isFile()) {
+    res.setHeader('Content-Type', APP_MIME[path.extname(abs).toLowerCase()] || 'application/octet-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    return fs.createReadStream(abs).pipe(res);
+  }
+  const idx = path.join(root, 'index.html');
+  if (!path.extname(rel) && fs.existsSync(idx)) {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return fs.createReadStream(idx).pipe(res);
+  }
+  return res.status(404).type('html').send('<!DOCTYPE html><meta charset="utf-8"><p style="font-family:sans-serif">未找到该资源</p>');
+}
+
+function proxyApp(rec, req, res) {
+  const prefix = '/apps/' + rec.slug;
+  let p = (req.originalUrl || '/').slice(prefix.length) || '/';
+  if (!p.startsWith('/')) p = '/' + p;
+  const headers = Object.assign({}, req.headers, { host: '127.0.0.1:' + rec.port });
+  const up = http.request({ host: '127.0.0.1', port: rec.port, path: p, method: req.method, headers }, r => {
+    const h = Object.assign({}, r.headers);
+    if (h.location && h.location.startsWith('/')) h.location = prefix + h.location;
+    res.writeHead(r.statusCode || 502, h);
+    r.pipe(res);
+  });
+  up.on('error', () => {
+    if (!res.headersSent) res.status(502).type('html').send(infoPage(appFind(rec.slug) || rec));
+    else try { res.end(); } catch (_) {}
+  });
+  req.pipe(up);
+}
+
+app.use('/apps/:slug', (req, res, next) => {
+  const rec = appFind(req.params.slug);
+  if (!rec) return next();
+  if (rec.mode === 'static') return serveStaticApp(rec, req, res);
+  if (rec.mode === 'node' || rec.mode === 'jar') {
+    if (rec.status === 'running' && rec.port) return proxyApp(rec, req, res);
+    return res.status(200).type('html').send(infoPage(rec));
+  }
+  return res.status(200).type('html').send(infoPage(rec));
+});
+
+/* ---------- 我的作品：公开体验清单 ---------- */
+function showcaseList() {
+  const data = appsRead();
+  const map = new Map(data.apps.map(a => [a.slug, a]));
+  const out = [];
+  for (const p of pkgList()) {
+    const rec = map.get(appSlug(p.file));
+    if (rec && rec.hidden) continue;
+    if (!rec) {
+      out.push({
+        slug: appSlug(p.file), file: p.file, title: p.title, desc: p.desc, stack: p.stack,
+        version: p.version, size: p.size, mode: 'pending', status: 'pending',
+        url: '', port: 0, note: '已导入部署包，在「作品管理」点击「上线」即可体验',
+      });
+      continue;
+    }
+    out.push({
+      slug: rec.slug, file: p.file, title: rec.title || p.title, desc: rec.desc || p.desc,
+      stack: rec.stack || p.stack, version: rec.version || p.version, size: p.size,
+      mode: rec.mode, status: rec.status, url: rec.status === 'running' ? '/apps/' + rec.slug + '/' : '',
+      port: rec.port || 0, note: rec.note || '', deployAt: rec.deployAt || '',
+    });
+  }
+  return out;
+}
+
+app.get('/api/works/showcase', (req, res) => res.json({ list: showcaseList() }));
+
+/* ---------- 管理端：部署 / 启停 / 下线 ---------- */
+app.get('/api/admin/apps', needAdmin, (req, res) => {
+  const list = appsRead().apps.map(a => Object.assign({}, a, {
+    alive: !!(APP_RT.get(a.slug) && APP_RT.get(a.slug).child),
+  }));
+  res.json({ list });
+});
+
+app.post('/api/admin/works/packages/:file/deploy', needAdmin, async (req, res) => {
+  const rec = await appDeploy(req.params.file);
+  res.json({ ok: true, app: rec });
+});
+
+app.post('/api/admin/apps/:slug/start', needAdmin, async (req, res) => {
+  const rec = await appStart(req.params.slug);
+  res.json({ ok: true, app: rec });
+});
+
+app.post('/api/admin/apps/:slug/stop', needAdmin, (req, res) => {
+  appStop(req.params.slug);
+  const rec = appPatch(req.params.slug, { status: 'deployed', port: 0, note: '已停止，可随时重新启动' });
+  if (!rec) return res.status(404).json({ error: '该作品尚未部署' });
+  res.json({ ok: true, app: rec });
+});
+
+app.delete('/api/admin/apps/:slug', needAdmin, (req, res) => {
+  const rec = appFind(req.params.slug);
+  if (!rec) return res.status(404).json({ error: '该作品尚未部署' });
+  appStop(req.params.slug);
+  try { fs.rmSync(path.join(APPS_DIR, rec.slug), { recursive: true, force: true }); } catch (_) {}
+  const d = appsRead();
+  d.apps = d.apps.filter(a => a.slug !== rec.slug);
+  appsWrite(d);
+  res.json({ ok: true });
+});
+
 /* ---------------- 静态资源 ---------------- */
 app.use('/css', express.static(path.join(ROOT, 'css')));
 app.use('/js', express.static(path.join(ROOT, 'js')));
@@ -1071,6 +1975,7 @@ app.get('/robots.txt', (req, res) => {
   res.type('text/plain').send('User-agent: *\nDisallow: /api/\nDisallow: /admin.html\n');
 });
 app.get('/admin.html', noIndex, (req, res) => res.sendFile(path.join(ROOT, 'admin.html')));
+app.get('/works.html', noIndex, (req, res) => res.sendFile(path.join(ROOT, 'works.html')));
 app.get('/vip.html', (req, res) => res.sendFile(path.join(ROOT, 'vip.html')));
 app.get('/rss.xml', (req, res) => res.sendFile(path.join(ROOT, 'rss.xml')));
 

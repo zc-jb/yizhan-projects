@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>作品管理 · 技术驿站运营中心</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#050a12;--card:#0b1422;--line:rgba(64,110,168,.22);--line2:rgba(77,159,255,.4);
+  --txt:#e8f1ff;--dim:#8ba0bd;--dim2:#5d708c;
+  --blue:#4d9fff;--purple:#8b5cf6;--green:#2ee6a8;--red:#ff5d6c;
+}
+html,body{min-height:100%}
+body{
+  background:
+    radial-gradient(1200px 640px at 10% -12%, rgba(77,159,255,.16), transparent 62%),
+    radial-gradient(920px 540px at 94% -6%, rgba(139,92,246,.15), transparent 60%),
+    linear-gradient(rgba(77,159,255,.042) 1px, transparent 1px) 0 0/38px 38px,
+    linear-gradient(90deg, rgba(77,159,255,.042) 1px, transparent 1px) 0 0/38px 38px,
+    var(--bg);
+  color:var(--txt);font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  -webkit-font-smoothing:antialiased;padding-bottom:40px;
+}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:repeating-linear-gradient(transparent 0 2px, rgba(255,255,255,.011) 2px 4px)}
+
+/* 顶栏 */
+.topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:13px 24px;border-bottom:1px solid var(--line);background:rgba(5,10,18,.86);backdrop-filter:blur(18px)}
+.logo{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-size:18px;
+  background:linear-gradient(135deg,rgba(77,159,255,.3),rgba(139,92,246,.28));border:1px solid rgba(143,195,255,.35);
+  box-shadow:0 0 20px rgba(77,159,255,.28)}
+.brand{display:flex;align-items:center;gap:11px}
+.brand h1{font-size:16.5px;font-weight:750;letter-spacing:.4px}
+.brand p{font-size:11.5px;color:var(--dim2);margin-top:2px;letter-spacing:.3px}
+.grow{flex:1}
+.env{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;border:1px solid var(--line);
+  border-radius:999px;padding:5px 12px;color:var(--dim);white-space:nowrap}
+.env::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--dim2)}
+.env.ok{color:var(--green);border-color:rgba(46,230,168,.35);background:rgba(46,230,168,.07)}
+.env.ok::before{background:var(--green);box-shadow:0 0 9px rgba(46,230,168,.85)}
+.env.bad{color:#ff9aa3;border-color:rgba(255,122,122,.35);background:rgba(255,80,80,.06)}
+.env.bad::before{background:#ff9aa3}
+.btn{display:inline-flex;align-items:center;gap:6px;border:none;color:#fff;border-radius:10px;padding:9px 16px;
+  font-size:13px;font-weight:650;font-family:inherit;cursor:pointer;text-decoration:none;
+  background:linear-gradient(120deg,#2f7cff,#8b5cf6);box-shadow:0 6px 18px rgba(47,124,255,.28);
+  transition:transform .15s,box-shadow .15s,opacity .15s}
+.btn:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(47,124,255,.38)}
+.btn.ghost{background:rgba(255,255,255,.02);border:1px solid var(--line);color:var(--dim);font-weight:600;box-shadow:none}
+.btn.ghost:hover{border-color:var(--line2);color:var(--txt);transform:none;box-shadow:none}
+
+.main{max-width:1180px;margin:0 auto;padding:22px 24px 0;position:relative;z-index:1}
+
+/* 口令门 */
+.gate{display:none;max-width:460px;margin:8vh auto 0;padding:22px;border:1px solid var(--line);border-radius:16px;
+  background:linear-gradient(180deg,rgba(18,30,48,.8),rgba(8,14,24,.9));box-shadow:0 22px 50px rgba(0,0,0,.45)}
+.gate.on{display:block}
+.gate h2{font-size:15px;font-weight:750;display:flex;align-items:center;gap:8px}
+.gate h2::before{content:'';width:3px;height:14px;border-radius:2px;background:linear-gradient(180deg,var(--blue),var(--purple))}
+.gate p{font-size:11.5px;color:var(--dim2);line-height:1.7;margin:8px 0 14px}
+.gate input{width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;
+  color:var(--txt);font-size:13px;font-family:inherit;outline:none;transition:.18s}
+.gate input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(77,159,255,.14)}
+.gate .row{display:flex;gap:9px;margin-top:12px}
+.gate .err{font-size:11px;color:#ff9aa3;margin-top:8px;min-height:14px}
+
+/* 工具条 */
+.tools{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 16px;border:1px solid var(--line);
+  border-radius:14px;background:linear-gradient(180deg,rgba(18,30,48,.6),rgba(8,14,24,.75))}
+.search{position:relative;flex:1;min-width:220px}
+.search::before{content:'⌕';position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:16px;
+  line-height:1;color:var(--dim2);pointer-events:none}
+.search input{width:100%;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:10px;
+  padding:10px 13px 10px 33px;color:var(--txt);font-size:12.5px;font-family:inherit;outline:none;transition:.16s}
+.search input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(77,159,255,.12);background:rgba(77,159,255,.05)}
+.search input::placeholder{color:var(--dim2)}
+.hint{font-size:11.5px;color:var(--dim2);white-space:nowrap}
+.hint b{color:#8fc3ff;font-weight:750}
+.import{display:inline-flex;align-items:center;gap:6px;padding:9px 15px;border-radius:10px;cursor:pointer;
+  font-size:12.5px;font-weight:700;color:#fff;background:linear-gradient(120deg,#2f7cff,#8b5cf6);
+  box-shadow:0 6px 18px rgba(47,124,255,.26);transition:transform .15s,box-shadow .15s}
+.import:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(47,124,255,.36)}
+.import input{display:none}
+
+/* 拖拽区 */
+.drop{margin-top:12px;padding:11px 16px;border:1px dashed rgba(77,159,255,.34);border-radius:12px;
+  background:rgba(77,159,255,.035);font-size:11.5px;color:var(--dim);display:flex;align-items:center;gap:10px;
+  transition:.18s;cursor:pointer}
+.drop:hover,.drop.hot{border-color:var(--blue);background:rgba(77,159,255,.1);color:var(--txt)}
+.drop .big{font-size:15px;font-weight:800;color:#8fc3ff;line-height:1}
+.drop .tip{margin-left:auto;color:var(--dim2);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:56%}
+.drop .tip.ok{color:var(--green)}
+.drop .tip.err{color:#ff9aa3}
+
+/* 卡片网格 */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px;margin-top:16px}
+.item{position:relative;display:flex;flex-direction:column;overflow:hidden;padding:16px 17px 14px;
+  border:1px solid rgba(64,110,168,.26);border-radius:16px;
+  background:
+    radial-gradient(520px 170px at 88% -14%, rgba(77,159,255,.13), transparent 68%),
+    linear-gradient(180deg,rgba(18,30,48,.78),rgba(8,14,24,.9));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.03),0 16px 34px -16px rgba(0,0,0,.75);
+  transition:border-color .2s,transform .2s,box-shadow .2s}
+.item::before{content:'';position:absolute;left:0;top:14px;bottom:14px;width:3px;border-radius:0 3px 3px 0;
+  background:var(--bar,linear-gradient(180deg,var(--blue),var(--purple)));opacity:.85}
+.item:hover{border-color:rgba(77,159,255,.52);transform:translateY(-3px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 24px 46px -22px rgba(0,0,0,.95),0 0 0 1px rgba(77,159,255,.12)}
+.s-run{--bar:linear-gradient(180deg,#2ee6a8,#22d3ee)}
+.s-ready{--bar:linear-gradient(180deg,#4d9fff,#8b5cf6)}
+.s-env{--bar:linear-gradient(180deg,#ffc150,#ff8a3c)}
+.s-err{--bar:linear-gradient(180deg,#ff5d6c,#ff8a3c)}
+.s-stop{--bar:linear-gradient(180deg,#5d708c,#3f5169)}
+.top{display:flex;align-items:center;gap:13px}
+.ico{width:44px;height:44px;flex:none;border-radius:13px;display:grid;place-items:center;font-size:20px;
+  background:linear-gradient(135deg,rgba(77,159,255,.22),rgba(139,92,246,.2));border:1px solid rgba(77,159,255,.3);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.main-t{flex:1;min-width:0}
+.main-t b{display:block;font-size:14.5px;font-weight:760;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.main-t .file{display:block;margin-top:4px;font-size:10px;font-family:ui-monospace,Consolas,monospace;
+  color:var(--dim2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ver{flex:none;align-self:flex-start;font-size:10px;font-weight:800;color:#a9cdff;
+  border:1px solid rgba(77,159,255,.32);background:rgba(77,159,255,.09);border-radius:7px;padding:3px 9px}
+.meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:12px}
+.meta .st{margin-left:auto}
+.chip{font-size:10.5px;color:var(--dim);border:1px solid rgba(64,110,168,.28);background:rgba(255,255,255,.025);
+  border-radius:7px;padding:3px 9px;white-space:nowrap}
+.desc{margin-top:10px;font-size:11.5px;line-height:1.75;color:#7b90ad;display:-webkit-box;-webkit-line-clamp:2;
+  -webkit-box-orient:vertical;overflow:hidden}
+.acts{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:auto;padding-top:12px;
+  border-top:1px dashed rgba(90,140,205,.16)}
+.acts .sp{flex:1}
+.act{display:inline-flex;align-items:center;justify-content:center;gap:5px;border:1px solid var(--line);
+  background:rgba(255,255,255,.02);color:var(--dim);border-radius:9px;padding:6px 11px;font-size:11px;
+  font-weight:650;letter-spacing:.2px;font-family:inherit;cursor:pointer;transition:.16s;white-space:nowrap}
+.act.pri{border-color:rgba(77,159,255,.55);color:#fff;background:linear-gradient(120deg,rgba(47,124,255,.92),rgba(111,75,255,.92));box-shadow:0 6px 16px -8px rgba(70,100,255,.9)}
+.act.pri:hover{background:linear-gradient(120deg,#3b85ff,#7b5cff)}
+.act:hover{color:var(--txt);border-color:var(--line2);background:rgba(255,255,255,.05)}
+.act.del{border-color:rgba(255,122,122,.3);background:rgba(255,80,80,.05);color:#ff9aa3}
+.act.del:hover{background:rgba(255,80,80,.13);border-color:rgba(255,122,122,.5)}
+.act.run{border-color:rgba(46,230,168,.45);color:#5ff0c0;background:rgba(46,230,168,.08)}
+.act.run:hover{background:rgba(46,230,168,.16)}
+.st{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:750;border-radius:999px;
+  padding:3px 10px;white-space:nowrap;border:1px solid}
+.st i{width:6px;height:6px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor}
+.st.run{color:#5ff0c0;border-color:rgba(46,230,168,.42);background:rgba(46,230,168,.1)}
+.st.run i{animation:pulse 1.8s ease-in-out infinite}
+.st.ready{color:#9fc5ff;border-color:rgba(77,159,255,.42);background:rgba(77,159,255,.1)}
+.st.env{color:#ffd479;border-color:rgba(255,193,80,.4);background:rgba(255,193,80,.09)}
+.st.err{color:#ff9aa3;border-color:rgba(255,122,122,.42);background:rgba(255,80,80,.1)}
+.st.stop{color:var(--dim);border-color:rgba(90,140,205,.3);background:rgba(255,255,255,.03)}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.8)}}
+.note{margin-top:9px;font-size:10.5px;line-height:1.65;color:var(--dim2);padding-left:9px;
+  border-left:2px solid rgba(77,159,255,.16)}
+.note b{color:#8fc3ff;font-weight:700}
+.act label{cursor:pointer}
+.empty{grid-column:1/-1;padding:54px 0;text-align:center;font-size:12px;color:var(--dim2);line-height:1.9}
+.foot{margin-top:26px;text-align:center;font-size:10.5px;color:var(--dim2)}
+@media(max-width:640px){
+  .topbar{padding:11px 14px}
+  .main{padding:16px 14px 0}
+  .grid{grid-template-columns:1fr}
+  .drop .tip{display:none}
+}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand">
+    <div class="logo">📦</div>
+    <div><h1>作品管理</h1><p>部署包 · 导出 / 导入 / 检索</p></div>
+  </div>
+  <div class="grow"></div>
+  <span class="env" id="env">未连接</span>
+  <button class="btn ghost" id="reload">刷新</button>
+  <a class="btn" href="admin.html">返回管理台</a>
+</div>
+
+<main class="main">
+  <section class="gate" id="gate">
+    <h2>需要站长口令</h2>
+    <p>请输入与管理台相同的站长口令（ADMIN_TOKEN），校验后保存在本机浏览器，下次进入无需再填。</p>
+    <input id="tk" type="password" placeholder="站长口令 ADMIN_TOKEN" autocomplete="off">
+    <div class="row"><button class="btn" id="gateOk">验证并进入</button></div>
+    <div class="err" id="gateErr"></div>
+  </section>
+
+  <section id="works" style="display:none">
+    <div class="tools">
+      <div class="search"><input id="q" type="search" placeholder="搜索作品：中文 / 拼音 / 首字母（如 jdgl）" autocomplete="off"></div>
+      <span class="hint" id="hint"></span>
+      <label class="import">＋ 导入 zip<input type="file" id="file" accept=".zip"></label>
+    </div>
+    <div class="drop" id="drop">
+      <span class="big">＋</span>拖入 zip 到此处即可导入，同名覆盖
+      <span class="tip" id="tip"></span>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div class="foot">包目录：e:\AI海报制作\_packages · 上传上限 200 MB</div>
+  </section>
+</main>
+
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const fmtSize = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : n >= 1024 ? Math.round(n / 1024) + ' KB' : n + ' B';
+const PKG_API = '/api/admin/works/packages';
+const TOKEN_KEY = 'yz-admin-token';
+
+let token = localStorage.getItem(TOKEN_KEY) || '';
+let all = [], query = '';
+let appMap = new Map();
+const pyCache = new Map();
+let pyReady = null;
+
+/* ---------- 口令 ---------- */
+function setEnv(text, ok) {
+  const el = $('#env');
+  el.textContent = text;
+  el.className = 'env' + (ok === true ? ' ok' : ok === false ? ' bad' : '');
+}
+
+async function api(path, opt) {
+  const o = Object.assign({ cache: 'no-store' }, opt || {});
+  o.headers = Object.assign({ 'X-Admin-Token': token }, (opt && opt.headers) || {});
+  const r = await fetch(path, o);
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    const e = new Error(d.error || ('请求失败 HTTP ' + r.status));
+    e.status = r.status;
+    throw e;
+  }
+  return d;
+}
+
+function showGate(msg) {
+  $('#works').style.display = 'none';
+  $('#gate').classList.add('on');
+  $('#gateErr').textContent = msg || '';
+  $('#tk').value = token;
+  setEnv('未连接', null);
+  $('#tk').focus();
+}
+
+/* ---------- 拼音 ---------- */
+function ensurePinyin() {
+  if (window.pinyinPro) return Promise.resolve();
+  if (pyReady) return pyReady;
+  pyReady = new Promise(res => {
+    const s = document.createElement('script');
+    s.src = 'js/pinyin-pro.js';
+    s.onload = s.onerror = () => res();
+    document.head.appendChild(s);
+  });
+  return pyReady;
+}
+
+function pinyinKeys(text) {
+  const clean = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
+  const out = { full: '', first: '' };
+  if (!window.pinyinPro) return out;
+  try { out.full = clean(window.pinyinPro.pinyin(text, { toneType: 'none', type: 'array', nonZh: 'consecutive' }).join('')); } catch (_) {}
+  try { out.first = clean(window.pinyinPro.pinyin(text, { pattern: 'first', toneType: 'none', type: 'array', nonZh: 'consecutive' }).join('')); } catch (_) {}
+  return out;
+}
+
+function match(p, q, qPy) {
+  const raw = [p.title, p.file, p.desc, p.stack, p.version].join(' ').toLowerCase();
+  if (raw.includes(q)) return true;
+  if (!qPy || !window.pinyinPro) return false;
+  let py = pyCache.get(p.file);
+  if (!py) { py = pinyinKeys([p.title, p.file.replace(/\.zip$/i, ''), p.stack, p.desc].join(' ')); pyCache.set(p.file, py); }
+  return py.full.includes(qPy) || py.first.includes(qPy);
+}
+
+/* ---------- 渲染 ---------- */
+const STATUS = {
+  running: { t: '体验中', c: 'run' },
+  deployed: { t: '已部署', c: 'ready' },
+  'needs-env': { t: '需环境', c: 'env' },
+  error: { t: '启动异常', c: 'err' },
+  stopped: { t: '已停止', c: 'stop' },
+};
+
+function card(p) {
+  const date = p.updated ? new Date(p.updated).toLocaleDateString('zh-CN') : '';
+  const rec = appMap.get(p.file);
+  const st = rec ? (STATUS[rec.status] || { t: rec.status, c: 'stop' }) : { t: '未上线', c: 'stop' };
+  const live = rec && rec.status === 'running';
+  return `<div class="item s-${st.c}">
+    <div class="top">
+      <div class="ico">📦</div>
+      <div class="main-t"><b title="${esc(p.title)}">${esc(p.title)}</b><span class="file" title="${esc(p.file)}">${esc(p.file)}</span></div>
+      <span class="ver">${esc(p.version || 'v1')}</span>
+    </div>
+    <div class="meta">
+      <span class="chip">${fmtSize(p.size)}</span>
+      ${p.stack ? `<span class="chip">${esc(p.stack)}</span>` : ''}
+      ${date ? `<span class="chip">${date}</span>` : ''}
+      <span class="st ${st.c}"><i></i>${esc(st.t)}${live && rec.port ? ' · ' + rec.port : ''}</span>
+    </div>
+    ${p.desc ? `<p class="desc">${esc(p.desc)}</p>` : ''}
+    ${rec && rec.note ? `<div class="note">${esc(rec.note)}</div>` : ''}
+    <div class="acts">
+      <span class="sp"></span>
+      <button class="act pri" data-deploy="${esc(p.file)}">${rec ? '重新部署' : '上线体验'}</button>
+      ${rec ? (live
+        ? `<button class="act run" data-open="${esc(rec.slug)}">打开</button><button class="act" data-stop="${esc(rec.slug)}">停止</button>`
+        : `<button class="act run" data-start="${esc(rec.slug)}">启动</button>`) : ''}
+      <button class="act" data-dl="${esc(p.file)}">下载</button>
+      <label class="act">导入<input type="file" accept=".zip" data-up="${esc(p.file)}" hidden></label>
+      <button class="act del" data-del="${esc(p.file)}">删除</button>
+    </div>
+  </div>`;
+}
+
+function render() {
+  const q = query.trim().toLowerCase();
+  const qPy = q.replace(/[^a-z0-9]/g, '');
+  const list = q ? all.filter(p => match(p, q, qPy)) : all;
+  $('#hint').innerHTML = q ? `匹配 <b>${list.length}</b> / ${all.length}` : `共 <b>${all.length}</b> 个包`;
+  $('#grid').innerHTML = list.length
+    ? list.map(card).join('')
+    : (q ? `<div class="empty">没有找到「${esc(query.trim())}」<br>可试试全拼（jiudian）或首字母（jdgl）</div>`
+      : '<div class="empty">暂无部署包<br>点击右上「＋ 导入 zip」或直接拖入</div>');
+}
+
+function tip(msg, type) {
+  const el = $('#tip');
+  el.textContent = msg;
+  el.className = 'tip' + (type ? ' ' + type : '');
+  clearTimeout(tip._t);
+  if (type === 'ok') tip._t = setTimeout(() => { el.className = 'tip'; }, 6000);
+}
+
+async function load() {
+  $('#grid').innerHTML = '<div class="empty">加载中…</div>';
+  try {
+    const [d, a] = await Promise.all([
+      api(PKG_API),
+      api('/api/admin/apps').catch(() => ({ list: [] })),
+    ]);
+    all = d.list || [];
+    appMap = new Map((a.list || []).map(x => [x.file, x]));
+    $('#works').style.display = '';
+    $('#gate').classList.remove('on');
+    setEnv('已连接 · ' + TOKEN_KEY, true);
+    render();
+  } catch (e) {
+    if (e.status === 401) { showGate('口令不正确，请重新输入'); return; }
+    setEnv(e.message, false);
+    $('#grid').innerHTML = `<div class="empty">${esc(e.message)}</div>`;
+  }
+}
+
+/* ---------- 导入 / 导出 / 删除 ---------- */
+function safeName(raw) {
+  let f = String(raw || '').trim().replace(/^\.+/, '_').replace(/[\\/:*?"<>|]+/g, '_').replace(/\.{2,}/g, '.');
+  if (!/\.zip$/i.test(f)) return '';
+  if (f.length > 80) f = f.slice(0, 76) + '.zip';
+  return f.length < 5 ? '' : f;
+}
+
+async function upload(file, name) {
+  if (!/\.zip$/i.test(file.name)) return tip('只支持 .zip 压缩包（当前：' + file.name + '）', 'err');
+  const f = name || safeName(file.name);
+  if (!f) return tip('文件名不合法，请改成 名称.zip（不含 \\ / : * ? " < > |）', 'err');
+  if (file.size > 200 * 1024 * 1024) return tip('包体积超过 200 MB，请拆分后再导入', 'err');
+  tip('正在导入 ' + f + '（' + fmtSize(file.size) + '）…');
+  try {
+    await api(PKG_API + '/' + encodeURIComponent(f), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/zip' },
+      body: file,
+    });
+    tip('已导入 ' + f + '，正在自动上线部署…', 'ok');
+    try {
+      const d = await api(PKG_API + '/' + encodeURIComponent(f) + '/deploy', { method: 'POST' });
+      tip('已导入并上线：' + (d.app && d.app.note ? d.app.note : f), 'ok');
+    } catch (e2) {
+      tip('已导入 ' + f + '，自动上线失败：' + e2.message, 'err');
+    }
+    load();
+  } catch (e) { tip('导入失败：' + e.message, 'err'); }
+}
+
+async function deploy(file) {
+  tip('正在部署 ' + file + '（解压、识别类型、补齐缺失部署文件）…');
+  try {
+    const d = await api(PKG_API + '/' + encodeURIComponent(file) + '/deploy', { method: 'POST' });
+    tip('部署完成：' + (d.app && d.app.note ? d.app.note : file), 'ok');
+    load();
+  } catch (e) { tip('部署失败：' + e.message, 'err'); }
+}
+
+async function startApp(slug) {
+  tip('正在启动作品（端口自动分配，最长等待 60 秒）…');
+  try {
+    const d = await api('/api/admin/apps/' + encodeURIComponent(slug) + '/start', { method: 'POST' });
+    tip(d.app && d.app.status === 'running' ? '已启动，端口 ' + d.app.port : '未能启动：' + (d.app ? d.app.note : ''), d.app && d.app.status === 'running' ? 'ok' : 'err');
+    load();
+  } catch (e) { tip('启动失败：' + e.message, 'err'); }
+}
+
+async function stopApp(slug) {
+  try {
+    await api('/api/admin/apps/' + encodeURIComponent(slug) + '/stop', { method: 'POST' });
+    tip('已停止运行', 'ok');
+    load();
+  } catch (e) { tip('停止失败：' + e.message, 'err'); }
+}
+
+async function download(file) {
+  tip('正在准备下载 ' + file + ' …');
+  try {
+    const r = await fetch(PKG_API + '/' + encodeURIComponent(file), { headers: { 'X-Admin-Token': token }, cache: 'no-store' });
+    if (!r.ok) throw new Error('下载失败 HTTP ' + r.status);
+    const b = await r.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(b);
+    a.download = file;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    tip('已导出 ' + file + '（' + fmtSize(b.size) + '）', 'ok');
+  } catch (e) { tip('导出失败：' + e.message, 'err'); }
+}
+
+async function remove(file) {
+  if (!confirm('确定删除部署包 ' + file + ' ？会同时下线该作品，此操作不可恢复')) return;
+  try {
+    const rec = appMap.get(file);
+    if (rec) await api('/api/admin/apps/' + encodeURIComponent(rec.slug), { method: 'DELETE' }).catch(() => {});
+    await api(PKG_API + '/' + encodeURIComponent(file), { method: 'DELETE' });
+    tip('已删除 ' + file, 'ok'); load();
+  }
+  catch (e) { tip('删除失败：' + e.message, 'err'); }
+}
+
+/* ---------- 事件 ---------- */
+$('#gateOk').onclick = async () => {
+  const v = $('#tk').value.trim();
+  if (!v) { $('#gateErr').textContent = '请输入站长口令'; return; }
+  token = v;
+  try { await api(PKG_API); }
+  catch (e) { $('#gateErr').textContent = e.status === 401 ? '口令不正确，请核对后重试' : e.message; token = localStorage.getItem(TOKEN_KEY) || ''; return; }
+  localStorage.setItem(TOKEN_KEY, v);
+  $('#gateErr').textContent = '';
+  load();
+};
+$('#tk').addEventListener('keydown', e => { if (e.key === 'Enter') $('#gateOk').click(); });
+
+$('#q').oninput = e => { query = e.target.value; render(); };
+$('#reload').onclick = () => load();
+
+$('#grid').addEventListener('click', e => {
+  const dl = e.target.closest('[data-dl]');
+  if (dl) { download(dl.dataset.dl); return; }
+  const del = e.target.closest('[data-del]');
+  if (del) { remove(del.dataset.del); return; }
+  const dep = e.target.closest('[data-deploy]');
+  if (dep) { deploy(dep.dataset.deploy); return; }
+  const st = e.target.closest('[data-start]');
+  if (st) { startApp(st.dataset.start); return; }
+  const sp = e.target.closest('[data-stop]');
+  if (sp) { stopApp(sp.dataset.stop); return; }
+  const op = e.target.closest('[data-open]');
+  if (op) { window.open('/apps/' + encodeURIComponent(op.dataset.open) + '/', '_blank'); }
+});
+$('#grid').addEventListener('change', e => {
+  const up = e.target.closest('[data-up]');
+  if (up && up.files && up.files[0]) upload(up.files[0], up.dataset.up);
+  if (up) up.value = '';
+});
+$('#file').onchange = e => {
+  const f = e.target.files[0];
+  if (f) upload(f);
+  e.target.value = '';
+};
+
+const drop = $('#drop');
+['dragenter', 'dragover'].forEach(k => drop.addEventListener(k, e => { e.preventDefault(); drop.classList.add('hot'); }));
+['dragleave', 'drop'].forEach(k => drop.addEventListener(k, e => { e.preventDefault(); drop.classList.remove('hot'); }));
+drop.addEventListener('drop', e => {
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if (f) upload(f);
+});
+drop.addEventListener('click', () => $('#file').click());
+
+/* ---------- 启动 ---------- */
+ensurePinyin().then(() => { if (query) render(); });
+if (token) load(); else showGate('');
+</script>
+</body>
+</html>

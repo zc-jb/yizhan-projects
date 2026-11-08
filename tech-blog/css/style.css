@@ -1574,3 +1574,10 @@ body.lock::before{
   *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
   html{scroll-behavior:auto}
 }
+
+/* 我的作品 · 分类筛选 */
+.wf-bar{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 8px}
+.wf{border:1px solid var(--line,rgba(120,150,190,.35));background:transparent;color:inherit;border-radius:999px;padding:7px 16px;font-size:13px;font-family:inherit;line-height:1.2;cursor:pointer;transition:.18s;opacity:.7}
+.wf:hover{opacity:1}
+.wf.on{background:linear-gradient(120deg,#2563eb,#22d3ee);border-color:transparent;color:#fff;opacity:1;box-shadow:0 6px 16px -8px rgba(37,99,235,.85)}
+.wf-empty{display:none;padding:34px 0;text-align:center;font-size:13px;opacity:.6}

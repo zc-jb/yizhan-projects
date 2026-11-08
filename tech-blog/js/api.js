@@ -316,6 +316,12 @@ window.Api = (function () {
     try { return (await req('/codes/mine')).list || []; } catch (e) { return []; }
   }
 
+  /* ---------------- 导入作品（在线体验） ---------------- */
+  async function showcase() {
+    if (!online) return [];
+    try { return (await req('/works/showcase')).list || []; } catch (e) { return []; }
+  }
+
   /* ---------------- 作品点赞 ---------------- */
   async function workLikes() {
     if (online) {
@@ -341,6 +347,7 @@ window.Api = (function () {
     boot, get online() { return online; }, user, isGuest,
     login, register, guestLogin, logout,
     comments, addComment, delComment, likeComment, notice, submitAppeal,
-    worksStatus, useWork, redeem, myCodes, workLikes, toggleWorkLike, acc2code
+    worksStatus, useWork, redeem, myCodes, workLikes, toggleWorkLike, acc2code,
+    showcase
   };
 })();

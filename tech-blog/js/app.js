@@ -1240,8 +1240,44 @@ async function vWorks() {
     if (s.type === 'vip') return `<span class="work-state vip">✨ 已开通${s.until ? ' · ' + new Date(s.until).toLocaleDateString() + ' 到期' : ' · 剩 ' + s.left + ' 次'}</span>`;
     return `<span class="work-state">免费体验 ${s.left}/3 次</span>`;
   };
+  const imp = await Api.showcase().catch(() => []);
+  const impRun = imp.filter(s => s.url).length;
+  const impState = {
+    running: { t: '可在线体验', bg: 'rgba(46,230,168,.16)', fg: '#0ea371' },
+    deployed: { t: '已部署 · 待启动', bg: 'rgba(59,130,246,.16)', fg: '#3b82f6' },
+    'needs-env': { t: '需本地环境', bg: 'rgba(245,158,11,.18)', fg: '#b45309' },
+    error: { t: '启动异常', bg: 'rgba(239,68,68,.14)', fg: '#dc2626' },
+    stopped: { t: '已停止', bg: 'rgba(100,116,139,.16)', fg: '#64748b' },
+    pending: { t: '未上线', bg: 'rgba(100,116,139,.16)', fg: '#64748b' },
+  };
+  const impBlock = imp.length ? `<div id="impSec">
+    <h1 style="font-size:18px;margin:20px 0 4px">📦 导入作品 · 在线体验</h1>
+    <div class="works-grid">${imp.map(s => {
+      const st2 = impState[s.status] || impState.pending;
+      const icon = s.mode === 'static' ? '🌐' : s.mode === 'jar' ? '☕' : s.mode === 'node' ? '🟢' : '🗂️';
+      const size = s.size >= 1048576 ? (s.size / 1048576).toFixed(1) + ' MB' : s.size >= 1024 ? Math.round(s.size / 1024) + ' KB' : (s.size || 0) + ' B';
+      return `<a class="work-card has-badge" href="javascript:void 0" data-imp="${esc(s.slug)}" data-cat="${s.url ? 'run' : 'env'}" style="--accent:linear-gradient(135deg,#2563eb,#22d3ee)">
+        <span class="work-badge" style="background:${st2.bg};color:${st2.fg}">${st2.t}</span>
+        <div class="work-top">
+          <div class="work-icon">${icon}</div>
+          <div class="work-info">
+            <div class="work-name">${esc(s.title)}<span class="work-tag">${esc(s.version || '')}</span></div>
+            <p class="work-tagline">${esc(s.note || '')}</p>
+          </div>
+        </div>
+        <p class="work-desc">${esc(s.desc || '')}</p>
+        <div class="work-chips"><span>✦ ${esc(s.stack || '未标注技术栈')}</span><span>✦ ${size}</span></div>
+        <div class="work-foot"><span class="work-go">${s.url ? '立即体验 →' : '查看状态 →'}</span></div>
+      </a>`;
+    }).join('')}</div></div>` : '';
   app.innerHTML = `<div class="card page-box"><h1>🧰 我的作品</h1><p class="muted">堆码不易，感谢支持！！！</p>
-    <div class="works-grid">${works.map(w => `<a class="work-card${w.badge ? ' has-badge' : ''}" href="javascript:void 0" data-id="${w.id}" style="--accent:${w.accent}">
+    <div class="wf-bar">
+      <button class="wf on" data-f="all">全部 ${imp.length + works.length}</button>
+      <button class="wf" data-f="run">✅ 可体验 ${impRun + works.length}</button>
+      <button class="wf" data-f="env">🟡 需要环境 ${imp.length - impRun}</button>
+    </div>
+    ${impBlock}
+    <div class="works-grid">${works.map(w => `<a class="work-card${w.badge ? ' has-badge' : ''}" href="javascript:void 0" data-id="${w.id}" data-cat="run" style="--accent:${w.accent}">
       ${w.badge ? `<span class="work-badge">${w.badge}</span>` : ''}
       <div class="work-top">
         <div class="work-icon">${w.icon}</div>
@@ -1253,7 +1289,29 @@ async function vWorks() {
       <p class="work-desc">${w.desc}</p>
       <div class="work-chips">${w.features.map(f => `<span>✦ ${f}</span>`).join('')}</div>
       <div class="work-foot"><span class="work-go">立即体验 →</span><button class="work-like${liked.includes(w.id) ? ' on' : ''}" data-id="${w.id}">❤️ ${likes[w.id] || 0}</button></div></a>`).join('')}</div></div>`;
-  document.querySelectorAll('.work-card').forEach(c => c.onclick = () => {
+  document.querySelectorAll('[data-imp]').forEach(c => c.onclick = () => {
+    const s = imp.find(x => x.slug === c.dataset.imp);
+    if (!s) return;
+    if (s.url) window.open(s.url, '_blank', 'noopener');
+    else toast(s.status === 'pending'
+      ? '该作品还没上线，可在后台「作品管理」点击「上线体验」'
+      : (s.note || '该作品需要本地运行环境才能体验'));
+  });
+  const wfApply = k => {
+    document.querySelectorAll('[data-cat]').forEach(el => {
+      el.style.display = (k === 'all' || el.dataset.cat === k) ? '' : 'none';
+    });
+    const sec = app.querySelector('#impSec');
+    if (sec) {
+      const any = [...sec.querySelectorAll('[data-cat]')].some(el => el.style.display !== 'none');
+      sec.style.display = any ? '' : 'none';
+    }
+  };
+  document.querySelectorAll('.wf').forEach(b => b.onclick = () => {
+    document.querySelectorAll('.wf').forEach(x => x.classList.toggle('on', x === b));
+    wfApply(b.dataset.f);
+  });
+  document.querySelectorAll('.work-card[data-id]').forEach(c => c.onclick = () => {
     const w = works.find(x => x.id === c.dataset.id);
     if (!w) return;
     if (w.free) return openWork(w);
