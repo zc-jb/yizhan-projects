@@ -1,0 +1,23 @@
+server:
+  port: ${LIB_PORT:8090}
+
+spring:
+  application:
+    name: library-system
+  datasource:
+    url: jdbc:mysql://${LIB_DB_HOST:127.0.0.1}:${LIB_DB_PORT:3306}/${LIB_DB_NAME:library_db}?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
+    username: ${LIB_DB_USER:root}
+    password: ${LIB_DB_PASS:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+logging:
+  level:
+    root: warn
+    com.yizhan.library: info

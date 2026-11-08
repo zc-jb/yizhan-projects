@@ -914,7 +914,7 @@ function toast(msg) {
 }
 
 function goWork(url) {
-  if (url.startsWith('http')) window.open(url, '_blank', 'noopener');
+  if (url.startsWith('http') || url.startsWith('/')) window.open(url, '_blank', 'noopener');
   else location.hash = url;
 }
 // 从作品页跳回后刷新剩余次数/套餐显示
@@ -925,10 +925,10 @@ async function openWork(w) {
   const r = await Api.useWork(w.id);
   if (r && r.ok) {
     if (r.vip) toast('已扣减 1 次使用次数');
-    else toast(`免费体验第 ${3 - (r.left ?? 0)}/3 次`);
+    else toast('已使用免费体验（每个作品限 1 次）');
     /* 立即把卡片上的剩余次数改为最新值，再后台对齐服务端数据 */
     const el = document.querySelector(`.work-card[data-id="${w.id}"] .work-state`);
-    if (el && !r.vip && r.left != null) el.textContent = `免费体验 ${r.left}/3 次`;
+    if (el && !r.vip && r.left != null) el.textContent = `免费体验 ${r.left}/1 次`;
     vWorks().catch(() => {});
     return goWork(w.url);
   }
@@ -945,7 +945,7 @@ function showPayModal(w) {
   m.innerHTML = `<div class="pay-box">
     <button class="pay-x" id="payX">✕</button>
     <h3>🔒 免费体验次数已用完</h3>
-    <p class="muted">「${w.name}」已体验 3 次，请选择套餐继续畅用</p>
+    <p class="muted">「${w.name}」免费体验已用完（每件作品限 1 次），请选择套餐继续畅用</p>
     <p class="pay-acc">当前账号：<b>${esc(Auth.user() || '未登录')}</b>${Auth.isGuest() ? '（游客）' : ''} · 开通后仅该账号可享用</p>
     <div class="pay-plans">${WORK_PLANS.map((p, i) => {
       const off = guest && p.k !== 'once';
@@ -1264,21 +1264,19 @@ function vTools() {
 
 async function vWorks() {
   const works = [
-    { id: 'poster', icon: '🎨', name: 'AI 海报制作', tagline: '30 秒做出一张能直接发的商业海报', desc: '30+ 套精美模板、画布拖拽编辑、AI 智能文案与配图、二维码生成，一键导出 PNG / JPG / PDF。', features: ['30+ 模板', 'AI 文案配图', '一键导出'], accent: 'linear-gradient(135deg,#6366f1,#06b6d4)', badge: '🔥 热门', url: 'https://ai-poster-yizhan.netlify.app/', tag: '在线工具' },
-    { id: 'video', icon: '🎬', name: '影视快看 · 视频解析', tagline: '粘贴链接就能看，免会员高清直达', desc: '支持各大平台视频链接一键解析，深色沉浸播放界面，手机端完美适配，追剧不再到处找会员。', features: ['全网解析', '免会员观看', '手机适配'], accent: 'linear-gradient(135deg,#ec4899,#f59e0b)', url: 'https://zc-jb.github.io/tech-blog/vip.html', tag: '在线工具' },
-    { id: 'blog', icon: '⚡', name: '技术驿站', tagline: '能跑通、能看懂、能用上的技术长文', desc: '就是本站。11 篇实战技术长文、全文搜索、深色模式、评论互动与 RSS 订阅，一个安静的充电站。', features: ['11 篇长文', '全文搜索', '评论互动'], accent: 'linear-gradient(135deg,#8b5cf6,#06b6d4)', url: '#/', tag: '个人博客', free: true },
-    { id: 'hotel', icon: '🏨', name: '酒店管理系统', tagline: '从预订到退房结算，全流程在线跑通', desc: '房型、房间、客人、预订、入住、退房、账单一体化；房态自动流转、金额自动核算，数据实时落盘 MySQL。', features: ['房态流转', '自动算价', '真实可体验'], accent: 'linear-gradient(135deg,#0f766e,#2563eb)', badge: '✨ 新品', url: 'http://localhost:8080', tag: '全栈项目', direct: true },
+    { id: 'poster', icon: '🎨', name: 'AI 海报制作', tagline: '30 秒做出一张能直接发的商业海报', desc: 'HTML / CSS / JS 的纯前端海报工坊：30+ 套模板/画布拖拽编辑/AI 文案与配图/二维码生成，一键导出 PNG、JPG、PDF，无需后端与数据库，打开网页即可使用。', features: ['30+ 模板', 'AI 文案配图', '一键导出'], accent: 'linear-gradient(135deg,#6366f1,#06b6d4)', badge: '🔥 热门', url: 'http://127.0.0.1:5173/', tag: '在线工具', },
+    { id: 'video', icon: '🎬', name: '影视快看 · 视频解析', tagline: '粘贴链接就能看，免会员高清直达', desc: 'HTML / CSS / JS 的纯前端影视聚合站：链接一键解析/全网影视搜索/剧集选集/沉浸播放，深色界面适配手机，无需后端与数据库，打开网页即可使用。', features: ['全网解析', '免会员观看', '手机适配'], accent: 'linear-gradient(135deg,#ec4899,#f59e0b)', url: 'http://127.0.0.1:3100/vip.html', tag: '在线工具', },
+    { id: 'hotel', icon: '🏨', name: '酒店管理系统', tagline: '从预订到退房结算，全流程在线跑通', desc: 'Spring Boot 3 + Vue3 + MySQL 8 的酒店管理后台：房型/房间/客人/预订/入住/退房/账单一体化，房态自动流转、金额自动核算，首次启动自动生成演示数据，前端已打进 jar。', features: ['房态流转', '自动算价', '真实可体验'], accent: 'linear-gradient(135deg,#0f766e,#2563eb)', badge: '✨ 新品', url: 'http://127.0.0.1:8080/', tag: '全栈项目', },
   ];
   const st = await Api.worksStatus();
   const wl = await Api.workLikes();
   const likes = wl.likes || {};
   const liked = wl.liked || [];
   const stateOf = w => {
-    if (w.direct) return '<span class="work-state free">可在线体验</span>';
     if (w.free) return '<span class="work-state free">永久免费</span>';
     const s = st[w.id] || { type: 'free', left: 0 };
     if (s.type === 'vip') return `<span class="work-state vip">✨ 已开通${s.until ? ' · ' + new Date(s.until).toLocaleDateString() + ' 到期' : ' · 剩 ' + s.left + ' 次'}</span>`;
-    return `<span class="work-state">免费体验 ${s.left}/3 次</span>`;
+    return `<span class="work-state">免费体验 ${s.left}/1 次</span>`;
   };
   const imp = await Api.showcase().catch(() => []);
   const impRun = imp.filter(s => s.url).length;
@@ -1290,7 +1288,7 @@ async function vWorks() {
     stopped: { t: '已停止', bg: 'rgba(100,116,139,.16)', fg: '#64748b' },
     pending: { t: '未上线', bg: 'rgba(100,116,139,.16)', fg: '#64748b' },
   };
-  const impCards = imp.map(s => {
+  const impCards = imp.filter(s => s.url).map(s => {
       const st2 = impState[s.status] || impState.pending;
       const icon = s.mode === 'static' ? '🌐' : s.mode === 'jar' ? '☕' : s.mode === 'node' ? '🟢' : '🗂️';
       const modeMap = {
@@ -1316,12 +1314,48 @@ async function vWorks() {
         <div class="work-foot"><span class="work-go">${s.url ? '立即体验 →' : '去下单 →'}</span></div>
       </a>`;
   }).join('');
+  // 售货区：把「可体验」里的作品复制一份，只作为可下单商品展示（不提供直接体验）
+  const SALE_SLUG = {
+    poster: 'ai-poster-app-v1-63895c',
+    video: 'video-parse',
+    hotel: 'hotel-demo',
+    library: 'library-system-v1-68b3d2',
+  };
+  const SALE_STACK = {
+    poster: 'HTML / CSS / JS',
+    video: 'HTML / CSS / JS',
+    hotel: 'Spring Boot + Vue3 + MySQL',
+    library: 'Spring Boot + Vue3 + MySQL',
+  };
+  const saleCopies = works.filter(w => !w.free).map(w => ({
+    key: w.id, icon: w.icon, title: w.name, tagline: w.tagline, desc: w.desc,
+    stack: SALE_STACK[w.id] || '', slug: SALE_SLUG[w.id] || '',
+  }));
+  saleCopies.push({
+    key: 'library', icon: '📚', title: '图书管理系统',
+    tagline: '图书/分类/读者/借阅一站式管理',
+    desc: 'Spring Boot 3 + Vue3 + MySQL 8 的图书馆管理后台：图书/分类/读者/借阅与逾期统计，首次启动自动生成随机演示数据，前端已打进 jar。',
+    stack: SALE_STACK.library, slug: SALE_SLUG.library,
+  });
+  const saleCards = saleCopies.map(w => `<a class="work-card" href="javascript:void 0" data-sale="${esc(w.slug)}" data-cat="env" style="--accent:linear-gradient(135deg,#f59e0b,#ef4444)">
+      <div class="work-top">
+        <div class="work-icon">${w.icon}</div>
+        <div class="work-info">
+          <div class="work-name">${esc(w.title)}</div>
+          <div class="work-meta"><span class="work-tag">v1.0</span><span class="work-state">售货区 · 仅下单</span></div>
+          <p class="work-tagline">${esc(w.tagline)}</p>
+        </div>
+      </div>
+      <p class="work-desc">${esc(w.desc)}</p>
+      <div class="work-chips"><span>✦ ${esc(w.stack)}</span><span>✦ 不可直接体验</span></div>
+      <div class="work-foot"><span class="work-go">去下单 →</span></div>
+    </a>`).join('');
   app.innerHTML = `<div class="card page-box"><h1>🧰 我的作品</h1><p class="muted">堆码不易，感谢支持！！！</p>
     <div class="wf-bar">
       <button class="wf on" data-f="run">✅ 可体验 ${impRun + works.length}</button>
-      <button class="wf" data-f="env">🟡 售货区 ${imp.length - impRun}</button>
+      <button class="wf" data-f="env">🟡 售货区 ${saleCopies.length}</button>
     </div>
-    <div class="works-grid">${impCards}${works.map(w => `<a class="work-card${w.badge ? ' has-badge' : ''}" href="javascript:void 0" data-id="${w.id}" data-cat="run" style="--accent:${w.accent}">
+    <div class="works-grid">${impCards}${saleCards}${works.map(w => `<a class="work-card${w.badge ? ' has-badge' : ''}" href="javascript:void 0" data-id="${w.id}" data-cat="run" style="--accent:${w.accent}">
       ${w.badge ? `<span class="work-badge">${w.badge}</span>` : ''}
       <div class="work-top">
         <div class="work-icon">${w.icon}</div>
@@ -1337,12 +1371,22 @@ async function vWorks() {
   document.querySelectorAll('[data-imp]').forEach(c => c.onclick = () => {
     const s = imp.find(x => x.slug === c.dataset.imp);
     if (!s) return;
-    if (s.url) { window.open(s.url, '_blank', 'noopener'); return; }
+    if (s.url) {
+      const key = s.slug.startsWith('library-system') ? 'library' : '';
+      if (key) { openWork({ id: key, name: s.title, url: s.url }); return; }
+      window.open(s.url, '_blank', 'noopener');
+      return;
+    }
     if (s.status === 'pending') {
       toast('该作品还没上线，可在后台「作品管理」点击「上线体验」');
       return;
     }
     showOrderModal(s);
+  });
+  document.querySelectorAll('[data-sale]').forEach(c => c.onclick = () => {
+    const w = saleCopies.find(x => x.slug === c.dataset.sale);
+    if (!w) return;
+    showOrderModal({ slug: w.slug, title: w.title, stack: w.stack, version: 'v1.0' });
   });
   const wfApply = k => {
     const cards = [...app.querySelectorAll('.works-grid > .work-card')];
@@ -1359,7 +1403,7 @@ async function vWorks() {
     const w = works.find(x => x.id === c.dataset.id);
     if (!w) return;
     if (w.free) return openWork(w);
-    showAdModal(w, () => (w.direct ? goWork(w.url) : openWork(w)));
+    showAdModal(w, () => openWork(w));
   });
   document.querySelectorAll('.work-like').forEach(b => b.onclick = async e => {
     e.preventDefault();
@@ -1671,7 +1715,7 @@ window.addEventListener('hashchange', route);
     if (has('工具','工具集','编程工具'))
       return '「<a href="#/tools">工具集</a>」收录了 857 个精选在线工具 🧰，JSON、加解密、正则、压缩…随用随走！';
     if (has('作品','海报','视频','解析','应用'))
-      return '「<a href="#/works">我的作品</a>」有站长自研的 AI 海报制作和影视解析 🎬，每个账号可免费体验 3 次～';
+      return '「<a href="#/works">我的作品</a>」有站长自研的 AI 海报制作和影视解析 🎬，每个账号每件作品可免费体验 1 次～';
     if (has('联系','微信','咨询','二维码','作者','博主','站长','客服'))
       return '站长微信：<b>_Zc1908</b>（页脚可一键复制）📋 报上你的账号名，咨询/开通都快得很～';
     if (has('登录','注册','游客'))

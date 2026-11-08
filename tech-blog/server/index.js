@@ -14,7 +14,7 @@ const PORT = Number(process.env.PORT || 3000);
 
 const app = express();
 app.disable('x-powered-by');
-app.use(express.json({ limit: '4mb' }));
+app.use(express.json({ limit: '4mb', verify: (req, res, buf) => { req.rawBody = buf; } }));
 
 /* ---- 防抓取：来源校验 + 分级限流 ---- */
 app.use('/api', sameOrigin);
@@ -250,7 +250,7 @@ app.post('/api/comments/:id/like', needLogin, async (req, res) => {
 });
 
 /* ---------------- 作品权限 ---------------- */
-const WORKS = ['poster', 'video'];
+const WORKS = ['poster', 'video', 'hotel', 'library'];
 
 app.get('/api/works/status', needLogin, async (req, res) => {
   const [rows] = await pool.query(
@@ -260,7 +260,7 @@ app.get('/api/works/status', needLogin, async (req, res) => {
   const out = {};
   const now = Date.now();
   for (const key of WORKS) {
-    const row = rows.find(r => r.work_key === key) || { plan: 'free', remaining: 3, expires_at: null };
+    const row = rows.find(r => r.work_key === key) || { plan: 'free', remaining: 1, expires_at: null };
     const until = row.expires_at ? new Date(row.expires_at).getTime() : 0;
     if (row.plan !== 'free' && ((row.plan === 'once' && row.remaining > 0) || (row.plan !== 'once' && until > now))) {
       out[key] = { type: 'vip', plan: row.plan, left: row.remaining, until };
@@ -304,10 +304,10 @@ app.post('/api/works/:key/use', needLogin, async (req, res) => {
     }
     await conn.query(
       'INSERT INTO entitlements (user_id, work_key, plan, remaining) VALUES (?,?,?,?)',
-      [req.user.id, key, 'free', 2]
+      [req.user.id, key, 'free', 0]
     );
     await conn.commit();
-    res.json({ ok: true, free: true, left: 2 });
+    res.json({ ok: true, free: true, left: 0 });
   } catch (e) {
     await conn.rollback();
     res.status(500).json({ error: '操作失败，请稍后重试' });
@@ -1130,11 +1130,19 @@ function appPatch(slug, patch) {
 }
 const relFromApps = abs => path.relative(APPS_DIR, abs).split(path.sep).join('/');
 
-/* 服务重启后，上次遗留的运行状态一律复位 */
+/* 服务重启后，上次遗留的运行状态复位；但若端口仍被外部进程占用则保留 running */
+const portAlive = port => new Promise(resolve => {
+  if (!port) return resolve(false);
+  const s = net.connect({ host: '127.0.0.1', port }, () => { s.destroy(); resolve(true); });
+  s.on('error', () => resolve(false));
+  s.setTimeout(1200, () => { s.destroy(); resolve(false); });
+});
 try {
   const d = appsRead();
   for (const a of d.apps) {
-    if (a.mode !== 'static' && a.status === 'running') { a.status = 'stopped'; a.note = '服务已重启，进程已结束，请重新启动'; }
+    if (a.mode !== 'static' && a.status === 'running' && !(await portAlive(a.port))) {
+      a.status = 'stopped'; a.note = '服务已重启，进程已结束，请重新启动';
+    }
   }
   appsWrite(d);
 } catch (_) {}
@@ -1881,6 +1889,12 @@ function proxyApp(rec, req, res) {
   let p = (req.originalUrl || '/').slice(prefix.length) || '/';
   if (!p.startsWith('/')) p = '/' + p;
   const headers = Object.assign({}, req.headers, { host: '127.0.0.1:' + rec.port });
+  // express.json 已经消费了请求体，这里改用缓存的原始字节转发，否则上游会一直等待 body
+  const body = !['GET', 'HEAD'].includes(req.method) && Buffer.isBuffer(req.rawBody) ? req.rawBody : null;
+  if (body) {
+    headers['content-length'] = String(body.length);
+    delete headers['transfer-encoding'];
+  }
   const up = http.request({ host: '127.0.0.1', port: rec.port, path: p, method: req.method, headers }, r => {
     const h = Object.assign({}, r.headers);
     if (h.location && h.location.startsWith('/')) h.location = prefix + h.location;
@@ -1891,7 +1905,8 @@ function proxyApp(rec, req, res) {
     if (!res.headersSent) res.status(502).type('html').send(infoPage(appFind(rec.slug) || rec));
     else try { res.end(); } catch (_) {}
   });
-  req.pipe(up);
+  if (body) up.end(body);
+  else req.pipe(up);
 }
 
 app.use('/apps/:slug', (req, res, next) => {

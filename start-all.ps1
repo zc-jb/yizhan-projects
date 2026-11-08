@@ -1,4 +1,4 @@
-# 一键启动本地全部项目
+﻿# 一键启动本地全部项目
 # 运行环境（便携 MySQL 8 + JRE 17）放在 ASCII 路径下：MySQL 8 无法处理含中文的路径。
 # 用法： powershell -ExecutionPolicy Bypass -File .\start-all.ps1
 
@@ -14,6 +14,10 @@ $Mysql = Join-Path $MysqlHome 'bin\mysql.exe'
 $Ini = Join-Path $MysqlHome 'my.ini'
 $DataDir = Join-Path $Runtime 'mysql-data'
 $Java = Join-Path $Runtime 'jdk-17.0.20.1+1-jre\bin\java.exe'
+$JavaBin = Split-Path -Parent $Java
+# 把便携 JRE 放进 PATH，博客站「在线体验」用 java 启动应用时才能找到 java
+$env:Path = "$JavaBin;" + $env:Path
+$AppsJson = Join-Path $Root '_apps\apps.json'
 
 New-Item -ItemType Directory -Force $Logs, $Pids | Out-Null
 
@@ -35,6 +39,34 @@ function Save-Pid([string]$Name, $Proc) {
   Set-Content -Path (Join-Path $Pids "$Name.pid") -Value $Proc.Id -Encoding ascii
 }
 
+# 把博客「作品管理」中对应的应用标记为 running，使前台展示「在线体验」入口
+function Set-AppRunning([string]$Slug, [int]$Port, [string]$Note) {
+  if (-not (Test-Path $AppsJson)) { return }
+  try {
+    $data = [IO.File]::ReadAllText($AppsJson, [Text.Encoding]::UTF8) | ConvertFrom-Json
+    $now = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.fffZ')
+    $hit = $false
+    foreach ($a in $data.apps) {
+      if ($a.slug -eq $Slug) {
+        $a.status = 'running'
+        $a.port = $Port
+        $a.url = "/apps/$Slug/"
+        $a.startAt = $now
+        $a.note = $Note
+        $hit = $true
+      }
+    }
+    if ($hit) {
+      $data.updated_at = $now
+      $json = $data | ConvertTo-Json -Depth 12
+      [IO.File]::WriteAllText($AppsJson, $json, (New-Object Text.UTF8Encoding($false)))
+      Write-Host "[OK]   apps.json: $Slug -> running on $Port"
+    }
+  } catch {
+    Write-Host "[WARN] apps.json update failed: $($_.Exception.Message)"
+  }
+}
+
 Write-Host '=== 1. MySQL (127.0.0.1:3306) ==='
 if (Test-Port 3306) {
   Write-Host '[SKIP] MySQL already running'
@@ -53,7 +85,7 @@ if (Test-Port 3306) {
 }
 
 Write-Host '[DB] Ensure databases ...'
-& $Mysql -uroot -h 127.0.0.1 -P 3306 -e "CREATE DATABASE IF NOT EXISTS tech_blog_test DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE IF NOT EXISTS tech_blog DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE IF NOT EXISTS hotel_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+& $Mysql -uroot -h 127.0.0.1 -P 3306 -e "CREATE DATABASE IF NOT EXISTS tech_blog_test DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE IF NOT EXISTS tech_blog DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE IF NOT EXISTS hotel_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE IF NOT EXISTS library_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 if ($LASTEXITCODE -ne 0) { throw 'Create database failed' }
 
 Write-Host '=== 2. tech-blog (http://127.0.0.1:3100) ==='
@@ -96,9 +128,33 @@ if (Test-Port 5173) {
   Wait-Port 5173 15 'ai-poster-app' | Out-Null
 }
 
+Write-Host '=== 5. library-system (http://127.0.0.1:8090) ==='
+if (Test-Port 8090) {
+  Write-Host '[SKIP] library-system already running'
+} else {
+  $jar = Join-Path $Root 'library-system\library-system-1.0.0.jar'
+  $p = Start-Process -FilePath $Java -ArgumentList '-jar', "`"$jar`"", "--logging.file.name=`"$(Join-Path $Logs 'library-system.log')`"" `
+        -WorkingDirectory (Join-Path $Root 'library-system') `
+        -RedirectStandardOutput (Join-Path $Logs 'library.out.log') `
+        -RedirectStandardError (Join-Path $Logs 'library.err.log') `
+        -WindowStyle Hidden -PassThru
+  Save-Pid 'library-system' $p
+  Wait-Port 8090 90 'library-system' | Out-Null
+}
+# 同步博客「作品管理」记录，使作品页展示「在线体验」
+Set-AppRunning 'library-system-v1-68b3d2' 8090 '已在本机 8090 端口运行（admin / 123456）'
+
 Write-Host ''
 Write-Host 'All done:'
 Write-Host '  tech-blog      http://127.0.0.1:3100'
 Write-Host '  hotel-system   http://127.0.0.1:8080   (admin / 123456)'
 Write-Host '  ai-poster-app  http://127.0.0.1:5173'
+Write-Host '  library-system http://127.0.0.1:8090   (admin / 123456)'
+Write-Host '  library demo   http://127.0.0.1:3100/apps/library-system-v1-68b3d2/'
+Write-Host ''
+Write-Host 'Works (local, all served by this script):'
+Write-Host '  AI poster      http://127.0.0.1:5173/'
+Write-Host '  video parse    http://127.0.0.1:3100/vip.html'
+Write-Host '  hotel admin    http://127.0.0.1:8080/   (admin / 123456)'
+Write-Host '  library admin  http://127.0.0.1:8090/   (admin / 123456)'
 Write-Host "Logs: $Logs"
