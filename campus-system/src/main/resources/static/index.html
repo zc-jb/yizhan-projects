@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#4f46e5">
+  <meta name="description" content="青禾校园 · 校园管理系统演示">
+  <title>青禾校园 · 校园管理系统</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="phone" id="phone">
+
+    <!-- ================= 登录页 ================= -->
+    <section class="login-screen" id="login-screen">
+      <span class="login-blob blob-a"></span>
+      <span class="login-blob blob-b"></span>
+      <span class="login-blob blob-c"></span>
+
+      <div class="login-inner">
+        <div class="brand">
+          <div class="brand-logo">🌿</div>
+          <h1>青禾校园</h1>
+          <p>让校园管理更轻盈</p>
+        </div>
+
+        <form class="login-card" id="login-form" autocomplete="off">
+          <div class="login-card-title">
+            <h2>欢迎回来</h2>
+            <span>登录后进入你的校园工作台</span>
+          </div>
+
+          <label class="field">
+            <span>账号</span>
+            <div class="input-icon">
+              <em>👤</em>
+              <input id="login-username" name="username" type="text" placeholder="管理员账号 / 学生学号" autocomplete="username">
+            </div>
+          </label>
+
+          <label class="field">
+            <span>密码</span>
+            <div class="input-icon">
+              <em>🔒</em>
+              <input id="login-password" name="password" type="password" placeholder="请输入密码" autocomplete="current-password">
+            </div>
+          </label>
+
+          <p class="login-error hidden" id="login-error"></p>
+
+          <button type="submit" class="btn btn-primary btn-block" id="login-btn">
+            <span>登 录</span>
+          </button>
+
+          <div class="demo-box">
+            <span class="demo-label">演示账号（点击自动填充）</span>
+            <div class="demo-chips">
+              <button type="button" class="chip" data-account="admin" data-password="123456">👑 管理员 admin</button>
+              <button type="button" class="chip" data-account="stu001" data-password="123456">🎓 学生 stu001</button>
+            </div>
+          </div>
+        </form>
+
+        <p class="login-foot">Spring Boot 3 · MySQL 8 · Redis（自动降级）</p>
+      </div>
+    </section>
+
+    <!-- ================= 主应用 ================= -->
+    <div class="app-shell hidden" id="app-shell">
+      <main class="pages" id="pages">
+
+        <!-- 首页 -->
+        <section class="page" id="page-home" data-page="home">
+          <header class="hero">
+            <div class="hero-top">
+              <div>
+                <p class="hero-hi" id="home-greeting">上午好</p>
+                <h2 class="hero-name" id="home-name">同学</h2>
+              </div>
+              <button class="hero-avatar" id="home-avatar" type="button" aria-label="个人中心">👤</button>
+            </div>
+            <div class="hero-meta">
+              <span class="role-badge" id="home-role">学生</span>
+              <span id="home-date"></span>
+            </div>
+            <span class="hero-ring ring-a"></span>
+            <span class="hero-ring ring-b"></span>
+          </header>
+
+          <div class="page-body">
+            <div class="section-head">
+              <h3>数据总览</h3>
+              <button class="text-btn" id="refresh-stats" type="button">↻ 刷新</button>
+            </div>
+            <div class="stat-grid" id="stat-grid"></div>
+            <p class="cache-hint" id="cache-hint"></p>
+
+            <div class="section-head">
+              <h3>快捷入口</h3>
+            </div>
+            <div class="quick-grid" id="quick-grid"></div>
+
+            <div class="section-head">
+              <h3>最新公告</h3>
+              <button class="text-btn" type="button" data-goto="notices">全部 ›</button>
+            </div>
+            <div class="notice-preview" id="home-notices"></div>
+          </div>
+        </section>
+
+        <!-- 学生管理 -->
+        <section class="page" id="page-students" data-page="students">
+          <header class="page-head">
+            <div>
+              <p class="eyebrow">STUDENTS</p>
+              <h2>学生管理</h2>
+            </div>
+            <span class="count-pill" id="student-count">— 人</span>
+          </header>
+          <div class="page-body">
+            <div class="search-bar">
+              <span class="search-icon">🔍</span>
+              <input id="student-search" type="search" placeholder="搜索姓名 / 学号 / 班级">
+              <button type="button" class="search-clear hidden" id="student-search-clear" aria-label="清空">✕</button>
+            </div>
+            <div class="list" id="student-list"></div>
+          </div>
+          <button type="button" class="fab admin-only hidden" id="add-student" aria-label="新增学生">＋</button>
+        </section>
+
+        <!-- 课程管理 -->
+        <section class="page" id="page-courses" data-page="courses">
+          <header class="page-head">
+            <div>
+              <p class="eyebrow">COURSES</p>
+              <h2>课程管理</h2>
+            </div>
+            <span class="count-pill" id="course-count">— 门</span>
+          </header>
+          <div class="page-body">
+            <div class="list" id="course-list"></div>
+          </div>
+          <button type="button" class="fab admin-only hidden" id="add-course" aria-label="新增课程">＋</button>
+        </section>
+
+        <!-- 成绩管理 -->
+        <section class="page" id="page-scores" data-page="scores">
+          <header class="page-head">
+            <div>
+              <p class="eyebrow">SCORES</p>
+              <h2>成绩管理</h2>
+            </div>
+            <span class="count-pill" id="score-count">— 门</span>
+          </header>
+          <div class="page-body">
+            <div class="picker-card admin-only hidden" id="score-picker-wrap">
+              <label for="score-student-picker">查看学生</label>
+              <select id="score-student-picker"></select>
+            </div>
+            <div class="score-summary" id="score-summary"></div>
+            <div class="list" id="score-list"></div>
+          </div>
+          <button type="button" class="fab admin-only hidden" id="add-score" aria-label="录入成绩">＋</button>
+        </section>
+
+        <!-- 公告 -->
+        <section class="page" id="page-notices" data-page="notices">
+          <header class="page-head">
+            <div>
+              <p class="eyebrow">NOTICES</p>
+              <h2>校园公告</h2>
+            </div>
+            <button type="button" class="soft-btn admin-only hidden" id="publish-notice">＋ 发布</button>
+          </header>
+          <div class="page-body">
+            <div class="list" id="notice-list"></div>
+          </div>
+        </section>
+
+        <!-- 个人中心 -->
+        <section class="page" id="page-profile" data-page="profile">
+          <header class="profile-hero">
+            <div class="profile-avatar" id="profile-avatar">👤</div>
+            <h2 id="profile-name">—</h2>
+            <span class="profile-role" id="profile-role">学生</span>
+            <p class="profile-sub" id="profile-sub"></p>
+            <span class="hero-ring ring-a"></span>
+            <span class="hero-ring ring-b"></span>
+          </header>
+          <div class="page-body">
+            <div class="info-card" id="profile-info"></div>
+
+            <div class="menu-card">
+              <button type="button" class="menu-row" data-goto="notices">
+                <span class="menu-icon">📢</span>
+                <span class="menu-text">校园公告</span>
+                <span class="menu-arrow">›</span>
+              </button>
+              <button type="button" class="menu-row" id="about-btn">
+                <span class="menu-icon">🌿</span>
+                <span class="menu-text">关于系统</span>
+                <span class="menu-arrow">›</span>
+              </button>
+            </div>
+
+            <button type="button" class="btn btn-danger btn-block logout-btn" id="logout-btn">退出登录</button>
+            <p class="version">Campus System · v1.0.0</p>
+          </div>
+        </section>
+
+      </main>
+
+      <!-- 底部 tabBar -->
+      <nav class="tabbar" id="tabbar">
+        <button type="button" class="tab active" data-goto="home"><span class="tab-icon">🏠</span><span>首页</span></button>
+        <button type="button" class="tab" data-goto="students"><span class="tab-icon">🎓</span><span>学生</span></button>
+        <button type="button" class="tab" data-goto="courses"><span class="tab-icon">📚</span><span>课程</span></button>
+        <button type="button" class="tab" data-goto="scores"><span class="tab-icon">📈</span><span>成绩</span></button>
+        <button type="button" class="tab" data-goto="notices"><span class="tab-icon">📢</span><span>公告</span></button>
+        <button type="button" class="tab" data-goto="profile"><span class="tab-icon">👤</span><span>我的</span></button>
+      </nav>
+    </div>
+
+    <!-- 弹层 / 提示 -->
+    <div id="modal-root"></div>
+    <div class="toast" id="toast">
+      <span id="toast-icon">✅</span>
+      <span id="toast-text">操作成功</span>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

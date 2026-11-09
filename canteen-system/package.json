@@ -1,0 +1,19 @@
+{
+  "name": "canteen-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "橙味食堂 · 点餐系统（Express + MySQL + WebSocket + Redis 可选缓存）",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.22.3",
+    "mysql2": "^3.24.6",
+    "ws": "^8.22.2"
+  }
+}

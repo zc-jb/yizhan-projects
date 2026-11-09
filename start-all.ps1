@@ -85,7 +85,7 @@ if (Test-Port 3306) {
 }
 
 Write-Host '[DB] Ensure databases ...'
-& $Mysql -uroot -h 127.0.0.1 -P 3306 -e "CREATE DATABASE IF NOT EXISTS tech_blog_test DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE IF NOT EXISTS tech_blog DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE IF NOT EXISTS hotel_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE IF NOT EXISTS library_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+& $Mysql -uroot -h 127.0.0.1 -P 3306 -e "CREATE DATABASE IF NOT EXISTS tech_blog_test DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE IF NOT EXISTS tech_blog DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE IF NOT EXISTS hotel_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE IF NOT EXISTS library_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE IF NOT EXISTS campus_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE IF NOT EXISTS canteen_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 if ($LASTEXITCODE -ne 0) { throw 'Create database failed' }
 
 Write-Host '=== 2. tech-blog (http://127.0.0.1:3100) ==='
@@ -144,12 +144,43 @@ if (Test-Port 8090) {
 # 同步博客「作品管理」记录，使作品页展示「在线体验」
 Set-AppRunning 'library-system-v1-68b3d2' 8090 '已在本机 8090 端口运行（admin / 123456）'
 
+Write-Host '=== 6. campus-system (http://127.0.0.1:8100) ==='
+if (Test-Port 8100) {
+  Write-Host '[SKIP] campus-system already running'
+} else {
+  $jar = Join-Path $Root 'campus-system\campus-system-1.0.0.jar'
+  $p = Start-Process -FilePath $Java -ArgumentList '-jar', "`"$jar`"", "--logging.file.name=`"$(Join-Path $Logs 'campus-system.log')`"" `
+        -WorkingDirectory (Join-Path $Root 'campus-system') `
+        -RedirectStandardOutput (Join-Path $Logs 'campus.out.log') `
+        -RedirectStandardError (Join-Path $Logs 'campus.err.log') `
+        -WindowStyle Hidden -PassThru
+  Save-Pid 'campus-system' $p
+  Wait-Port 8100 90 'campus-system' | Out-Null
+}
+Set-AppRunning 'campus-system-v1-9bfbba' 8100 '已在本机 8100 端口运行（admin / 123456）'
+
+Write-Host '=== 7. canteen-system (http://127.0.0.1:8200) ==='
+if (Test-Port 8200) {
+  Write-Host '[SKIP] canteen-system already running'
+} else {
+  $p = Start-Process -FilePath 'node' -ArgumentList 'server/index.js' `
+        -WorkingDirectory (Join-Path $Root 'canteen-system') `
+        -RedirectStandardOutput (Join-Path $Logs 'canteen.out.log') `
+        -RedirectStandardError (Join-Path $Logs 'canteen.err.log') `
+        -WindowStyle Hidden -PassThru
+  Save-Pid 'canteen-system' $p
+  Wait-Port 8200 30 'canteen-system' | Out-Null
+}
+Set-AppRunning 'canteen-system-v1-9d254d' 8200 '已在本机 8200 端口运行（admin / 123456）'
+
 Write-Host ''
 Write-Host 'All done:'
 Write-Host '  tech-blog      http://127.0.0.1:3100'
 Write-Host '  hotel-system   http://127.0.0.1:8080   (admin / 123456)'
 Write-Host '  ai-poster-app  http://127.0.0.1:5173'
 Write-Host '  library-system http://127.0.0.1:8090   (admin / 123456)'
+Write-Host '  campus-system  http://127.0.0.1:8100   (admin / 123456)'
+Write-Host '  canteen-system http://127.0.0.1:8200   (admin / 123456)'
 Write-Host '  library demo   http://127.0.0.1:3100/apps/library-system-v1-68b3d2/'
 Write-Host ''
 Write-Host 'Works (local, all served by this script):'
@@ -157,4 +188,6 @@ Write-Host '  AI poster      http://127.0.0.1:5173/'
 Write-Host '  video parse    http://127.0.0.1:3100/vip.html'
 Write-Host '  hotel admin    http://127.0.0.1:8080/   (admin / 123456)'
 Write-Host '  library admin  http://127.0.0.1:8090/   (admin / 123456)'
+Write-Host '  campus admin   http://127.0.0.1:8100/   (admin / 123456)'
+Write-Host '  canteen order  http://127.0.0.1:8200/   (admin / 123456)'
 Write-Host "Logs: $Logs"

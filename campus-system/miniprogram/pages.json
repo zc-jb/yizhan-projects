@@ -1,0 +1,95 @@
+{
+  "pages": [
+    {
+      "path": "pages/login/login",
+      "style": {
+        "navigationBarTitleText": "登录",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/home/home",
+      "style": {
+        "navigationBarTitleText": "校园看板"
+      }
+    },
+    {
+      "path": "pages/student/student",
+      "style": {
+        "navigationBarTitleText": "学生管理",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/course/course",
+      "style": {
+        "navigationBarTitleText": "课程管理"
+      }
+    },
+    {
+      "path": "pages/score/score",
+      "style": {
+        "navigationBarTitleText": "成绩管理"
+      }
+    },
+    {
+      "path": "pages/notice/notice",
+      "style": {
+        "navigationBarTitleText": "校园公告"
+      }
+    },
+    {
+      "path": "pages/profile/profile",
+      "style": {
+        "navigationBarTitleText": "个人中心"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "校园管理系统",
+    "navigationBarBackgroundColor": "#4f46e5",
+    "backgroundColor": "#f5f7fb",
+    "backgroundColorTop": "#eef2ff",
+    "backgroundColorBottom": "#f5f7fb"
+  },
+  "tabBar": {
+    "color": "#94a3b8",
+    "selectedColor": "#4f46e5",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/home/home",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/student/student",
+        "text": "学生"
+      },
+      {
+        "pagePath": "pages/course/course",
+        "text": "课程"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的"
+      }
+    ]
+  },
+  "condition": {
+    "current": 0,
+    "list": [
+      {
+        "name": "看板首页",
+        "path": "pages/home/home",
+        "query": ""
+      },
+      {
+        "name": "学生管理",
+        "path": "pages/student/student",
+        "query": ""
+      }
+    ]
+  }
+}

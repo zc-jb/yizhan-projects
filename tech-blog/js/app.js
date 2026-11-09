@@ -1278,6 +1278,8 @@ async function vWorks() {
     { id: 'poster', icon: '🎨', name: 'AI 海报制作', tagline: '30 秒做出一张能直接发的商业海报', desc: 'HTML / CSS / JS 的纯前端海报工坊：30+ 套模板/画布拖拽编辑/AI 文案与配图/二维码生成，一键导出 PNG、JPG、PDF，无需后端与数据库，打开网页即可使用。', features: ['30+ 模板', 'AI 文案配图', '一键导出'], accent: 'linear-gradient(135deg,#6366f1,#06b6d4)', url: 'http://127.0.0.1:5173/', tag: '在线工具', },
     { id: 'video', icon: '🎬', name: '影视快看 · 视频解析', tagline: '粘贴链接就能看，免会员高清直达', desc: 'HTML / CSS / JS 的纯前端影视聚合站：链接一键解析/全网影视搜索/剧集选集/沉浸播放，深色界面适配手机，无需后端与数据库，打开网页即可使用。', features: ['全网解析', '免会员观看', '手机适配'], accent: 'linear-gradient(135deg,#ec4899,#f59e0b)', url: 'http://127.0.0.1:3100/vip.html', tag: '在线工具', },
     { id: 'hotel', icon: '🏨', name: '酒店管理系统', tagline: '从预订到退房结算，全流程在线跑通', desc: 'Spring Boot 3 + Vue3 + MySQL 8 的酒店管理后台：房型/房间/客人/预订/入住/退房/账单一体化，房态自动流转、金额自动核算，首次启动自动生成演示数据，前端已打进 jar。', features: ['房态流转', '自动算价', '真实可体验'], accent: 'linear-gradient(135deg,#0f766e,#2563eb)', badge: '✨ 新品', newSince: '2026-11-08T00:00:00+08:00', url: 'http://127.0.0.1:8080/', tag: '全栈项目', },
+    { id: 'campus', icon: '🎓', name: '校园管理系统', tagline: '学生 · 课程 · 成绩 · 公告，一个后台全管', desc: 'uni-app（Vue3）移动端 + Spring Boot 3 + MySQL 8 + Redis 的校园管理系统：学生/课程/成绩/公告与数据看板，Redis 缓存热点数据并在不可用时自动降级，首次启动自动生成演示数据。', features: ['学生课程成绩', '数据看板', '真实可体验'], accent: 'linear-gradient(135deg,#4f46e5,#06b6d4)', badge: '✨ 新品', newSince: '2026-11-09T00:00:00+08:00', url: 'http://127.0.0.1:8100/', tag: '全栈项目', },
+    { id: 'canteen', icon: '🍜', name: '点餐系统', tagline: '扫码点餐 + 厨房实时看板', desc: 'uni-app / Taro 小程序风格前端 + Node.js（Express）+ MySQL 8 + Redis + WebSocket 的扫码点餐系统：菜单分类/购物车/下单/厨房实时看板/菜品与订单后台，首次启动自动生成演示数据。', features: ['实时下单推送', '厨房看板', '真实可体验'], accent: 'linear-gradient(135deg,#f97316,#ef4444)', url: 'http://127.0.0.1:8200/', tag: '全栈项目', },
   ];
   const st = await Api.worksStatus();
   const hotD = await Api.worksHot();
@@ -1294,7 +1296,8 @@ async function vWorks() {
     if (s.type === 'vip') return `<span class="work-state vip">✨ 已开通${s.until ? ' · ' + new Date(s.until).toLocaleDateString() + ' 到期' : ' · 剩 ' + s.left + ' 次'}</span>`;
     return `<span class="work-state">免费体验 ${s.left}/1 次</span>`;
   };
-  const imp = await Api.showcase().catch(() => []);
+  /* 校园/点餐已作为作品卡直接展示，导入区不再重复渲染 */
+  const imp = (await Api.showcase().catch(() => [])).filter(s => !/^(campus|canteen)-system/i.test(s.slug));
   const impRun = imp.filter(s => s.url).length;
   const impState = {
     running: { t: '可在线体验', bg: 'rgba(46,230,168,.16)', fg: '#0ea371' },
@@ -1347,12 +1350,16 @@ async function vWorks() {
     video: 'video-parse',
     hotel: 'hotel-demo',
     library: 'library-system-v1-68b3d2',
+    campus: 'campus-system-v1-9bfbba',
+    canteen: 'canteen-system-v1-9d254d',
   };
   const SALE_STACK = {
     poster: 'HTML / CSS / JS',
     video: 'HTML / CSS / JS',
     hotel: 'Spring Boot + Vue3 + MySQL',
     library: 'Spring Boot + Vue3 + MySQL',
+    campus: 'uni-app (Vue3) + Spring Boot 3 + MySQL + Redis',
+    canteen: 'uni-app / Taro + Node.js + MySQL + Redis + WebSocket',
   };
   /* 售货区每件商品用不同主色，避免所有卡片颜色一致 */
   const SALE_ACCENT = {
@@ -1360,6 +1367,8 @@ async function vWorks() {
     video: 'linear-gradient(135deg,#ec4899,#f59e0b)',
     hotel: 'linear-gradient(135deg,#0f766e,#2563eb)',
     library: 'linear-gradient(135deg,#16a34a,#0ea5e9)',
+    campus: 'linear-gradient(135deg,#4f46e5,#22d3ee)',
+    canteen: 'linear-gradient(135deg,#f97316,#ef4444)',
   };
   const saleCopies = works.filter(w => !w.free).map(w => ({
     key: w.id, icon: w.icon, title: w.name, tagline: w.tagline, desc: w.desc,

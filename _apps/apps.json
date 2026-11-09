@@ -1,5 +1,5 @@
 {
-    "updated_at":  "2026-11-09T12:01:15.944Z",
+    "updated_at":  "2026-11-09T13:14:18.436Z",
     "apps":  [
                  {
                      "file":  "video-parse_v1.zip",
@@ -78,7 +78,7 @@
                      "url":  "/apps/library-system-v1-68b3d2/",
                      "log":  "",
                      "deployAt":  "2026-11-08T14:31:32.533Z",
-                     "startAt":  "2026-11-09T12:01:15.944Z",
+                     "startAt":  "2026-11-09T13:14:18.152Z",
                      "status":  "running",
                      "note":  "已在本机 8090 端口运行（admin / 123456）",
                      "orders":  [
@@ -115,6 +115,64 @@
                                 ],
                      "orderCount":  0,
                      "lastOrderAt":  "2026-11-08T15:11:54.043Z"
+                 },
+                 {
+                     "file":  "campus-system_v1.zip",
+                     "slug":  "campus-system-v1-9bfbba",
+                     "title":  "校园管理系统（uni-app + Spring Boot 3 + MySQL + Redis）",
+                     "desc":  "uni-app（Vue3）移动端 + Spring Boot 3 + MySQL 8 + Redis 的校园管理后台：学生/课程/成绩/公告与数据看板，Redis 缓存热点数据并支持不可用时内存降级，内置演示数据。",
+                     "stack":  "uni-app (Vue3) + Spring Boot 3 + MySQL + Redis",
+                     "version":  "v1.0",
+                     "mode":  "jar",
+                     "kind":  "",
+                     "root":  "../campus-system",
+                     "entry":  "campus-system-1.0.0.jar",
+                     "anchor":  "campus-system-1.0.0.jar",
+                     "gen":  [
+
+                             ],
+                     "port":  8100,
+                     "url":  "/apps/campus-system-v1-9bfbba/",
+                     "log":  "",
+                     "deployAt":  "2026-11-09T00:00:00.000Z",
+                     "startAt":  "2026-11-09T13:14:18.321Z",
+                     "status":  "running",
+                     "note":  "已在本机 8100 端口运行（admin / 123456）",
+                     "hidden":  false,
+                     "orders":  [
+
+                                ],
+                     "orderCount":  0,
+                     "lastOrderAt":  ""
+                 },
+                 {
+                     "file":  "canteen-system_v1.zip",
+                     "slug":  "canteen-system-v1-9d254d",
+                     "title":  "点餐系统（uni-app / Taro + Node.js + MySQL + Redis + WebSocket）",
+                     "desc":  "uni-app / Taro 小程序风格前端 + Node.js（Express）+ MySQL 8 + Redis + WebSocket 的扫码点餐系统：菜单分类/购物车/下单/厨房实时看板/菜品与订单后台，内置演示数据。",
+                     "stack":  "uni-app / Taro + Node.js + MySQL + Redis + WebSocket",
+                     "version":  "v1.0",
+                     "mode":  "node",
+                     "kind":  "",
+                     "root":  "../canteen-system",
+                     "entry":  "server/index.js",
+                     "anchor":  "",
+                     "gen":  [
+
+                             ],
+                     "port":  8200,
+                     "url":  "/apps/canteen-system-v1-9d254d/",
+                     "log":  "",
+                     "deployAt":  "2026-11-09T00:00:00.000Z",
+                     "startAt":  "2026-11-09T13:14:18.436Z",
+                     "status":  "running",
+                     "note":  "已在本机 8200 端口运行（admin / 123456）",
+                     "hidden":  false,
+                     "orders":  [
+
+                                ],
+                     "orderCount":  0,
+                     "lastOrderAt":  ""
                  }
              ]
 }

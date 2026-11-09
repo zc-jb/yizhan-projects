@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#ff6b2c" />
+  <title>橙味食堂 · 点餐系统</title>
+  <link rel="stylesheet" href="./css/app.css" />
+</head>
+<body>
+  <div class="app-shell" id="appShell">
+    <!-- 顶部导航 -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-logo">🍊</div>
+        <div class="brand-text">
+          <strong>橙味食堂</strong>
+          <span>ORANGE CANTEEN</span>
+        </div>
+      </div>
+      <div class="header-right">
+        <button class="table-pill" id="tablePill">A01 桌</button>
+        <button class="admin-entry hidden" id="adminEntry">管理</button>
+        <button class="avatar-btn" id="headerAvatar" aria-label="我的">👤</button>
+      </div>
+    </header>
+
+    <main id="main">
+      <!-- ================= 点餐首页 ================= -->
+      <section class="page active" id="page-home" data-page="home">
+        <div class="hero">
+          <div class="hero-glow"></div>
+          <div class="hero-content">
+            <p class="hero-eyebrow">今日营业中 · 现点现做</p>
+            <h1 id="heroTitle">中午好，想吃点什么？</h1>
+            <p class="hero-sub">扫码点餐 · 平均 12 分钟出餐</p>
+            <div class="hero-badges">
+              <span>🔥 热销 4 款</span>
+              <span>🥬 每日新鲜</span>
+            </div>
+          </div>
+          <div class="hero-art">🍱</div>
+        </div>
+
+        <div class="category-tabs" id="categoryTabs"></div>
+
+        <div class="section-head">
+          <h2>今日菜单</h2>
+          <span id="dishCount">正在加载…</span>
+        </div>
+        <div class="dish-list" id="dishList">
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+        </div>
+      </section>
+
+      <!-- ================= 我的订单 ================= -->
+      <section class="page" id="page-orders" data-page="orders">
+        <div class="page-title-row">
+          <div>
+            <h2 class="page-title">我的订单</h2>
+            <p class="page-sub" id="ordersSub">实时同步出餐进度</p>
+          </div>
+          <button class="round-btn" id="refreshOrders" title="刷新">↻</button>
+        </div>
+
+        <div class="segmented" id="orderFilter">
+          <button data-status="" class="active">全部</button>
+          <button data-status="pending">待制作</button>
+          <button data-status="cooking">制作中</button>
+          <button data-status="done">已完成</button>
+        </div>
+
+        <div class="orders-list" id="ordersList"></div>
+      </section>
+
+      <!-- ================= 厨房看板 ================= -->
+      <section class="page page-kitchen" id="page-kitchen" data-page="kitchen">
+        <div class="kitchen-head">
+          <div>
+            <p class="kitchen-eyebrow">KITCHEN DISPLAY</p>
+            <h2>厨房看板</h2>
+            <p class="kitchen-sub">
+              <span class="dot" id="wsDot"></span>
+              <span id="wsText">实时通道连接中…</span>
+            </p>
+          </div>
+          <div class="kitchen-clock" id="kitchenClock">--:--</div>
+        </div>
+
+        <div class="kitchen-stats" id="kitchenStats"></div>
+        <div class="kitchen-list" id="kitchenList">
+          <div class="kitchen-empty">正在同步订单…</div>
+        </div>
+      </section>
+
+      <!-- ================= 我的 ================= -->
+      <section class="page" id="page-mine" data-page="mine">
+        <div id="profileCard"></div>
+        <div class="mine-actions" id="mineActions"></div>
+        <p class="mine-tip">这是一个可体验的点餐演示项目 · 菜单与订单保存在本地 MySQL</p>
+      </section>
+
+      <!-- ================= 后台管理 ================= -->
+      <section class="page page-admin" id="page-admin" data-page="admin">
+        <div class="admin-head">
+          <button class="round-btn" id="adminBack" aria-label="返回">‹</button>
+          <div class="admin-head-text">
+            <h2>后台管理</h2>
+            <p class="page-sub">菜品维护 · 订单查询</p>
+          </div>
+          <button class="pill-btn primary" id="addDishBtn">+ 新增</button>
+        </div>
+
+        <div class="admin-overview" id="adminOverview"></div>
+
+        <div class="segmented" id="adminTabs">
+          <button data-tab="dishes" class="active">菜品管理</button>
+          <button data-tab="orders">订单列表</button>
+        </div>
+
+        <div class="admin-panel" id="adminDishes"></div>
+        <div class="admin-panel hidden" id="adminOrders"></div>
+      </section>
+    </main>
+
+    <!-- 购物车悬浮条 -->
+    <div class="cart-bar" id="cartBar">
+      <button class="cart-info" id="openCart">
+        <span class="cart-icon">🛒<em id="cartCount">0</em></span>
+        <span class="cart-total"><small>合计</small><strong id="cartTotal">¥0.00</strong></span>
+      </button>
+      <button class="checkout-btn" id="goCheckout">去结算</button>
+    </div>
+
+    <!-- 底部 tabBar -->
+    <nav class="tabbar" id="tabbar">
+      <button data-route="home" class="active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9.5V21h13V9.5"/><path d="M9.5 21v-6h5v6"/></svg>
+        <span>点餐</span>
+      </button>
+      <button data-route="orders">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 0 1 1 1v17l-3-2-3 2-3-2-3 2V4a1 1 0 0 1 1-1Z"/><path d="M9 8h6M9 12h6"/></svg>
+        <span>订单</span>
+      </button>
+      <button data-route="kitchen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c1.2 3-2 4.2-2 7a2 2 0 0 0 4 0c0-1 .4-1.8 1-2.4 1.6 1.6 3 4 3 6.4a6 6 0 1 1-12 0C6 9.8 9.8 7.4 12 3Z"/></svg>
+        <span>厨房</span>
+      </button>
+      <button data-route="mine">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 21c0-4 3.1-6.5 7-6.5s7 2.5 7 6.5"/></svg>
+        <span>我的</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- 遮罩 -->
+  <div class="mask" id="mask"></div>
+
+  <!-- 购物车弹层 -->
+  <div class="sheet" id="cartSheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <h3>购物车</h3>
+      <button class="link-btn danger" id="clearCart">清空</button>
+    </div>
+    <div class="cart-lines" id="cartLines"></div>
+    <div class="sheet-foot">
+      <span>合计 <strong id="sheetTotal">¥0.00</strong></span>
+      <button class="primary-btn" id="sheetCheckout">去结算</button>
+    </div>
+  </div>
+
+  <!-- 结算弹层 -->
+  <div class="sheet" id="checkoutSheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <h3>确认订单</h3>
+      <button class="icon-close" data-close>×</button>
+    </div>
+    <div class="form">
+      <label class="field">
+        <span>桌号</span>
+        <select id="checkoutTable"></select>
+      </label>
+      <label class="field">
+        <span>下单人</span>
+        <input id="checkoutPhone" readonly />
+      </label>
+      <label class="field">
+        <span>备注</span>
+        <input id="checkoutRemark" maxlength="60" placeholder="口味、忌口等（选填）" />
+      </label>
+    </div>
+    <div class="checkout-summary" id="checkoutSummary"></div>
+    <button class="primary-btn block" id="submitOrder">提交订单</button>
+  </div>
+
+  <!-- 新增菜品弹层 -->
+  <div class="sheet" id="dishSheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <h3>新增菜品</h3>
+      <button class="icon-close" data-close>×</button>
+    </div>
+    <div class="form">
+      <label class="field">
+        <span>菜品名称</span>
+        <input id="dishName" maxlength="20" placeholder="例如：藤椒鸡排饭" />
+      </label>
+      <label class="field">
+        <span>分类</span>
+        <select id="dishCategory">
+          <option>主食</option>
+          <option>小吃</option>
+          <option>饮品</option>
+          <option>套餐</option>
+        </select>
+      </label>
+      <div class="field-row">
+        <label class="field">
+          <span>价格（元）</span>
+          <input id="dishPrice" type="number" min="0.01" step="0.01" placeholder="0.00" />
+        </label>
+        <label class="field">
+          <span>Emoji</span>
+          <input id="dishEmoji" maxlength="4" placeholder="🍱" />
+        </label>
+      </div>
+      <label class="field">
+        <span>一句话简介</span>
+        <input id="dishDesc" maxlength="50" placeholder="选填" />
+      </label>
+      <label class="check-field">
+        <input type="checkbox" id="dishHot" />
+        <span>设为热销菜品</span>
+      </label>
+      <button class="primary-btn block" id="saveDish">保存菜品</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- 启动闪屏 -->
+  <div class="boot" id="boot">
+    <div class="boot-logo">🍊</div>
+    <div class="boot-text">橙味食堂</div>
+    <div class="boot-bar"><i></i></div>
+  </div>
+
+  <script src="./js/app.js"></script>
+</body>
+</html>

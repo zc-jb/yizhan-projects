@@ -250,7 +250,7 @@ app.post('/api/comments/:id/like', needLogin, async (req, res) => {
 });
 
 /* ---------------- 作品权限 ---------------- */
-const WORKS = ['poster', 'video', 'hotel', 'library'];
+const WORKS = ['poster', 'video', 'hotel', 'library', 'campus', 'canteen'];
 
 app.get('/api/works/status', needLogin, async (req, res) => {
   const [rows] = await pool.query(
