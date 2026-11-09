@@ -420,7 +420,18 @@ function vHome() {
       <div class="hero-in">
         <span class="hero-badge">⚡ Tech Station · 技术驿站</span>
         <h1>把复杂的技术，<em>讲得简单</em></h1>
-        <p class="hero-sub">前端 · 后端 · 运维 · 数据库 · AI …… 一线实战经验与学习笔记，持续更新中。</p>
+        <div class="hero-marquee" aria-label="100+ 作品在线体验">
+          <div class="hero-marquee-track">
+            <span class="hm"><b>100+</b>作品在线体验</span><i class="hm-sep"></i>
+            <span class="hm"><b>100+</b>作品在线体验</span><i class="hm-sep"></i>
+            <span class="hm"><b>100+</b>作品在线体验</span><i class="hm-sep"></i>
+            <span class="hm"><b>100+</b>作品在线体验</span><i class="hm-sep"></i>
+            <span class="hm"><b>100+</b>作品在线体验</span><i class="hm-sep"></i>
+            <span class="hm"><b>100+</b>作品在线体验</span><i class="hm-sep"></i>
+            <span class="hm"><b>100+</b>作品在线体验</span><i class="hm-sep"></i>
+            <span class="hm"><b>100+</b>作品在线体验</span><i class="hm-sep"></i>
+          </div>
+        </div>
         <div class="hero-stats">
           <div><b>${POSTS.length}</b><span>技术长文</span></div>
           <div><b>${cats.length}</b><span>内容方向</span></div>
@@ -927,7 +938,7 @@ async function openWork(w) {
     if (r.vip) toast('已扣减 1 次使用次数');
     else toast('已使用免费体验（每个作品限 1 次）');
     /* 立即把卡片上的剩余次数改为最新值，再后台对齐服务端数据 */
-    const el = document.querySelector(`.work-card[data-id="${w.id}"] .work-state`);
+    const el = document.querySelector(`.work-card[data-id="${w.id}"] .work-state`) || document.querySelector('[data-imp] .work-state');
     if (el && !r.vip && r.left != null) el.textContent = `免费体验 ${r.left}/1 次`;
     vWorks().catch(() => {});
     return goWork(w.url);
@@ -1293,24 +1304,35 @@ async function vWorks() {
     stopped: { t: '已停止', bg: 'rgba(100,116,139,.16)', fg: '#64748b' },
     pending: { t: '未上线', bg: 'rgba(100,116,139,.16)', fg: '#64748b' },
   };
+  const modeMap = {
+    static: ['静态站点', 'linear-gradient(135deg,#2563eb,#22d3ee)'],
+    jar: ['运行包', 'linear-gradient(135deg,#0d9488,#22d3ee)'],
+    node: ['Node 应用', 'linear-gradient(135deg,#16a34a,#0ea5e9)'],
+    'java-web': ['源码工程', 'linear-gradient(135deg,#7c3aed,#2563eb)'],
+  };
+  /* imp 作品 slug → works key 映射，确保体验次数限制与展示一致 */
+  const impWorkKey = slug => (/^library-system/i.test(slug) ? 'library' : '');
+  const impStateOf = s => {
+    const key = impWorkKey(s.slug);
+    if (!key) return `<span class="work-state">${(modeMap[s.mode] || ['部署包'])[0]}</span>`;
+    const ws = st[key] || { type: 'free', left: 0 };
+    if (ws.type === 'vip') return `<span class="work-state vip">✨ 已开通${ws.until ? ' · ' + new Date(ws.until).toLocaleDateString() + ' 到期' : ' · 剩 ' + ws.left + ' 次'}</span>`;
+    return `<span class="work-state">免费体验 ${ws.left}/1 次</span>`;
+  };
   const impCards = imp.filter(s => s.url).map(s => {
       const st2 = impState[s.status] || impState.pending;
       const icon = s.mode === 'static' ? '🌐' : s.mode === 'jar' ? '☕' : s.mode === 'node' ? '🟢' : '🗂️';
-      const modeMap = {
-        static: ['静态站点', 'linear-gradient(135deg,#2563eb,#22d3ee)'],
-        jar: ['运行包', 'linear-gradient(135deg,#0d9488,#22d3ee)'],
-        node: ['Node 应用', 'linear-gradient(135deg,#16a34a,#0ea5e9)'],
-        'java-web': ['源码工程', 'linear-gradient(135deg,#7c3aed,#2563eb)'],
-      };
-      const [modeTxt, modeAccent] = modeMap[s.mode] || ['部署包', 'linear-gradient(135deg,#475569,#64748b)'];
+      const [, modeAccent] = modeMap[s.mode] || ['部署包', 'linear-gradient(135deg,#475569,#64748b)'];
       const size = s.size >= 1048576 ? (s.size / 1048576).toFixed(1) + ' MB' : s.size >= 1024 ? Math.round(s.size / 1024) + ' KB' : (s.size || 0) + ' B';
-      return `<a class="work-card${s.url ? ' has-badge' : ''}" href="javascript:void 0" data-imp="${esc(s.slug)}" data-cat="${s.url ? 'run' : 'env'}" style="--accent:${modeAccent}">
-        ${s.url ? `<span class="work-badge" style="background:${st2.bg};color:${st2.fg}">${st2.t}</span>` : ''}
+      /* running 状态不再显示「可在线体验」角标 */
+      const showBadge = !!s.url && s.status !== 'running';
+      return `<a class="work-card${showBadge ? ' has-badge' : ''}" href="javascript:void 0" data-imp="${esc(s.slug)}" data-cat="${s.url ? 'run' : 'env'}" style="--accent:${modeAccent}">
+        ${showBadge ? `<span class="work-badge" style="background:${st2.bg};color:${st2.fg}">${st2.t}</span>` : ''}
         <div class="work-top">
           <div class="work-icon">${icon}</div>
           <div class="work-info">
             <div class="work-name">${esc(s.title)}</div>
-            <div class="work-meta">${hotId === 'library' && /^library/i.test(s.slug) ? '<span class="work-tag" style="color:#f59e0b">🔥 热门</span>' : ''}<span class="work-tag">${esc(s.version || 'v1.0')}</span><span class="work-state">${modeTxt}</span></div>
+            <div class="work-meta"><span class="work-tag">${esc(s.version || 'v1.0')}</span>${impStateOf(s)}</div>
             <p class="work-tagline">${esc(s.note || '')}</p>
           </div>
         </div>
@@ -1384,7 +1406,7 @@ async function vWorks() {
     const s = imp.find(x => x.slug === c.dataset.imp);
     if (!s) return;
     if (s.url) {
-      const key = s.slug.startsWith('library-system') ? 'library' : '';
+      const key = impWorkKey(s.slug);
       if (key) { openWork({ id: key, name: s.title, url: s.url }); return; }
       window.open(s.url, '_blank', 'noopener');
       return;
