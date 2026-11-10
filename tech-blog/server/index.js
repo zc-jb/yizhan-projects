@@ -48,6 +48,19 @@ const verifyPass = (p, stored) => {
 };
 const newToken = () => crypto.randomBytes(32).toString('hex');
 
+/* ---------------- 敏感词（昵称/注册统一拦截，前后端各持一份相同词库） ---------------- */
+const SENSITIVE_WORDS = [
+  '操你妈','草泥马','傻逼','傻b','sb','妈的','他妈的','他妈','滚蛋','王八蛋','婊子','贱货','狗东西','脑残','弱智','废物','垃圾','狗屎','去死','畜生','混蛋','混帐','狗娘养','cnm','nmsl','fuck','shit','bitch','asshole','motherfucker'
+];
+const isSensitive = (text) => {
+  if (!text) return false;
+  const t = String(text).toLowerCase().replace(/[\s_\-\.]+/g, '');
+  return SENSITIVE_WORDS.some(w => {
+    const k = w.toLowerCase().replace(/[\s_\-\.]+/g, '');
+    return k && t.includes(k);
+  });
+};
+
 const fmt = d => {
   const pad = n => String(n).padStart(2, '0');
   return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -118,6 +131,7 @@ app.post('/api/auth/register', async (req, res) => {
   const name = String(req.body.username || '').trim();
   const pass = String(req.body.password || '');
   if (!name || name.length > 16) return res.status(400).json({ error: '账号需 1-16 个字符' });
+  if (isSensitive(name)) return res.status(400).json({ error: '账号包含敏感词，请更换' });
   if (pass.length < 4) return res.status(400).json({ error: '密码至少 4 位' });
   try {
     const [r] = await pool.query(
@@ -126,6 +140,7 @@ app.post('/api/auth/register', async (req, res) => {
     );
     const token = newToken();
     await pool.query('INSERT INTO sessions (token, user_id) VALUES (?, ?)', [token, r.insertId]);
+    await pool.query('UPDATE users SET last_login_at = NOW() WHERE id = ?', [r.insertId]);
     res.json({ token, user: { name, guest: false } });
   } catch (e) {
     if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '该账号已被注册，请直接登录' });
@@ -145,6 +160,7 @@ app.post('/api/auth/login', async (req, res) => {
   if (!verifyPass(pass, rows[0].pass_hash)) return res.status(401).json({ error: '密码不正确，请重试' });
   const token = newToken();
   await pool.query('INSERT INTO sessions (token, user_id) VALUES (?, ?)', [token, rows[0].id]);
+  await pool.query('UPDATE users SET last_login_at = NOW() WHERE id = ?', [rows[0].id]);
   res.json({ token, user: { name: rows[0].username, guest: false } });
 });
 
@@ -164,6 +180,141 @@ app.post('/api/auth/logout', async (req, res) => {
   const token = h.startsWith('Bearer ') ? h.slice(7) : '';
   if (token) await pool.query('DELETE FROM sessions WHERE token = ?', [token]);
   res.json({ ok: true });
+});
+
+/* 修改昵称（游客/注册用户通用） */
+app.post('/api/auth/rename', needLogin, async (req, res) => {
+  const name = String(req.body.username || '').trim();
+  if (!name || name.length > 16) return res.status(400).json({ error: '昵称需 1-16 个字符' });
+  if (isSensitive(name)) return res.status(400).json({ error: '昵称包含敏感词，请更换' });
+  if (name === req.user.name) return res.json({ user: req.user });
+  try {
+    await pool.query('UPDATE users SET username = ? WHERE id = ?', [name, req.user.id]);
+    res.json({ user: { id: req.user.id, name, guest: req.user.guest, muted: req.user.muted } });
+  } catch (e) {
+    if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '该昵称已被占用，请更换' });
+    res.status(500).json({ error: '修改失败，请稍后重试' });
+  }
+});
+
+/* ---------------- 手机验证码注册（演示环境：不接真实短信网关，验证码回显前端） ---------------- */
+const smsStore = new Map(); // phone -> { code, exp, sentAt }
+const SMS_TTL_MS = 120 * 1000; // 验证码有效期 120 秒
+const SMS_GAP_MS = 60 * 1000;  // 同一手机号 60 秒内不可重复获取
+const RE_PHONE = /^1[3-9]\d{9}$/;
+
+app.post('/api/auth/sms/send', (req, res) => {
+  const phone = String(req.body.phone || '').trim();
+  if (!RE_PHONE.test(phone)) return res.status(400).json({ error: '请输入正确的 11 位手机号' });
+  const prev = smsStore.get(phone);
+  if (prev && Date.now() - prev.sentAt < SMS_GAP_MS) {
+    const wait = Math.ceil((SMS_GAP_MS - (Date.now() - prev.sentAt)) / 1000);
+    return res.status(429).json({ error: `请 ${wait} 秒后再获取验证码` });
+  }
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  smsStore.set(phone, { code, exp: Date.now() + SMS_TTL_MS, sentAt: Date.now() });
+  res.json({ ok: true, ttl: 120, demoCode: code });
+});
+
+app.post('/api/auth/register-phone', async (req, res) => {
+  const phone = String(req.body.phone || '').trim();
+  const code = String(req.body.code || '').trim();
+  const pass = String(req.body.password || '');
+  if (!RE_PHONE.test(phone)) return res.status(400).json({ error: '请输入正确的 11 位手机号' });
+  if (pass.length < 4) return res.status(400).json({ error: '密码至少 4 位' });
+  const rec = smsStore.get(phone);
+  if (!rec) return res.status(400).json({ error: '请先获取短信验证码' });
+  if (Date.now() > rec.exp) {
+    smsStore.delete(phone);
+    return res.status(400).json({ error: '验证码已过期（120 秒），请重新获取' });
+  }
+  if (rec.code !== code) return res.status(400).json({ error: '验证码不正确，请重新输入' });
+  try {
+    const [r] = await pool.query(
+      'INSERT INTO users (username, pass_hash, is_guest) VALUES (?, ?, 0)',
+      [phone, hashPass(pass)]
+    );
+    smsStore.delete(phone);
+    const token = newToken();
+    await pool.query('INSERT INTO sessions (token, user_id) VALUES (?, ?)', [token, r.insertId]);
+    await pool.query('UPDATE users SET last_login_at = NOW() WHERE id = ?', [r.insertId]);
+    res.json({ token, user: { name: phone, guest: false } });
+  } catch (e) {
+    if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: '该手机号已注册，请直接登录' });
+    res.status(500).json({ error: '注册失败，请稍后重试' });
+  }
+});
+
+/* 第三方登录 / 扫码注册（演示环境：未接入开放平台，使用固定演示账号） */
+const THIRD_ACCOUNTS = {
+  wechat: { name: '微信用户_演示', label: '微信' },
+  qq: { name: 'QQ用户_演示', label: 'QQ' },
+  qr: { name: '扫码用户_演示', label: '扫码' },
+};
+
+/* 第三方登录：取数据库中最新注册的账号进行校对；
+   超过 3 天未登录（或从未登录）必须先完成授权才能登录 */
+const THIRD_TTL_DAYS = 3;
+const THIRD_TTL_MS = THIRD_TTL_DAYS * 24 * 60 * 60 * 1000;
+
+async function latestRegisteredUser() {
+  const [rows] = await pool.query(
+    'SELECT id, username, last_login_at, created_at FROM users WHERE is_guest = 0 ORDER BY id DESC LIMIT 1'
+  );
+  return rows[0] || null;
+}
+
+function thirdNeedAuth(u) {
+  const last = u.last_login_at ? new Date(u.last_login_at).getTime() : 0;
+  return !last || Date.now() - last > THIRD_TTL_MS;
+}
+
+app.get('/api/auth/third/status', async (req, res) => {
+  try {
+    const u = await latestRegisteredUser();
+    if (!u) return res.json({ ok: false, error: '数据库中暂无注册账号，请先完成注册' });
+    const last = u.last_login_at ? new Date(u.last_login_at).getTime() : 0;
+    res.json({
+      ok: true,
+      account: u.username,
+      registeredAt: u.created_at,
+      lastLoginAt: last || null,
+      days: last ? Math.floor((Date.now() - last) / 864e5) : null,
+      needAuth: thirdNeedAuth(u),
+      ttlDays: THIRD_TTL_DAYS,
+      provider: String(req.query.provider || ''),
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: '账号校对失败，请稍后重试' });
+  }
+});
+
+app.post('/api/auth/third', async (req, res) => {
+  const provider = String(req.body.provider || '');
+  const conf = THIRD_ACCOUNTS[provider];
+  if (!conf) return res.status(400).json({ error: '不支持的登录方式' });
+  try {
+    const u = await latestRegisteredUser();
+    if (!u) return res.status(404).json({ error: '数据库中暂无注册账号，请先完成注册' });
+    const needAuth = thirdNeedAuth(u);
+    if (needAuth && req.body.authorized !== true) {
+      return res.status(403).json({
+        error: `该账号已超过 ${THIRD_TTL_DAYS} 天未登录，请完成授权后再登录`,
+        needAuth: true,
+        account: u.username,
+      });
+    }
+    const token = newToken();
+    await pool.query('INSERT INTO sessions (token, user_id) VALUES (?, ?)', [token, u.id]);
+    await pool.query('UPDATE users SET last_login_at = NOW() WHERE id = ?', [u.id]);
+    res.json({
+      token,
+      user: { name: u.username, guest: false, provider },
+      authorized: needAuth
+    });
+  } catch (e) {
+    res.status(500).json({ error: `${conf.label}授权失败，请稍后重试` });
+  }
 });
 
 /* ---------------- 评论 / 留言 ---------------- */

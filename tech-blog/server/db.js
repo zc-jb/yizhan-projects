@@ -24,6 +24,7 @@ const TABLES = [
     username VARCHAR(32) NOT NULL UNIQUE,
     pass_hash VARCHAR(160) NOT NULL,
     is_guest TINYINT NOT NULL DEFAULT 0,
+    last_login_at DATETIME NULL,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
@@ -141,6 +142,11 @@ export async function initSchema() {
     const [mutedAtCol] = await conn.query("SHOW COLUMNS FROM users LIKE 'muted_at'");
     if (!mutedAtCol.length) {
       await conn.query('ALTER TABLE users ADD COLUMN muted_at DATETIME NULL');
+    }
+    // 兼容旧库：补齐「最近登录时间」字段（第三方登录 3 天免授权判断）
+    const [lastLoginCol] = await conn.query("SHOW COLUMNS FROM users LIKE 'last_login_at'");
+    if (!lastLoginCol.length) {
+      await conn.query('ALTER TABLE users ADD COLUMN last_login_at DATETIME NULL');
     }
   } finally {
     await conn.end();

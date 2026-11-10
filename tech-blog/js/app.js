@@ -1507,10 +1507,128 @@ const Auth = {
   login(name, pass) { return Api.login(name, pass); },
   register(name, pass) { return Api.register(name, pass); },
   guest() { return Api.guestLogin(); },
-  logout() { return Api.logout(); }
+  logout() { return Api.logout(); },
+  rename(name) { return Api.rename(name); },
+  isSensitive(text) { return Api.isSensitive(text); },
+  sendSms(phone) { return Api.sendSms(phone); },
+  registerPhone(phone, code, pass) { return Api.registerPhone(phone, code, pass); },
+  third(provider, authorized) { return Api.thirdLogin(provider, authorized); },
+  thirdStatus(provider) { return Api.thirdStatus(provider); }
 };
 
+/* ---------- 头像偏好（本地存储，游客与账号通用） ---------- */
+const AVATAR_PRESETS = ['🚶','👤','🧑‍🎓','👨‍💻','👩‍💻','🎓','🐱','🐶','🦊','🐼','🌈','⚡','🔥','🎨','🚀','☕','🍀','🎯'];
+const Avatar = {
+  _key(name) { return 'tb_avatar_' + (name || ''); },
+  get(name) {
+    if (!name) return '👤';
+    try { return localStorage.getItem(this._key(name)) || null; } catch { return null; }
+  },
+  set(name, val) {
+    try { localStorage.setItem(this._key(name), val); } catch {}
+  },
+  clear(name) {
+    try { localStorage.removeItem(this._key(name)); } catch {}
+  },
+  defaultOf(name) { return name && name.startsWith('游客_') ? '🚶' : '👤'; },
+  /* 返回头像显示值（emoji 或 dataURL） */
+  display(name) { return this.get(name) || this.defaultOf(name); },
+  isImage(v) { return typeof v === 'string' && v.startsWith('data:image'); },
+  /* 生成头像 HTML：图片用 <img>，否则用 emoji 文本 */
+  html(name, size) {
+    const v = this.display(name);
+    const s = size ? `style="width:${size}px;height:${size}px"` : '';
+    if (this.isImage(v)) {
+      return `<img src="${v}" class="av-img" ${s} alt="头像">`;
+    }
+    return `<span class="av-emoji" ${s}>${esc(v)}</span>`;
+  }
+};
+
+/* 注册成功后待回填到登录页的账号 */
+let pendingLoginName = '';
+
+/* 生成演示用二维码图案（非真实可扫，仅作视觉占位） */
+function qrSVG(seed) {
+  const N = 25, cell = 7, size = N * cell;
+  let s = (seed || 1) % 99991;
+  const rnd = () => { s = (s * 9301 + 49297) % 233280; return s / 233280; };
+  const inEye = (x, y) => (x < 7 && y < 7) || (x >= N - 7 && y < 7) || (x < 7 && y >= N - 7);
+  let rects = '';
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      if (inEye(x, y)) continue;
+      if (rnd() > 0.52) rects += `<rect x="${x * cell}" y="${y * cell}" width="${cell}" height="${cell}"/>`;
+    }
+  }
+  const eye = (x, y) => `<rect x="${x * cell}" y="${y * cell}" width="${7 * cell}" height="${7 * cell}" fill="none" stroke="#111" stroke-width="${cell}"/>` +
+    `<rect x="${(x + 2) * cell}" y="${(y + 2) * cell}" width="${3 * cell}" height="${3 * cell}"/>`;
+  return `<svg viewBox="0 0 ${size} ${size}" width="168" height="168" xmlns="http://www.w3.org/2000/svg" fill="#111">
+    <rect width="${size}" height="${size}" fill="#fff"/>${rects}${eye(0, 0)}${eye(N - 7, 0)}${eye(0, N - 7)}</svg>`;
+}
+
+/* ---------- 第三方登录：校对数据库最新注册账号 + 3 天未登录需授权 ---------- */
+const THIRD_LABEL = { wechat: '微信', qq: 'QQ', qr: '扫码' };
+
+function showThirdAuth(provider, st, report) {
+  const old = document.getElementById('thirdAuthMask');
+  if (old) old.remove();
+  const label = THIRD_LABEL[provider] || '第三方';
+  const lastTxt = st.lastLoginAt
+    ? (st.days <= 0 ? '今天' : `${st.days} 天前`)
+    : '从未登录';
+  const m = document.createElement('div');
+  m.id = 'thirdAuthMask';
+  m.className = 'pf-mask';
+  m.innerHTML = `
+    <div class="pf-box" style="max-width:380px">
+      <button class="pf-x" id="taX">✕</button>
+      <div class="qr-box">${qrSVG(Date.now() % 99991 + 7)}</div>
+      <h3 class="lo-title">${label}授权登录</h3>
+      <p class="lo-sub">校对账号：<b>${esc(st.account || '')}</b></p>
+      <p class="pf-tip" style="margin:0 0 14px">
+        最近登录：${esc(lastTxt)}（已超过 ${st.ttlDays || 3} 天）<br>
+        安全策略：超过 ${st.ttlDays || 3} 天未登录，需重新授权后方可登录
+      </p>
+      <div class="pf-actions">
+        <button class="pf-btn primary" id="taOk">🔐 确认授权并登录</button>
+        <button class="pf-btn ghost" id="taNo">取消</button>
+      </div>
+    </div>`;
+  document.body.appendChild(m);
+  m.onclick = e => { if (e.target === m) m.remove(); };
+  m.querySelector('#taX').onclick = () => m.remove();
+  m.querySelector('#taNo').onclick = () => m.remove();
+  const ok = m.querySelector('#taOk');
+  ok.onclick = async () => {
+    ok.disabled = true;
+    ok.textContent = '授权中…';
+    const e = await Auth.third(provider, true);
+    if (e) {
+      ok.disabled = false;
+      ok.textContent = '🔐 确认授权并登录';
+      return report(e);
+    }
+    m.remove();
+    afterLogin();
+  };
+}
+
+/* 第三方登录统一流程：先查最新注册账号，再判断是否需要授权 */
+async function thirdLoginFlow(provider, report) {
+  const st = await Auth.thirdStatus(provider);
+  if (!st || st.ok === false || st.error) {
+    return report((st && st.error) || '账号校对失败，请稍后重试');
+  }
+  if (st.needAuth) return showThirdAuth(provider, st, report);
+  const e = await Auth.third(provider, false);
+  if (e) return report(e);
+  afterLogin();
+}
+
 function vAuth() {
+  const prefill = pendingLoginName;
+  pendingLoginName = '';
   app.innerHTML = `
   <div class="auth-wrap">
     <div class="auth-card">
@@ -1521,43 +1639,220 @@ function vAuth() {
         <button class="auth-tab on" data-t="login">登 录</button>
         <button class="auth-tab" data-t="reg">注 册</button>
       </div>
-      <div class="auth-form">
-        <input id="auName" placeholder="👤 账号 / 昵称" maxlength="16" autocomplete="username">
-        <input id="auPass" type="password" placeholder="🔒 密码（至少 4 位）" maxlength="24">
-        <div class="auth-err" id="auErr"></div>
-        <button class="auth-btn" id="auGo">进入驿站</button>
+
+      <!-- 登录面板 -->
+      <div class="auth-pane" id="paneLogin">
+        <div class="auth-form">
+          <input id="auName" placeholder="👤 账号 / 手机号" maxlength="16" autocomplete="username">
+          <input id="auPass" type="password" placeholder="🔒 密码（至少 4 位）" maxlength="24">
+          <div class="cap-row">
+            <div class="cap-q" id="capQ">-- + -- = ?</div>
+            <input id="capA" class="cap-a" placeholder="请计算" maxlength="4" inputmode="numeric">
+            <button class="cap-refresh" id="capNew" type="button" title="换一题">↻</button>
+          </div>
+          <div class="auth-err" id="auErr"></div>
+          <button class="auth-btn" id="auGo">进入驿站</button>
+        </div>
+        <div class="auth-div"><span>第三方账号</span></div>
+        <div class="oauth-row">
+          <button class="oauth-btn wechat" data-p="wechat" type="button">💬 微信登录</button>
+          <button class="oauth-btn qq" data-p="qq" type="button">🐧 QQ登录</button>
+          <button class="oauth-btn qr" data-p="qr" type="button">📱 扫码登录</button>
+        </div>
+        <div class="auth-div"><span>或者</span></div>
+        <button class="auth-guest" id="auGuest">🚶 游客登录 · 随便逛逛</button>
+        <p class="auth-tip">游客模式无需账号，数据仅保存在本机浏览器中</p>
       </div>
-      <div class="auth-div"><span>或者</span></div>
-      <button class="auth-guest" id="auGuest">🚶 游客登录 · 随便逛逛</button>
-      <p class="auth-tip">游客模式无需账号，数据仅保存在本机浏览器中</p>
+
+      <!-- 注册面板 -->
+      <div class="auth-pane" id="paneReg" hidden>
+        <div class="reg-methods">
+          <button class="reg-method on" data-m="phone" type="button">📱 手机号注册</button>
+          <button class="reg-method" data-m="wechat" type="button">💬 微信</button>
+          <button class="reg-method" data-m="qq" type="button">🐧 QQ</button>
+          <button class="reg-method" data-m="qr" type="button">📷 扫码</button>
+        </div>
+        <div id="regPhone">
+          <div class="auth-form">
+            <input id="rgPhone" placeholder="📱 手机号（11 位）" maxlength="11" inputmode="tel">
+            <div class="sms-row">
+              <input id="rgCode" placeholder="🔑 短信验证码" maxlength="6" inputmode="numeric">
+              <button class="sms-btn" id="smsBtn" type="button">获取验证码</button>
+            </div>
+            <input id="rgPass" type="password" placeholder="🔒 设置密码（至少 4 位）" maxlength="24">
+            <div class="auth-err" id="rgErr"></div>
+            <button class="auth-btn" id="rgGo">注册账号</button>
+          </div>
+          <p class="auth-tip" id="smsTip">验证码 120 秒内有效；演示环境会直接显示验证码</p>
+        </div>
+        <div id="regThird" hidden>
+          <div class="qr-box" id="qrBox"></div>
+          <p class="qr-tip" id="qrTip">请使用微信扫描二维码</p>
+          <button class="auth-btn" id="qrSim" type="button">模拟扫码完成</button>
+          <p class="auth-tip">演示环境：未接入真实开放平台，点击上方按钮即可体验完整流程</p>
+        </div>
+      </div>
     </div>
   </div>`;
-  let mode = 'login';
-  const err = $('#auErr'), go = $('#auGo');
-  $$('.auth-tab').forEach(t => t.onclick = () => {
-    mode = t.dataset.t;
-    $$('.auth-tab').forEach(x => x.classList.toggle('on', x === t));
-    go.textContent = mode === 'login' ? '进入驿站' : '注册并进入';
-    err.textContent = '';
-  });
-  const fail = m => { err.textContent = m; err.classList.remove('shake'); void err.offsetWidth; err.classList.add('shake'); };
-  const submit = async () => {
+
+  let capAns = 0;
+  let regMethod = 'phone';
+  let smsTimer = null;
+  let smsLeft = 0;
+  const err = $('#auErr'), go = $('#auGo'), regErr = $('#rgErr');
+
+  const shake = el => { el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake'); };
+  const fail = m => { err.textContent = m; shake(err); };
+  const failReg = m => { regErr.textContent = m; shake(regErr); };
+
+  /* 算术校验：100 左右的加减法 */
+  const newCaptcha = () => {
+    const plus = Math.random() < 0.6;
+    let a, b;
+    if (plus) {
+      a = 25 + Math.floor(Math.random() * 80);
+      b = 10 + Math.floor(Math.random() * 70);
+      capAns = a + b;
+      $('#capQ').textContent = `${a} + ${b} = ?`;
+    } else {
+      a = 80 + Math.floor(Math.random() * 120);
+      b = 10 + Math.floor(Math.random() * 60);
+      capAns = a - b;
+      $('#capQ').textContent = `${a} − ${b} = ?`;
+    }
+    $('#capA').value = '';
+  };
+
+  /* 登录 / 注册页签 */
+  const switchTab = t => {
+    $$('.auth-tab').forEach(x => x.classList.toggle('on', x.dataset.t === t));
+    $('#paneLogin').hidden = t !== 'login';
+    $('#paneReg').hidden = t !== 'reg';
+    err.textContent = ''; regErr.textContent = '';
+    if (t === 'login') newCaptcha();
+    else $('#rgPhone').focus();
+  };
+  $$('.auth-tab').forEach(t => t.onclick = () => switchTab(t.dataset.t));
+
+  /* 注册方式切换 */
+  const switchReg = m => {
+    regMethod = m;
+    $$('.reg-method').forEach(x => x.classList.toggle('on', x.dataset.m === m));
+    $('#regPhone').hidden = m !== 'phone';
+    $('#regThird').hidden = m === 'phone';
+    regErr.textContent = '';
+    if (m !== 'phone') {
+      $('#qrBox').innerHTML = qrSVG(Date.now() % 99991 + 7);
+      const who = m === 'wechat' ? '微信' : m === 'qq' ? 'QQ' : '手机相机';
+      $('#qrTip').textContent = `请使用${who}扫描二维码完成注册`;
+      $('#qrSim').textContent = m === 'qr' ? '模拟扫码完成注册' : `模拟${m === 'qq' ? 'QQ' : '微信'}授权并进入`;
+    }
+  };
+  $$('.reg-method').forEach(b => b.onclick = () => switchReg(b.dataset.m));
+
+  /* 登录：账号密码 + 算术校验 */
+  const submitLogin = async () => {
     if (go.disabled) return;
     const name = $('#auName').value.trim(), pass = $('#auPass').value;
-    if (!name) return fail('请输入账号 / 昵称');
+    if (!name) return fail('请输入账号 / 手机号');
     if (!pass || pass.length < 4) return fail('密码至少 4 位');
+    const av = $('#capA').value.trim();
+    if (!av) return fail('请完成算术验证');
+    if (Number(av) !== capAns) { newCaptcha(); return fail('算术验证错误，请重新计算'); }
     go.disabled = true;
     const label = go.textContent;
-    go.textContent = '请稍候…';
-    const e = mode === 'login' ? await Auth.login(name, pass) : await Auth.register(name, pass);
+    go.textContent = '校验中…';
+    const e = await Auth.login(name, pass);
     go.disabled = false;
     go.textContent = label;
-    if (e) return fail(e);
+    if (e) { newCaptcha(); return fail(e); }
     afterLogin();
   };
-  go.onclick = submit;
-  $('#auName').onkeydown = e => { if (e.key === 'Enter') submit(); };
-  $('#auPass').onkeydown = e => { if (e.key === 'Enter') submit(); };
+  go.onclick = submitLogin;
+  $('#capNew').onclick = newCaptcha;
+  $('#auName').onkeydown = e => { if (e.key === 'Enter') submitLogin(); };
+  $('#auPass').onkeydown = e => { if (e.key === 'Enter') submitLogin(); };
+  $('#capA').onkeydown = e => { if (e.key === 'Enter') submitLogin(); };
+
+  /* 短信验证码：120 秒倒计时 */
+  const startCountdown = sec => {
+    clearInterval(smsTimer);
+    smsLeft = sec;
+    const btn = $('#smsBtn');
+    btn.disabled = true;
+    const tick = () => {
+      if (smsLeft <= 0) {
+        clearInterval(smsTimer);
+        btn.disabled = false;
+        btn.textContent = '重新获取';
+        return;
+      }
+      btn.textContent = `重新获取(${smsLeft}s)`;
+      smsLeft--;
+    };
+    tick();
+    smsTimer = setInterval(tick, 1000);
+  };
+
+  $('#smsBtn').onclick = async () => {
+    const btn = $('#smsBtn');
+    if (btn.disabled) return;
+    const phone = $('#rgPhone').value.trim();
+    if (!/^1[3-9]\d{9}$/.test(phone)) return failReg('请先输入正确的 11 位手机号');
+    btn.disabled = true;
+    btn.textContent = '发送中…';
+    const r = await Auth.sendSms(phone);
+    if (!r || r.error) {
+      btn.disabled = false;
+      btn.textContent = '获取验证码';
+      return failReg((r && r.error) || '验证码发送失败，请重试');
+    }
+    $('#smsTip').innerHTML = `演示验证码：<b class="sms-code">${r.demoCode}</b> ｜ ${r.ttl} 秒内有效，请勿泄露`;
+    startCountdown(r.ttl || 120);
+  };
+
+  /* 手机号注册 */
+  const submitPhoneReg = async () => {
+    const btn = $('#rgGo');
+    if (btn.disabled) return;
+    const phone = $('#rgPhone').value.trim();
+    const code = $('#rgCode').value.trim();
+    const pass = $('#rgPass').value;
+    if (!/^1[3-9]\d{9}$/.test(phone)) return failReg('请输入正确的 11 位手机号');
+    if (!/^\d{6}$/.test(code)) return failReg('请输入 6 位短信验证码');
+    if (!pass || pass.length < 4) return failReg('密码至少 4 位');
+    btn.disabled = true;
+    const label = btn.textContent;
+    btn.textContent = '注册中…';
+    const e = await Auth.registerPhone(phone, code, pass);
+    btn.disabled = false;
+    btn.textContent = label;
+    if (e) return failReg(e);
+    showRegisterSuccess(phone);
+  };
+  $('#rgGo').onclick = submitPhoneReg;
+  $('#rgCode').onkeydown = e => { if (e.key === 'Enter') submitPhoneReg(); };
+  $('#rgPass').onkeydown = e => { if (e.key === 'Enter') submitPhoneReg(); };
+
+  /* 第三方（微信 / QQ / 扫码）：校对最新注册账号，必要时先授权 */
+  $$('.oauth-btn').forEach(b => b.onclick = async () => {
+    if (b.disabled) return;
+    const t = b.textContent;
+    b.disabled = true; b.textContent = '校对账号…';
+    await thirdLoginFlow(b.dataset.p, m => fail(m));
+    b.disabled = false; b.textContent = t;
+  });
+
+  $('#qrSim').onclick = async () => {
+    const b = $('#qrSim');
+    if (b.disabled) return;
+    const t = b.textContent;
+    b.disabled = true; b.textContent = '校对账号…';
+    await thirdLoginFlow(regMethod, m => failReg(m));
+    b.disabled = false; b.textContent = t;
+  };
+
+  /* 游客登录 */
   $('#auGuest').onclick = async () => {
     const g = $('#auGuest');
     if (g.disabled) return;
@@ -1566,7 +1861,37 @@ function vAuth() {
     if (e) { g.disabled = false; g.textContent = '🚶 游客登录 · 随便逛逛'; return fail(e); }
     afterLogin();
   };
-  setTimeout(() => $('#auName').focus(), 60);
+
+  /* 注册成功页：可点击返回登录，或 3 秒倒计时自动返回 */
+  function showRegisterSuccess(account) {
+    clearInterval(smsTimer);
+    app.innerHTML = `<div class="auth-wrap">
+      <div class="auth-card reg-success">
+        <div class="ok-badge">✓</div>
+        <h1 class="auth-title">已注册成功！！</h1>
+        <p class="auth-sub">账号：<b>${esc(account)}</b></p>
+        <button class="success-link" id="okGo" type="button">请返回登录页登录</button>
+        <p class="auth-tip" id="okTip">3 秒后自动返回登录页…</p>
+      </div>
+    </div>`;
+    let left = 3;
+    const tip = $('#okTip');
+    const back = () => { pendingLoginName = account; vAuth(); };
+    const timer = setInterval(() => {
+      left--;
+      if (left <= 0) { clearInterval(timer); back(); return; }
+      tip.textContent = `${left} 秒后自动返回登录页…`;
+    }, 1000);
+    $('#okGo').onclick = () => { clearInterval(timer); back(); };
+  }
+
+  newCaptcha();
+  if (prefill) {
+    $('#auName').value = prefill;
+    setTimeout(() => $('#auPass').focus(), 80);
+  } else {
+    setTimeout(() => $('#auName').focus(), 60);
+  }
 }
 
 function renderUserChip() {
@@ -1574,12 +1899,241 @@ function renderUserChip() {
   if (!chip || !out) return;
   if (u) {
     chip.style.display = '';
-    chip.textContent = (Auth.isGuest() ? '🚶 ' : '👤 ') + u;
-    chip.title = Auth.isGuest() ? '游客模式' : '已登录账号';
+    chip.innerHTML = `${Avatar.html(u, 16)}<span class="chip-name">${esc(u)}</span>`;
+    chip.title = '点击查看个人信息 / 更换头像';
+    chip.onclick = () => showProfileModal();
     out.style.display = '';
   } else {
     chip.style.display = 'none'; out.style.display = 'none';
   }
+}
+
+/* ---------- 个人信息弹窗（点击用户头像/昵称） ---------- */
+function showProfileModal() {
+  const u = Auth.user();
+  if (!u) return;
+  const guest = Auth.isGuest();
+  const old = document.getElementById('pfModal');
+  if (old) old.remove();
+  const m = document.createElement('div');
+  m.id = 'pfModal';
+  m.className = 'pf-mask';
+  m.innerHTML = `<div class="pf-box">
+    <button class="pf-x" id="pfX" title="关闭">✕</button>
+    <div class="pf-avatar" id="pfAvatar" title="点击更换头像">${Avatar.html(u)}</div>
+    <p class="pf-tip" style="margin:0 0 8px">点击头像可更换</p>
+    <h3 class="pf-name">${esc(u)}</h3>
+    <span class="pf-role ${guest ? 'guest' : 'member'}">${guest ? '游客模式' : '正式账号'}</span>
+    <ul class="pf-rows">
+      <li class="pf-row" id="pfAccountRow">
+        <span>账号</span>
+        <span class="pf-acct">
+          <b id="pfAcctText">${esc(u)}</b>
+          <button class="pf-edit-btn" id="pfEditName" title="修改昵称">✏️</button>
+        </span>
+      </li>
+      <li class="pf-row"><span>身份</span><b>${guest ? '游客' : '注册用户'}</b></li>
+    </ul>
+    <div class="pf-actions">
+      <button class="pf-btn ghost" id="pfAvatarBtn">🖼️ 更换头像</button>
+      ${guest ? '<button class="pf-btn primary" id="pfReg">✨ 注册正式账号</button>' : ''}
+      <button class="pf-btn ghost" id="pfSwitch">🔄 切换账号</button>
+      <button class="pf-btn danger" id="pfOut">⏻ 退出登录</button>
+    </div>
+    ${guest ? '<p class="pf-tip">游客模式无需账号，数据仅保存在本机浏览器；注册正式账号可云端同步并解锁全部套餐</p>' : ''}
+  </div>`;
+  document.body.appendChild(m);
+  m.onclick = e => { if (e.target === m) m.remove(); };
+  $('#pfX').onclick = () => m.remove();
+  $('#pfAvatar').onclick = () => showAvatarPicker(u, v => { Avatar.set(u, v); refreshAvatarInModal(u); renderUserChip(); });
+  $('#pfAvatarBtn').onclick = () => showAvatarPicker(u, v => { Avatar.set(u, v); refreshAvatarInModal(u); renderUserChip(); });
+  $('#pfEditName').onclick = () => startEditName(u);
+  $('#pfSwitch').onclick = () => { m.remove(); switchAccount(); };
+  $('#pfOut').onclick = () => { m.remove(); doLogout('👋 已退出登录，欢迎下次再来'); };
+  const reg = $('#pfReg');
+  if (reg) reg.onclick = () => { m.remove(); doLogout('', true); };
+}
+
+/* ---------- 修改昵称（个人信息弹窗内联编辑） ---------- */
+function startEditName(oldName) {
+  const row = $('#pfAccountRow');
+  if (!row) return;
+  row.innerHTML = `
+    <span>账号</span>
+    <span class="pf-acct-edit">
+      <input id="pfNameInput" class="pf-name-input" maxlength="16" value="${esc(oldName)}" autocomplete="off">
+      <button class="pf-edit-btn" id="pfSaveName" title="保存">✓</button>
+      <button class="pf-edit-btn" id="pfCancelName" title="取消">✕</button>
+    </span>
+    <span class="pf-name-err" id="pfNameErr"></span>`;
+  const input = $('#pfNameInput');
+  const errEl = $('#pfNameErr');
+  input.focus();
+  input.select();
+  const setErr = m => { errEl.textContent = m || ''; };
+  const finishEdit = (newName) => {
+    row.innerHTML = `<span>账号</span><span class="pf-acct"><b id="pfAcctText">${esc(newName)}</b><button class="pf-edit-btn" id="pfEditName" title="修改昵称">✏️</button></span>`;
+    $('#pfEditName').onclick = () => startEditName(newName);
+  };
+  const save = async () => {
+    const v = input.value.trim();
+    if (!v) return setErr('昵称不能为空');
+    if (v.length > 16) return setErr('昵称最多 16 个字符');
+    if (Auth.isSensitive(v)) return setErr('昵称包含敏感词，请更换');
+    if (v === oldName) { finishEdit(oldName); return; }
+    const btn = $('#pfSaveName');
+    btn.disabled = true; btn.textContent = '…';
+    setErr('');
+    const e = await Auth.rename(v);
+    btn.disabled = false; btn.textContent = '✓';
+    if (e) return setErr(e);
+    /* 改名成功：迁移头像 key，刷新弹窗昵称与顶栏 */
+    const av = Avatar.get(oldName);
+    if (av) { Avatar.set(v, av); Avatar.clear(oldName); }
+    const nmEl = document.querySelector('#pfModal .pf-name');
+    if (nmEl) nmEl.textContent = v;
+    finishEdit(v);
+    renderUserChip();
+    toast('✅ 昵称已更新');
+  };
+  $('#pfSaveName').onclick = save;
+  $('#pfCancelName').onclick = () => finishEdit(oldName);
+  input.onkeydown = e => {
+    if (e.key === 'Enter') save();
+    else if (e.key === 'Escape') finishEdit(oldName);
+  };
+  input.oninput = () => setErr('');
+}
+
+/* 头像更换后实时刷新个人信息弹窗里的头像 */
+function refreshAvatarInModal(name) {
+  const a = $('#pfAvatar');
+  if (a) a.innerHTML = Avatar.html(name);
+}
+
+/* ---------- 头像选择器（预设 emoji + 本地上传图片） ---------- */
+function showAvatarPicker(name, onDone) {
+  const old = document.getElementById('avPicker');
+  if (old) old.remove();
+  const cur = Avatar.display(name);
+  const m = document.createElement('div');
+  m.id = 'avPicker';
+  m.className = 'pf-mask';
+  m.innerHTML = `<div class="pf-box" style="max-width:380px">
+    <button class="pf-x" id="avX" title="关闭">✕</button>
+    <h3 class="lo-title">🖼️ 选择头像</h3>
+    <p class="pf-tip">从下方表情中选择，或上传一张本地图片</p>
+    <div class="av-preview" id="avPreview">${Avatar.html(name, 56)}</div>
+    <div class="av-grid" id="avGrid">
+      ${AVATAR_PRESETS.map(e => `<button class="av-emoji-item ${e === cur ? 'on' : ''}" data-e="${esc(e)}">${e}</button>`).join('')}
+    </div>
+    <div class="pf-actions" style="margin-top:14px">
+      <button class="pf-btn primary" id="avUpload">📷 上传图片</button>
+      <button class="pf-btn ghost" id="avReset">↺ 恢复默认</button>
+      <button class="pf-btn ghost" id="avClose">完成</button>
+    </div>
+    <p class="pf-tip">上传的图片会自动压缩并保存在本机浏览器</p>
+    <input type="file" id="avFile" accept="image/*" style="display:none">
+  </div>`;
+  document.body.appendChild(m);
+  m.onclick = e => { if (e.target === m) m.remove(); };
+  $('#avX').onclick = () => m.remove();
+  $('#avClose').onclick = () => m.remove();
+  $('#avGrid').onclick = e => {
+    const b = e.target.closest('.av-emoji-item');
+    if (!b) return;
+    const v = b.dataset.e;
+    Avatar.set(name, v);
+    onDone(v);
+    $('#avPreview').innerHTML = Avatar.html(name, 56);
+    document.querySelectorAll('.av-emoji-item').forEach(x => x.classList.toggle('on', x.dataset.e === v));
+  };
+  $('#avUpload').onclick = () => $('#avFile').click();
+  $('#avReset').onclick = () => {
+    Avatar.clear(name);
+    const v = Avatar.display(name);
+    onDone(v);
+    $('#avPreview').innerHTML = Avatar.html(name, 56);
+    document.querySelectorAll('.av-emoji-item').forEach(x => x.classList.toggle('on', x.dataset.e === v));
+    toast('已恢复默认头像');
+  };
+  $('#avFile').onchange = () => {
+    const f = $('#avFile').files && $('#avFile').files[0];
+    if (!f) return;
+    if (f.size > 5 * 1024 * 1024) { toast('图片不能超过 5MB'); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const max = 160;
+        let w = img.width, h = img.height;
+        if (w > h) { if (w > max) { h = Math.round(h * max / w); w = max; } }
+        else { if (h > max) { w = Math.round(w * max / h); h = max; } }
+        const c = document.createElement('canvas');
+        c.width = w; c.height = h;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        const dataURL = c.toDataURL('image/jpeg', 0.82);
+        Avatar.set(name, dataURL);
+        onDone(dataURL);
+        $('#avPreview').innerHTML = Avatar.html(name, 56);
+        toast('头像已更新');
+      };
+      img.onerror = () => toast('图片读取失败');
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(f);
+  };
+}
+
+/* ---------- 退出登录选择框（点击 ⏻ 按钮） ---------- */
+function showLogoutModal() {
+  const u = Auth.user();
+  if (!u) return;
+  const old = document.getElementById('loModal');
+  if (old) old.remove();
+  const m = document.createElement('div');
+  m.id = 'loModal';
+  m.className = 'pf-mask';
+  m.innerHTML = `<div class="pf-box">
+    <button class="pf-x" id="loX" title="取消">✕</button>
+    <div class="pf-avatar">${Avatar.html(u)}</div>
+    <h3 class="lo-title">⏻ 退出登录</h3>
+    <p class="lo-sub">当前账号：<b>${esc(u)}</b>${Auth.isGuest() ? '（游客）' : ''}</p>
+    <div class="pf-actions">
+      <button class="pf-btn primary" id="loSwitch">🔄 切换账号</button>
+      <button class="pf-btn danger" id="loOut">⏻ 退出登录</button>
+      <button class="pf-btn ghost" id="loCancel">取 消</button>
+    </div>
+    <p class="pf-tip">「切换账号」将退出当前账号并跳转到登录页；「退出登录」将结束本次会话</p>
+  </div>`;
+  document.body.appendChild(m);
+  m.onclick = e => { if (e.target === m) m.remove(); };
+  $('#loX').onclick = () => m.remove();
+  $('#loCancel').onclick = () => m.remove();
+  $('#loSwitch').onclick = () => { m.remove(); switchAccount(); };
+  $('#loOut').onclick = () => { m.remove(); doLogout('👋 已退出登录，欢迎下次再来'); };
+}
+
+/* ---------- 退出并回到登录页（可指定切到注册页签） ---------- */
+async function doLogout(tip, goReg) {
+  await Auth.logout();
+  const cr = $('#codeRemind'); if (cr) cr.remove();
+  renderUserChip(); route();
+  if (goReg) {
+    const tab = document.querySelector('.auth-tab[data-t="reg"]');
+    if (tab) tab.click();
+    setTimeout(() => { const n = $('#auName'); if (n) n.focus(); }, 120);
+    toast('✨ 已退出游客模式，请注册正式账号');
+  } else if (tip) {
+    toast(tip);
+  }
+}
+
+/* ---------- 切换账号：退出当前账号并聚焦登录输入框 ---------- */
+function switchAccount() {
+  doLogout('🔄 已退出当前账号，请登录新账号');
+  setTimeout(() => { const n = $('#auName'); if (n) n.focus(); }, 120);
 }
 
 function afterLogin() {
@@ -1804,11 +2358,7 @@ window.addEventListener('hashchange', route);
 })();
 
 /* ---------- 启动 ---------- */
-$('#logoutBtn').onclick = async () => {
-  await Auth.logout();
-  const cr = $('#codeRemind'); if (cr) cr.remove();
-  renderUserChip(); route();
-};
+$('#logoutBtn').onclick = () => showLogoutModal();
 (async () => {
   await Api.boot();
   renderUserChip();

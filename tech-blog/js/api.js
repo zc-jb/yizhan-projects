@@ -5,13 +5,25 @@ window.Api = (function () {
     cmt: s => 'blog-cmt-' + s, liked: s => 'blog-liked-' + s,
     guest: 'blog-guest', guestLiked: 'blog-liked-guest',
     uses: 'blog-work-uses', plans: 'blog-work-plan', codes: 'blog-used-codes',
-    wLikes: 'blog-work-likes', wLiked: 'blog-liked-works'
+    wLikes: 'blog-work-likes', wLiked: 'blog-liked-works', thirdLast: 'tb_third_last'
   };
   const store = {
     get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} },
     del(k) { try { localStorage.removeItem(k); } catch (e) {} }
   };
+
+  /* 敏感词库（与后端 server/index.js 保持一致，注册/改名统一拦截） */
+  const SENSITIVE_WORDS = [
+    '操你妈','草泥马','傻逼','傻b','sb','妈的','他妈的','他妈','滚蛋','王八蛋','婊子','贱货','狗东西','脑残','弱智','废物','垃圾','狗屎','去死','畜生','混蛋','混帐','狗娘养','cnm','nmsl','fuck','shit','bitch','asshole','motherfucker','nm'];
+  function isSensitive(text) {
+    if (!text) return false;
+    const t = String(text).toLowerCase().replace(/[\s_\-\.]+/g, '');
+    return SENSITIVE_WORDS.some(w => {
+      const k = w.toLowerCase().replace(/[\s_\-\.]+/g, '');
+      return k && t.includes(k);
+    });
+  }
 
   let online = false;
   let token = '';
@@ -89,10 +101,112 @@ window.Api = (function () {
     }
     const us = store.get(K.users, []);
     if (us.some(x => x.name === name)) return '该账号已被注册，请直接登录';
+    if (isSensitive(name)) return '账号包含敏感词，请更换';
     us.push({ name, pass });
     store.set(K.users, us);
     store.set(K.session, { name, guest: false });
     me = { name, guest: false };
+    return null;
+  }
+
+  async function rename(newName) {
+    newName = String(newName || '').trim();
+    if (!me) return '请先登录';
+    if (!newName || newName.length > 16) return '昵称需 1-16 个字符';
+    if (isSensitive(newName)) return '昵称包含敏感词，请更换';
+    if (newName === me.name) return null;
+    if (online) {
+      try {
+        const d = await req('/auth/rename', { method: 'POST', body: JSON.stringify({ username: newName }) });
+        if (d.user) me = d.user;
+        return null;
+      } catch (e) { return e.message; }
+    }
+    const us = store.get(K.users, []);
+    if (us.some(x => x.name === newName)) return '该昵称已被占用，请更换';
+    const idx = us.findIndex(x => x.name === me.name);
+    if (idx >= 0) us[idx].name = newName;
+    store.set(K.users, us);
+    const s = store.get(K.session, null);
+    if (s) { s.name = newName; store.set(K.session, s); }
+    me = { name: newName, guest: !!me.guest };
+    return null;
+  }
+
+  /* ---------------- 手机号注册 / 第三方登录 ---------------- */
+  let _offlineSms = null; // 离线模式下的验证码（120 秒有效）
+
+  async function sendSms(phone) {
+    if (online) {
+      try { return await req('/auth/sms/send', { method: 'POST', body: JSON.stringify({ phone }) }); }
+      catch (e) { return { error: e.message }; }
+    }
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    _offlineSms = { phone, code, exp: Date.now() + 120000 };
+    return { ok: true, ttl: 120, demoCode: code, offline: true };
+  }
+
+  async function registerPhone(phone, code, pass) {
+    if (online) {
+      try {
+        const d = await req('/auth/register-phone', {
+          method: 'POST',
+          body: JSON.stringify({ phone, code, password: pass })
+        });
+        token = d.token; store.set(K.token, token); me = d.user;
+        return null;
+      } catch (e) { return e.message; }
+    }
+    if (!_offlineSms || _offlineSms.phone !== phone) return '请先获取短信验证码';
+    if (Date.now() > _offlineSms.exp) { _offlineSms = null; return '验证码已过期（120 秒），请重新获取'; }
+    if (_offlineSms.code !== String(code)) return '验证码不正确，请重新输入';
+    const us = store.get(K.users, []);
+    if (us.some(x => x.name === phone)) return '该手机号已注册，请直接登录';
+    us.push({ name: phone, pass });
+    store.set(K.users, us);
+    store.set(K.session, { name: phone, guest: false });
+    me = { name: phone, guest: false };
+    _offlineSms = null;
+    return null;
+  }
+
+  /* 第三方登录：校对数据库中最新的注册账号，超过 3 天未登录需授权 */
+  const THIRD_TTL_MS = 3 * 24 * 60 * 60 * 1000;
+
+  async function thirdStatus(provider) {
+    if (online) {
+      try { return await req('/auth/third/status?provider=' + encodeURIComponent(provider || '')); }
+      catch (e) { return { ok: false, error: e.message }; }
+    }
+    const us = store.get(K.users, []);
+    const u = us[us.length - 1];
+    if (!u) return { ok: false, error: '数据库中暂无注册账号，请先完成注册' };
+    const last = store.get(K.thirdLast, 0) || 0;
+    const needAuth = !last || Date.now() - last > THIRD_TTL_MS;
+    return {
+      ok: true, account: u.name, lastLoginAt: last || null,
+      days: last ? Math.floor((Date.now() - last) / 864e5) : null,
+      needAuth, ttlDays: 3
+    };
+  }
+
+  async function thirdLogin(provider, authorized) {
+    if (online) {
+      try {
+        const d = await req('/auth/third', {
+          method: 'POST',
+          body: JSON.stringify({ provider, authorized: authorized === true })
+        });
+        token = d.token; store.set(K.token, token); me = d.user;
+        return null;
+      } catch (e) { return e.message; }
+    }
+    const st = await thirdStatus(provider);
+    if (!st.ok) return st.error;
+    if (st.needAuth && authorized !== true) return `该账号已超过 3 天未登录，请完成授权后再登录`;
+    store.set(K.thirdLast, Date.now());
+    store.set(K.session, { name: st.account, guest: false });
+    me = { name: st.account, guest: false };
     return null;
   }
 
@@ -357,7 +471,8 @@ window.Api = (function () {
 
   return {
     boot, get online() { return online; }, user, isGuest,
-    login, register, guestLogin, logout,
+    login, register, guestLogin, logout, rename, isSensitive,
+    sendSms, registerPhone, thirdLogin, thirdStatus,
     comments, addComment, delComment, likeComment, notice, submitAppeal,
     worksStatus, useWork, redeem, myCodes, workLikes, toggleWorkLike, acc2code,
     showcase, orderWork, worksHot
