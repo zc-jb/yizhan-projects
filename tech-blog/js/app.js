@@ -411,32 +411,97 @@ function card(p) {
 
 let homeState = { q: '', cat: '', page: 1 };
 
+/* Hero 右侧代码窗：多段代码素材，用于每 3 秒随机轮播 */
+function artSnippets(postCount, tagCount) {
+  const fmt = lines => lines.map(l => `<p>${l}</p>`).join('');
+  return [
+    {
+      file: 'station.js',
+      html: fmt([
+        `<b>const</b> station = <em>await</em> init();`,
+        `<b>station</b>.posts(<span>${postCount}</span>);`,
+        `<b>station</b>.tags(<span>${tagCount}</span>);`,
+        `<b>station</b>.ready(<span>true</span>);`
+      ])
+    },
+    {
+      file: 'app.ts',
+      html: fmt([
+        `<b>import</b> { magic } <b>from</b> <em>'@station/core'</em>;`,
+        `<b>const</b> app = magic({ mode: <span>'fast'</span> });`,
+        `<b>app</b>.use(search, tags, archive);`,
+        `<b>app</b>.listen(<span>3100</span>);`
+      ])
+    },
+    {
+      file: 'query.sql',
+      html: fmt([
+        `<b>SELECT</b> title, tags <b>FROM</b> posts`,
+        `<b>WHERE</b> level &gt;= <span>3</span>`,
+        `<b>ORDER BY</b> created_at <b>DESC</b>`,
+        `<b>LIMIT</b> <span>100</span>;`
+      ])
+    },
+    {
+      file: 'deploy.sh',
+      html: fmt([
+        `<b>docker</b> build -t station:latest .`,
+        `<b>docker</b> run -d -p <span>3100:3100</span> station`,
+        `<b>curl</b> localhost:3100/api/health`,
+        `<span>// {"ok":true,"db":"mysql"}</span>`
+      ])
+    },
+    {
+      file: 'PostList.tsx',
+      html: fmt([
+        `<b>const</b> [posts, setPosts] = <em>useState</em>([]);`,
+        `<b>useEffect</b>(() =&gt; { load().then(setPosts); }, []);`,
+        `<b>return</b> &lt;<em>PostList</em> data={posts} /&gt;;`,
+        `<span>// 首屏 40ms</span>`
+      ])
+    },
+    {
+      file: 'release.sh',
+      html: fmt([
+        `<b>git</b> add . &amp;&amp; <b>git</b> commit -m <span>'feat: 飞速提升'</span>`,
+        `<b>git</b> push origin <em>main</em>`,
+        `<span>✓ build passed in 1.2s</span>`,
+        `<b>deploy</b> → <span>https://station.dev</span>`
+      ])
+    }
+  ];
+}
+
 function vHome() {
   const cats = [...new Set(POSTS.map(p => p.cat))];
   const tagTotal = new Set(POSTS.flatMap(p => p.tags)).size;
+  const snippets = artSnippets(POSTS.length, tagTotal);
   const navTotal = (typeof TOOL_NAV !== 'undefined' ? TOOL_NAV : []).reduce((s, g) => s + g.links.length, 0);
   app.innerHTML = `
     <section class="hero">
       <div class="hero-in">
         <span class="hero-badge">⚡ Tech Station · 技术驿站</span>
         <h1>把复杂的技术，<em>讲得简单</em></h1>
-        <div class="hero-marquee" aria-label="100+ 作品在线体验">
-          <div class="hero-marquee-track">
-            <span class="hm"><b>100+</b>作品在线体验</span><i class="hm-sep"></i>
-            <span class="hm"><b>100+</b>作品在线体验</span><i class="hm-sep"></i>
-            <span class="hm"><b>100+</b>作品在线体验</span><i class="hm-sep"></i>
-            <span class="hm"><b>100+</b>作品在线体验</span><i class="hm-sep"></i>
-            <span class="hm"><b>100+</b>作品在线体验</span><i class="hm-sep"></i>
-            <span class="hm"><b>100+</b>作品在线体验</span><i class="hm-sep"></i>
-            <span class="hm"><b>100+</b>作品在线体验</span><i class="hm-sep"></i>
-            <span class="hm"><b>100+</b>作品在线体验</span><i class="hm-sep"></i>
+        <div class="hero-ticker">
+          <span class="ht-label"><i></i>LIVE</span>
+          <div class="hero-marquee" aria-label="100+ 作品在线体验">
+            <div class="hero-marquee-track">
+              <span class="hm"><b>100+</b>作品在线体验</span><i class="hm-sep"></i>
+              <span class="hm"><b>100+</b>作品在线体验</span><i class="hm-sep"></i>
+              <span class="hm"><b>100+</b>作品在线体验</span><i class="hm-sep"></i>
+              <span class="hm"><b>100+</b>作品在线体验</span><i class="hm-sep"></i>
+              <span class="hm"><b>100+</b>作品在线体验</span><i class="hm-sep"></i>
+              <span class="hm"><b>100+</b>作品在线体验</span><i class="hm-sep"></i>
+              <span class="hm"><b>100+</b>作品在线体验</span><i class="hm-sep"></i>
+              <span class="hm"><b>100+</b>作品在线体验</span><i class="hm-sep"></i>
+            </div>
           </div>
         </div>
-        <div class="hero-stats">
-          <div><b>${POSTS.length}</b><span>技术长文</span></div>
-          <div><b>${cats.length}</b><span>内容方向</span></div>
-          <div><b>${tagTotal}</b><span>技术标签</span></div>
-        </div>
+        <button type="button" class="hero-boost" id="heroBoost">
+          <span class="hb-icon">🚀</span>
+          <span class="hb-main">飞速提升</span>
+          <span class="hb-arrow">→</span>
+        </button>
         <div class="hero-actions">
           <button type="button" class="hero-btn pri" id="heroRead">开始阅读 →</button>
           <button type="button" class="hero-btn" id="heroConsult">技术咨询</button>
@@ -444,13 +509,8 @@ function vHome() {
       </div>
       <div class="hero-art" aria-hidden="true">
         <div class="art-window" id="artCodeWin">
-          <div class="art-bar"><i></i><i></i><i></i><span>station.js</span></div>
-          <div class="art-code">
-            <p><b>const</b> station = <em>await</em> init();</p>
-            <p><b>station</b>.posts(<span>${POSTS.length}</span>);</p>
-            <p><b>station</b>.tags(<span>${tagTotal}</span>);</p>
-            <p><b>station</b>.ready(<span>true</span>);</p>
-          </div>
+          <div class="art-bar"><i></i><i></i><i></i><span id="artFile">${snippets[0].file}</span></div>
+          <div class="art-code" id="artCode" data-i="0">${snippets[0].html}</div>
           <div class="art-badge">● ONLINE · ALWAYS SHIPPING</div>
         </div>
         <div class="art-window art-about" id="artAbout" hidden>
@@ -527,6 +587,16 @@ function vHome() {
       const enter = $('#artEnter');
       if (enter) enter.hidden = false;
       if (heroRead.isConnected) heroRead.textContent = '进入文章归档 →';
+      /* 全部内容展示完 2 秒后恢复原状（回到 station.js 代码窗） */
+      setTimeout(() => {
+        if (!about.isConnected) return;
+        about.dataset.on = '0';
+        about.hidden = true;
+        codeWin.hidden = false;
+        if (lines) lines.innerHTML = '';
+        if (enter) enter.hidden = true;
+        if (heroRead.isConnected) heroRead.textContent = '开始阅读 →';
+      }, 2000);
     }, 160 + rows.length * 280 + 120);
   });
 
@@ -541,6 +611,31 @@ function vHome() {
     card.classList.add('flash');
     setTimeout(() => card.classList.remove('flash'), 1500);
   });
+
+  /* 点击「飞速提升」：弹出技术咨询二维码 */
+  const heroBoost = $('#heroBoost');
+  if (heroBoost) heroBoost.addEventListener('click', showConsultQR);
+
+  /* 右侧代码窗：每 3 秒随机切换一段代码，避免一直展示同一段 */
+  const codeBox = $('#artCode');
+  const artFile = $('#artFile');
+  clearInterval(window._artCodeTimer);
+  if (codeBox) {
+    let last = 0;
+    window._artCodeTimer = setInterval(() => {
+      if (!codeBox.isConnected) { clearInterval(window._artCodeTimer); return; }
+      const codeWin = $('#artCodeWin');
+      if (codeWin && codeWin.hidden) return; // 「关于本站」展示期间暂停轮播
+      let i = last;
+      while (i === last) i = Math.floor(Math.random() * snippets.length);
+      last = i;
+      codeBox.innerHTML = snippets[i].html;
+      if (artFile) artFile.textContent = snippets[i].file;
+      codeBox.classList.remove('swap');
+      void codeBox.offsetWidth;
+      codeBox.classList.add('swap');
+    }, 3000);
+  }
 
   drawList();
 }
@@ -1273,14 +1368,17 @@ function vTools() {
   };
 }
 
+/* 作品清单（作品页与通知中心共用） */
+const WORKS = [
+  { id: 'poster', icon: '🎨', name: 'AI 海报制作', tagline: '30 秒做出一张能直接发的商业海报', desc: 'HTML / CSS / JS 的纯前端海报工坊：30+ 套模板/画布拖拽编辑/AI 文案与配图/二维码生成，一键导出 PNG、JPG、PDF，无需后端与数据库，打开网页即可使用。', features: ['30+ 模板', 'AI 文案配图', '一键导出'], accent: 'linear-gradient(135deg,#6366f1,#06b6d4)', url: 'http://127.0.0.1:5173/', tag: '在线工具' },
+  { id: 'video', icon: '🎬', name: '影视快看 · 视频解析', tagline: '粘贴链接就能看，免会员高清直达', desc: 'HTML / CSS / JS 的纯前端影视聚合站：链接一键解析/全网影视搜索/剧集选集/沉浸播放，深色界面适配手机，无需后端与数据库，打开网页即可使用。', features: ['全网解析', '免会员观看', '手机适配'], accent: 'linear-gradient(135deg,#ec4899,#f59e0b)', url: 'http://127.0.0.1:3100/vip.html', tag: '在线工具' },
+  { id: 'hotel', icon: '🏨', name: '酒店管理系统', tagline: '从预订到退房结算，全流程在线跑通', desc: 'Spring Boot 3 + Vue3 + MySQL 8 的酒店管理后台：房型/房间/客人/预订/入住/退房/账单一体化，房态自动流转、金额自动核算，首次启动自动生成演示数据，前端已打进 jar。', features: ['房态流转', '自动算价', '真实可体验'], accent: 'linear-gradient(135deg,#0f766e,#2563eb)', badge: '✨ 新品', newSince: '2026-11-08T00:00:00+08:00', url: 'http://127.0.0.1:8080/', tag: '全栈项目' },
+  { id: 'campus', icon: '🎓', name: '校园管理系统', tagline: '学生 · 课程 · 成绩 · 公告，一个后台全管', desc: 'uni-app（Vue3）移动端 + Spring Boot 3 + MySQL 8 + Redis 的校园管理系统：学生/课程/成绩/公告与数据看板，Redis 缓存热点数据并在不可用时自动降级，首次启动自动生成演示数据。', features: ['学生课程成绩', '数据看板', '真实可体验'], accent: 'linear-gradient(135deg,#4f46e5,#06b6d4)', badge: '✨ 新品', newSince: '2026-11-09T00:00:00+08:00', url: 'http://127.0.0.1:8100/', tag: '全栈项目' },
+  { id: 'canteen', icon: '🍜', name: '点餐系统', tagline: '扫码点餐 + 厨房实时看板', desc: 'uni-app / Taro 小程序风格前端 + Node.js（Express）+ MySQL 8 + Redis + WebSocket 的扫码点餐系统：菜单分类/购物车/下单/厨房实时看板/菜品与订单后台，首次启动自动生成演示数据。', features: ['实时下单推送', '厨房看板', '真实可体验'], accent: 'linear-gradient(135deg,#f97316,#ef4444)', url: 'http://127.0.0.1:8200/', tag: '全栈项目' },
+];
+
 async function vWorks() {
-  const works = [
-    { id: 'poster', icon: '🎨', name: 'AI 海报制作', tagline: '30 秒做出一张能直接发的商业海报', desc: 'HTML / CSS / JS 的纯前端海报工坊：30+ 套模板/画布拖拽编辑/AI 文案与配图/二维码生成，一键导出 PNG、JPG、PDF，无需后端与数据库，打开网页即可使用。', features: ['30+ 模板', 'AI 文案配图', '一键导出'], accent: 'linear-gradient(135deg,#6366f1,#06b6d4)', url: 'http://127.0.0.1:5173/', tag: '在线工具', },
-    { id: 'video', icon: '🎬', name: '影视快看 · 视频解析', tagline: '粘贴链接就能看，免会员高清直达', desc: 'HTML / CSS / JS 的纯前端影视聚合站：链接一键解析/全网影视搜索/剧集选集/沉浸播放，深色界面适配手机，无需后端与数据库，打开网页即可使用。', features: ['全网解析', '免会员观看', '手机适配'], accent: 'linear-gradient(135deg,#ec4899,#f59e0b)', url: 'http://127.0.0.1:3100/vip.html', tag: '在线工具', },
-    { id: 'hotel', icon: '🏨', name: '酒店管理系统', tagline: '从预订到退房结算，全流程在线跑通', desc: 'Spring Boot 3 + Vue3 + MySQL 8 的酒店管理后台：房型/房间/客人/预订/入住/退房/账单一体化，房态自动流转、金额自动核算，首次启动自动生成演示数据，前端已打进 jar。', features: ['房态流转', '自动算价', '真实可体验'], accent: 'linear-gradient(135deg,#0f766e,#2563eb)', badge: '✨ 新品', newSince: '2026-11-08T00:00:00+08:00', url: 'http://127.0.0.1:8080/', tag: '全栈项目', },
-    { id: 'campus', icon: '🎓', name: '校园管理系统', tagline: '学生 · 课程 · 成绩 · 公告，一个后台全管', desc: 'uni-app（Vue3）移动端 + Spring Boot 3 + MySQL 8 + Redis 的校园管理系统：学生/课程/成绩/公告与数据看板，Redis 缓存热点数据并在不可用时自动降级，首次启动自动生成演示数据。', features: ['学生课程成绩', '数据看板', '真实可体验'], accent: 'linear-gradient(135deg,#4f46e5,#06b6d4)', badge: '✨ 新品', newSince: '2026-11-09T00:00:00+08:00', url: 'http://127.0.0.1:8100/', tag: '全栈项目', },
-    { id: 'canteen', icon: '🍜', name: '点餐系统', tagline: '扫码点餐 + 厨房实时看板', desc: 'uni-app / Taro 小程序风格前端 + Node.js（Express）+ MySQL 8 + Redis + WebSocket 的扫码点餐系统：菜单分类/购物车/下单/厨房实时看板/菜品与订单后台，首次启动自动生成演示数据。', features: ['实时下单推送', '厨房看板', '真实可体验'], accent: 'linear-gradient(135deg,#f97316,#ef4444)', url: 'http://127.0.0.1:8200/', tag: '全栈项目', },
-  ];
+  const works = WORKS;
   const st = await Api.worksStatus();
   const hotD = await Api.worksHot();
   const hotId = hotD.hot || '';
@@ -2086,6 +2184,36 @@ function showAvatarPicker(name, onDone) {
   };
 }
 
+/* ---------- 技术咨询二维码弹窗（首页「飞速提升」入口） ---------- */
+function showConsultQR() {
+  const old = document.getElementById('consultQrMask');
+  if (old) { old.remove(); return; }
+  const m = document.createElement('div');
+  m.id = 'consultQrMask';
+  m.className = 'pf-mask';
+  m.innerHTML = `<div class="pf-box" style="max-width:360px">
+    <button class="pf-x" id="cqX" title="关闭">✕</button>
+    <h3 class="lo-title">技术咨询</h3>
+    <p class="lo-sub">扫码添加微信，带你飞速提升 🚀</p>
+    <a class="consult-qr" href="img/wechat-qr.png" download="技术咨询二维码.png" title="点击保存二维码">
+      <img src="img/wechat-qr.png" alt="技术咨询二维码">
+    </a>
+    <button class="pf-btn primary" id="cqCopy">复制微信号 _Zc1908</button>
+    <p class="pf-tip">微信扫一扫，或长按保存图片后在微信中识别添加</p>
+  </div>`;
+  document.body.appendChild(m);
+  m.onclick = e => { if (e.target === m) m.remove(); };
+  m.querySelector('#cqX').onclick = () => m.remove();
+  m.querySelector('#cqCopy').onclick = async () => {
+    try {
+      await navigator.clipboard.writeText('_Zc1908');
+      toast('✅ 微信号已复制：_Zc1908');
+    } catch (e) {
+      toast('微信号：_Zc1908（请手动记录）');
+    }
+  };
+}
+
 /* ---------- 退出登录选择框（点击 ⏻ 按钮） ---------- */
 function showLogoutModal() {
   const u = Auth.user();
@@ -2357,11 +2485,145 @@ window.addEventListener('hashchange', route);
   document.querySelectorAll('#baoChips button').forEach(b => b.onclick = () => send(b.textContent));
 })();
 
+/* ---------- 通知中心（新作品上线 / 网页更新 / 留言板） ---------- */
+const NOTIF_UPDATES = [
+  { title: '通知中心上线', desc: '右上角铃铛可查看新作品、网页更新与留言板动态', time: '2026-11-10T00:00:00+08:00' },
+  { title: '登录注册全面升级', desc: '手机验证码注册 + 微信 / QQ / 扫码授权登录', time: '2026-11-09T20:00:00+08:00' },
+  { title: '首页新增「飞速提升」入口', desc: '点击即可扫码获取技术咨询', time: '2026-11-09T15:00:00+08:00' },
+  { title: '右侧代码窗支持轮播', desc: '每 3 秒随机切换一段真实代码片段', time: '2026-11-08T10:00:00+08:00' }
+];
+const NOTIF_SEEN_KEY = 'tb_notif_seen';
+let notifPanel = null;
+
+function notifRelTime(ts) {
+  const diff = Date.now() - ts;
+  if (diff < 60e3) return '刚刚';
+  if (diff < 3600e3) return Math.floor(diff / 60e3) + ' 分钟前';
+  if (diff < 864e5) return Math.floor(diff / 3600e3) + ' 小时前';
+  if (diff < 7 * 864e5) return Math.floor(diff / 864e5) + ' 天前';
+  const d = new Date(ts);
+  return `${d.getMonth() + 1}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/* 汇总：新作品 + 网页更新 + 留言板最新留言 */
+async function notifAllItems() {
+  const items = [];
+  WORKS.filter(w => w.newSince).forEach(w => items.push({
+    icon: w.icon, accent: w.accent,
+    title: `${w.name} · 新作品上线`,
+    desc: w.tagline,
+    href: '#/works', ts: new Date(w.newSince).getTime(), kind: '作品'
+  }));
+  NOTIF_UPDATES.forEach(u => items.push({
+    icon: '📢', accent: 'linear-gradient(135deg,#6366f1,#a855f7)',
+    title: u.title, desc: u.desc,
+    href: '', ts: new Date(u.time).getTime(), kind: '更新'
+  }));
+  try {
+    const list = await Api.comments('guest', '');
+    (list || []).slice(0, 4).forEach(c => {
+      const txt = String(c.x || '');
+      items.push({
+        icon: '💬', accent: 'linear-gradient(135deg,#0ea5e9,#22d3ee)',
+        title: `留言板 · ${c.n || '访客'}`,
+        desc: txt.length > 46 ? txt.slice(0, 46) + '…' : txt,
+        href: '#/guest', ts: c.ts || 0, kind: '留言'
+      });
+    });
+  } catch (e) { /* 留言拉取失败不影响其余通知 */ }
+  return items.sort((a, b) => b.ts - a.ts);
+}
+
+function notifItemHtml(it) {
+  const inner = `<span class="nf-ico" style="background:${it.accent || 'var(--pri)'}">${it.icon}</span>
+      <div class="nf-main"><b>${esc(it.title)}</b><p>${esc(it.desc)}</p></div>
+      <em class="nf-time">${notifRelTime(it.ts)}</em>`;
+  return it.href
+    ? `<a class="nf-item" href="${it.href}">${inner}</a>`
+    : `<div class="nf-item">${inner}</div>`;
+}
+
+function setNotifDot(n) {
+  const d = $('#notifDot');
+  if (!d) return;
+  d.hidden = !n;
+  d.textContent = n > 9 ? '9+' : String(n);
+}
+
+async function refreshNotifDot() {
+  const seen = Number(localStorage.getItem(NOTIF_SEEN_KEY) || 0);
+  const items = await notifAllItems();
+  setNotifDot(items.filter(i => i.ts > seen).length);
+}
+
+function ensureNotifPanel() {
+  if (notifPanel) return notifPanel;
+  notifPanel = document.createElement('div');
+  notifPanel.id = 'notifPanel';
+  notifPanel.className = 'notif-panel';
+  notifPanel.hidden = true;
+  notifPanel.innerHTML = `
+    <div class="nf-head"><b>🔔 通知中心</b><button type="button" class="nf-read" id="nfRead">全部已读</button></div>
+    <div class="nf-body" id="nfBody"><div class="nf-empty">加载中…</div></div>
+    <div class="nf-foot"><a href="#/guest">留言板 →</a><a href="#/works">我的作品 →</a></div>`;
+  $('.top-actions').appendChild(notifPanel);
+  notifPanel.querySelector('#nfRead').onclick = e => {
+    e.stopPropagation();
+    localStorage.setItem(NOTIF_SEEN_KEY, String(Date.now()));
+    setNotifDot(0);
+    toast('已全部标记为已读');
+  };
+  return notifPanel;
+}
+
+async function fillNotifPanel() {
+  const body = $('#nfBody');
+  if (!body) return;
+  const items = await notifAllItems();
+  body.innerHTML = items.length
+    ? items.map(notifItemHtml).join('')
+    : '<div class="nf-empty">暂无通知</div>';
+  body.querySelectorAll('a.nf-item').forEach(a => a.addEventListener('click', closeNotif));
+}
+
+function closeNotif() {
+  if (!notifPanel) return;
+  notifPanel.hidden = true;
+  $('#notifBtn')?.classList.remove('on');
+}
+
+function openNotif() {
+  const p = ensureNotifPanel();
+  p.hidden = false;
+  $('#notifBtn')?.classList.add('on');
+  fillNotifPanel();
+  localStorage.setItem(NOTIF_SEEN_KEY, String(Date.now()));
+  setNotifDot(0);
+}
+
+function initNotif() {
+  const btn = $('#notifBtn');
+  if (!btn) return;
+  btn.onclick = e => {
+    e.stopPropagation();
+    const p = ensureNotifPanel();
+    p.hidden ? openNotif() : closeNotif();
+  };
+  document.addEventListener('click', e => {
+    if (!notifPanel || notifPanel.hidden) return;
+    if (!e.target.closest('#notifPanel') && !e.target.closest('#notifBtn')) closeNotif();
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNotif(); });
+  refreshNotifDot();
+  setInterval(refreshNotifDot, 60000);
+}
+
 /* ---------- 启动 ---------- */
 $('#logoutBtn').onclick = () => showLogoutModal();
 (async () => {
   await Api.boot();
   renderUserChip();
+  initNotif();
   route();
   checkCodeReminder();
 })();
