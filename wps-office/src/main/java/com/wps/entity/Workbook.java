@@ -5,7 +5,7 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 /**
- * 工作簿：一个工作簿内含多个工作表，整体以 JSON 形式持久化到 MySQL。
+ * 工作簿：一个工作簿内含多个工作表，整体以 JSON 形式持久化到内置数据库。
  */
 @Entity
 @Table(name = "workbooks")
@@ -24,7 +24,6 @@ public class Workbook {
 
     /** 工作簿内容：{ sheets: [ { id, name, rows, cols, data, fmts } ] } */
     @Lob
-    @Column(columnDefinition = "LONGTEXT")
     private String dataJson;
 
     private LocalDateTime createdAt = LocalDateTime.now();

@@ -157,18 +157,6 @@ public class WorkbookService {
         repo.save(w);
     }
 
-    public Workbook seedIfEmpty() {
-        if (repo.count() > 0) return null;
-        Workbook w = new Workbook();
-        w.setName("销售数据工作簿");
-        w.setOwner("admin");
-        w.setSheetCount(0);
-        w.setDataJson(null);
-        w.setCreatedAt(LocalDateTime.now());
-        w.setUpdatedAt(LocalDateTime.now());
-        return repo.save(w);
-    }
-
     private Workbook find(Long id) {
         return repo.findById(id).orElseThrow(() -> new ApiException(404, "工作簿不存在"));
     }
