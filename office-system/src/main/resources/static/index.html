@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1b2559">
+<title>Workplace--Office 🖥️ Software</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='88'>🖥️</text></svg>">
+<link rel="stylesheet" href="styles.css?v=20261112a">
+</head>
+<body>
+<div id="app" v-cloak>
+
+  <!-- ================= 登录 ================= -->
+  <div class="login" v-if="!token">
+    <span class="lg-blob a"></span><span class="lg-blob b"></span><span class="lg-blob c"></span>
+    <div class="lg-card">
+      <div class="lg-brand">
+        <div class="lg-logo">🖥️</div>
+        <h1>Workplace<span>--</span>Office</h1>
+        <p>日常办公 · 公式函数 · 报表月报</p>
+      </div>
+      <form class="lg-form" @submit.prevent="login">
+        <label>账号</label>
+        <input v-model.trim="loginForm.username" placeholder="请输入账号" autocomplete="username">
+        <label>密码</label>
+        <input v-model="loginForm.password" type="password" placeholder="请输入密码" autocomplete="current-password">
+        <p class="lg-err" v-if="loginErr">{{ loginErr }}</p>
+        <button class="btn-primary lg-btn" :disabled="loading">{{ loading ? '登录中…' : '登 录' }}</button>
+        <p class="lg-hint">演示账号：admin / 123456</p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= 主界面 ================= -->
+  <div class="shell" v-else>
+    <aside class="side">
+      <div class="side-brand">
+        <div class="side-logo">🖥️</div>
+        <div>
+          <b>Workplace--Office</b>
+          <em>Office Software</em>
+        </div>
+      </div>
+      <nav class="side-nav">
+        <button v-for="m in menus" :key="m.k" :class="{ on: page === m.k }" @click="go(m.k)">
+          <span class="ni">{{ m.icon }}</span>
+          <span class="nt">{{ m.label }}</span>
+          <i class="nbar"></i>
+        </button>
+      </nav>
+      <div class="side-foot">
+        <div class="side-user">
+          <span class="avatar">{{ (user && user.nick || 'A').slice(0,1) }}</span>
+          <div><b>{{ user ? user.nick : '—' }}</b><em>{{ user ? user.name : '' }}</em></div>
+        </div>
+        <button class="side-logout" @click="logout">退出</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="tb-left">
+          <h2>{{ currentMenu.label }}</h2>
+          <p>{{ currentMenu.desc }}</p>
+        </div>
+        <div class="tb-right">
+          <span class="tb-date">{{ today }}</span>
+          <span class="tb-pill">Vue3 · Spring Boot 3 · MySQL</span>
+        </div>
+      </header>
+
+      <!-- ---------- 概览 ---------- -->
+      <section v-if="page === 'dashboard'" class="view">
+        <div class="hero">
+          <span class="hero-orb a"></span>
+          <span class="hero-orb b"></span>
+          <span class="hero-grid"></span>
+          <div class="hero-copy">
+            <p class="hero-hi">{{ greeting }}，{{ user ? user.nick : '' }} 👋</p>
+            <h1>今天的办公数据<span class="grad">已经准备好了</span></h1>
+            <p class="hero-sub">月报报表、公式计算与办公技巧，一个工作台全部搞定。</p>
+            <div class="hero-acts">
+              <button class="btn-primary" @click="newReport">＋ 新建月报</button>
+              <button class="btn-ghost" @click="go('formula')">🧮 公式实验室</button>
+            </div>
+          </div>
+          <div class="hero-card" v-if="stats">
+            <span class="hc-label">累计执行率</span>
+            <b class="hc-num">{{ stats.avgRate }}<i>%</i></b>
+            <div class="hc-bar"><span :style="{ width: Math.min(100, Number(stats.avgRate) || 0) + '%' }"></span></div>
+            <span class="hc-sub">预算 {{ money(stats.budget) }} · 实际 {{ money(stats.actual) }}</span>
+          </div>
+        </div>
+
+        <div class="kpis" v-if="stats">
+          <div class="kpi">
+            <span class="kpi-ico">📊</span>
+            <div><b>{{ stats.reportCount }}</b><em>报表总数</em></div>
+          </div>
+          <div class="kpi">
+            <span class="kpi-ico">💰</span>
+            <div><b>{{ money(stats.actual) }}</b><em>累计实际支出</em></div>
+          </div>
+          <div class="kpi">
+            <span class="kpi-ico">💡</span>
+            <div><b>{{ stats.tipCount }}</b><em>办公技巧</em></div>
+          </div>
+          <div class="kpi">
+            <span class="kpi-ico">🧮</span>
+            <div><b>{{ stats.calcCount }}</b><em>公式计算次数</em></div>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="panel">
+            <div class="panel-head"><b>近 6 个月实际支出</b><em>单位：元</em></div>
+            <div class="chart" v-if="stats && stats.trend.length">
+              <div class="chart-col" v-for="t in stats.trend" :key="t.period">
+                <span class="bar-val">{{ short(t.value) }}</span>
+                <div class="bar"><i :style="{ height: barH(t.value) }"></i></div>
+                <span class="bar-lb">{{ t.period.slice(5) }}月</span>
+              </div>
+            </div>
+            <p class="empty" v-else>暂无趋势数据</p>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head"><b>最近更新的报表</b><button class="link" @click="go('reports')">全部 →</button></div>
+            <ul class="recent" v-if="stats && stats.recent.length">
+              <li v-for="r in stats.recent" :key="r.id" @click="openReport(r.id)">
+                <span class="rdot" :class="statusClass(r.status)"></span>
+                <div class="rmain"><b>{{ r.title }}</b><em>{{ r.dept }} · {{ r.status }}</em></div>
+                <span class="rnum">{{ money(r.total) }}</span>
+              </li>
+            </ul>
+            <p class="empty" v-else>暂无报表</p>
+          </div>
+        </div>
+
+        <div class="panel tip-panel" v-if="stats && stats.topTip && stats.topTip.title">
+          <div class="panel-head"><b>今日推荐 · 办公技巧</b><button class="link" @click="go('tips')">更多 →</button></div>
+          <div class="tip-feature" @click="previewTip(stats.topTip.id)">
+            <span class="tf-ico">💡</span>
+            <div><b>{{ stats.topTip.title }}</b><em>{{ stats.topTip.category }} · {{ stats.topTip.views }} 次查看</em></div>
+            <span class="tf-go">查看 →</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- 报表中心 ---------- -->
+      <section v-if="page === 'reports'" class="view">
+        <div class="toolbar">
+          <input class="search" v-model="reportQ" placeholder="搜索报表名称 / 部门">
+          <div class="seg">
+            <button v-for="s in ['全部','草稿','已提交','已归档']" :key="s" :class="{ on: reportStatus === s }" @click="reportStatus = s">{{ s }}</button>
+          </div>
+          <button class="btn-primary" @click="newReport">＋ 新建月报</button>
+        </div>
+
+        <div class="rlist" v-if="filteredReports.length">
+          <article class="rcard" v-for="r in filteredReports" :key="r.id">
+            <div class="rc-top">
+              <span class="rc-per">{{ r.period }}</span>
+              <span class="rc-status" :class="statusClass(r.status)">{{ r.status }}</span>
+            </div>
+            <h3>{{ r.title }}</h3>
+            <p class="rc-dept">{{ r.dept }} · 负责人 {{ r.owner || 'admin' }}</p>
+            <div class="rc-nums">
+              <div><em>预算</em><b>{{ money(r.budget) }}</b></div>
+              <div><em>实际</em><b>{{ money(r.total) }}</b></div>
+              <div><em>执行率</em><b :class="{ warn: Number(r.rate) > 100 }">{{ r.rate }}%</b></div>
+            </div>
+            <div class="rc-bar"><i :style="{ width: Math.min(100, Number(r.rate) || 0) + '%' }"></i></div>
+            <div class="rc-acts">
+              <button @click="openReport(r.id)">编辑</button>
+              <button @click="copyReport(r)">复制</button>
+              <button class="danger" @click="removeReport(r)">删除</button>
+            </div>
+          </article>
+        </div>
+        <p class="empty big" v-else>没有符合条件的报表</p>
+      </section>
+
+      <!-- ---------- 报表编辑 ---------- -->
+      <section v-if="page === 'editor' && editing" class="view">
+        <div class="editor-head">
+          <button class="back" @click="go('reports')">← 返回列表</button>
+          <div class="eh-acts">
+            <select v-model="editing.status" class="mini-select">
+              <option>草稿</option><option>已提交</option><option>已归档</option>
+            </select>
+            <button class="btn-ghost" @click="addRow">＋ 添加科目</button>
+            <button class="btn-primary" :disabled="saving" @click="saveReport">{{ saving ? '保存中…' : '保存报表' }}</button>
+          </div>
+        </div>
+
+        <div class="editor-meta">
+          <label>报表标题<input v-model="editing.title"></label>
+          <label>所属月份<input v-model="editing.period" placeholder="2026-11"></label>
+          <label>部门<input v-model="editing.dept"></label>
+        </div>
+
+        <div class="table-wrap">
+          <table class="rtable">
+            <thead>
+              <tr><th>#</th><th>费用科目</th><th>预算（元）</th><th>实际（元）</th><th>执行率</th><th>备注</th><th></th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="(row, i) in editing.rows" :key="i">
+                <td class="idx">{{ i + 1 }}</td>
+                <td><input v-model="row.name" class="cell-name"></td>
+                <td><input v-model.number="row.budget" type="number" class="cell-num"></td>
+                <td><input v-model.number="row.actual" type="number" class="cell-num"></td>
+                <td class="rate" :class="{ warn: rowRate(row) > 100 }">{{ rowRate(row) }}%</td>
+                <td><input v-model="row.note" class="cell-note" placeholder="选填"></td>
+                <td><button class="del" @click="removeRow(i)" title="删除">✕</button></td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td></td>
+                <td>合计</td>
+                <td>{{ money(editBudget) }}</td>
+                <td>{{ money(editActual) }}</td>
+                <td class="rate" :class="{ warn: editRate > 100 }">{{ editRate }}%</td>
+                <td colspan="2"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <p class="table-tip">提示：修改数值后执行率与合计实时重算，保存后写入 MySQL。</p>
+      </section>
+
+      <!-- ---------- 公式实验室 ---------- -->
+      <section v-if="page === 'formula'" class="view">
+        <div class="panel formula-panel">
+          <div class="panel-head"><b>公式输入</b><em>支持 SUM / AVG / IF / ROUND / PERCENT 等</em></div>
+          <div class="finput">
+            <input v-model="expr" class="fexpr" placeholder="例如：ROUND(PERCENT(11350,12000),2)" @keyup.enter="calc">
+            <button class="btn-primary" @click="calc">计算 =</button>
+          </div>
+          <div class="fresult" v-if="formulaResult"><span>结果</span><b>{{ formulaResult }}</b></div>
+          <p class="fresult err" v-if="formulaErr">{{ formulaErr }}</p>
+          <div class="fchips">
+            <button v-for="f in quickExprs" :key="f" @click="expr = f">{{ f }}</button>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="panel">
+            <div class="panel-head"><b>函数速查</b><em>点击即填入</em></div>
+            <ul class="funcs">
+              <li v-for="f in funcs" :key="f.name" @click="expr = f.demo">
+                <b>{{ f.name }}</b><span>{{ f.desc }}</span><em>{{ f.demo }}</em>
+              </li>
+            </ul>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><b>计算记录</b><em>最近 20 条</em></div>
+            <ul class="history" v-if="history.length">
+              <li v-for="h in history" :key="h.id">
+                <code>{{ h.expr }}</code>
+                <b :class="{ err: !h.ok }">= {{ h.result }}</b>
+              </li>
+            </ul>
+            <p class="empty" v-else>还没有计算记录</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------- 办公技巧 ---------- -->
+      <section v-if="page === 'tips'" class="view">
+        <div class="toolbar">
+          <input class="search" v-model="tipQ" placeholder="搜索技巧、快捷键或函数">
+          <div class="seg">
+            <button :class="{ on: tipCat === '全部' }" @click="tipCat = '全部'">全部</button>
+            <button v-for="c in tipCats" :key="c" :class="{ on: tipCat === c }" @click="tipCat = c">{{ c }}</button>
+          </div>
+        </div>
+
+        <div class="tip-grid" v-if="filteredTips.length">
+          <article class="tip-card" v-for="t in filteredTips" :key="t.id" @click="previewTip(t.id)">
+            <span class="tc-cat">{{ t.category }}</span>
+            <h3>{{ t.title }}</h3>
+            <p>{{ t.summary }}</p>
+            <div class="tc-foot">
+              <span class="tc-key" v-if="t.shortcut">{{ t.shortcut }}</span>
+              <em>{{ t.views }} 次查看</em>
+            </div>
+          </article>
+        </div>
+        <p class="empty big" v-else>没有找到相关技巧</p>
+      </section>
+    </main>
+  </div>
+
+  <!-- 技巧详情 -->
+  <div class="modal" v-if="activeTip" @click.self="activeTip = null">
+    <div class="modal-card tip-modal">
+      <button class="modal-x" @click="activeTip = null">✕</button>
+      <span class="tc-cat">{{ activeTip.category }}</span>
+      <h2>{{ activeTip.title }}</h2>
+      <p class="tm-sum">{{ activeTip.summary }}</p>
+      <div class="tm-key" v-if="activeTip.shortcut">快捷键：<b>{{ activeTip.shortcut }}</b></div>
+      <pre class="tm-body">{{ activeTip.content }}</pre>
+    </div>
+  </div>
+
+  <transition name="fade">
+    <div class="toast" v-if="toastShow">{{ toastMsg }}</div>
+  </transition>
+</div>
+
+<script src="vendor/vue.global.prod.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

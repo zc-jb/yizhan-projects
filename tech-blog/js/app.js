@@ -1375,6 +1375,8 @@ const WORKS = [
   { id: 'hotel', icon: '🏨', name: '酒店管理系统', tagline: '从预订到退房结算，全流程在线跑通', desc: 'Spring Boot 3 + Vue3 + MySQL 8 的酒店管理后台：房型/房间/客人/预订/入住/退房/账单一体化，房态自动流转、金额自动核算，首次启动自动生成演示数据，前端已打进 jar。', features: ['房态流转', '自动算价', '真实可体验'], accent: 'linear-gradient(135deg,#0f766e,#2563eb)', badge: '✨ 新品', newSince: '2026-11-08T00:00:00+08:00', url: 'http://127.0.0.1:8080/', tag: '全栈项目' },
   { id: 'campus', icon: '🎓', name: '校园管理系统', tagline: '学生 · 课程 · 成绩 · 公告，一个后台全管', desc: 'uni-app（Vue3）移动端 + Spring Boot 3 + MySQL 8 + Redis 的校园管理系统：学生/课程/成绩/公告与数据看板，Redis 缓存热点数据并在不可用时自动降级，首次启动自动生成演示数据。', features: ['学生课程成绩', '数据看板', '真实可体验'], accent: 'linear-gradient(135deg,#4f46e5,#06b6d4)', badge: '✨ 新品', newSince: '2026-11-09T00:00:00+08:00', url: 'http://127.0.0.1:8100/', tag: '全栈项目' },
   { id: 'canteen', icon: '🍜', name: '点餐系统', tagline: '扫码点餐 + 厨房实时看板', desc: 'uni-app / Taro 小程序风格前端 + Node.js（Express）+ MySQL 8 + Redis + WebSocket 的扫码点餐系统：菜单分类/购物车/下单/厨房实时看板/菜品与订单后台，首次启动自动生成演示数据。', features: ['实时下单推送', '厨房看板', '真实可体验'], accent: 'linear-gradient(135deg,#f97316,#ef4444)', url: 'http://127.0.0.1:8200/', tag: '全栈项目' },
+  { id: 'office', icon: '🖥️', name: 'Workplace--Office 🖥️ Software', tagline: '日常办公 · 公式函数 · 报表月报，一个工作台搞定', desc: 'Vue3 + Spring Boot 3 + MySQL 的日常办公工作台：月度费用报表在线编辑与自动汇总、自研安全公式引擎（SUM / IF / ROUND / PERCENT 等 16 个函数）、22 条快捷键与 Excel 技巧库、数据看板趋势图，首次启动自动写入演示数据。', features: ['报表自动汇总', '公式即时计算', '办公技巧库'], accent: 'linear-gradient(135deg,#4f46e5,#0ea5a5)', badge: '✨ 新品', newSince: '2026-11-12T00:00:00+08:00', url: 'http://127.0.0.1:8300/', tag: '全栈项目' },
+  { id: 'wps', icon: '📊', name: 'WPS 表格仿真', tagline: '多表管理 · 函数一键使用 · 数据匹配与按月统计', desc: 'Vue3 + Spring Boot 3 + MySQL 的仿 WPS 表格应用：可自由新增/重命名/删除工作表，VLOOKUP 跨表匹配客户等级，一键生成 1—12 月统计表，函数向导框选区域即可自动写回公式，工作簿整体存入 MySQL。', features: ['多工作表管理', 'VLOOKUP 数据匹配', '按月自动统计'], accent: 'linear-gradient(135deg,#12a15a,#0ea5a5)', badge: '✨ 新品', newSince: '2026-11-12T00:00:00+08:00', url: 'http://127.0.0.1:8400/', tag: '全栈项目' },
 ];
 
 async function vWorks() {
@@ -1450,6 +1452,8 @@ async function vWorks() {
     library: 'library-system-v1-68b3d2',
     campus: 'campus-system-v1-9bfbba',
     canteen: 'canteen-system-v1-9d254d',
+    office: 'office-system-v1-52f7b2',
+    wps: 'wps-office-v1-cf34c7',
   };
   const SALE_STACK = {
     poster: 'HTML / CSS / JS',
@@ -1458,6 +1462,8 @@ async function vWorks() {
     library: 'Spring Boot + Vue3 + MySQL',
     campus: 'uni-app (Vue3) + Spring Boot 3 + MySQL + Redis',
     canteen: 'uni-app / Taro + Node.js + MySQL + Redis + WebSocket',
+    office: 'Spring Boot + Vue3 + MySQL',
+    wps: 'Spring Boot + Vue3 + MySQL',
   };
   /* 售货区每件商品用不同主色，避免所有卡片颜色一致 */
   const SALE_ACCENT = {
@@ -1467,8 +1473,10 @@ async function vWorks() {
     library: 'linear-gradient(135deg,#16a34a,#0ea5e9)',
     campus: 'linear-gradient(135deg,#4f46e5,#22d3ee)',
     canteen: 'linear-gradient(135deg,#f97316,#ef4444)',
+    office: 'linear-gradient(135deg,#4f46e5,#0ea5a5)',
+    wps: 'linear-gradient(135deg,#12a15a,#0ea5a5)',
   };
-  const saleCopies = works.filter(w => !w.free).map(w => ({
+  const saleCopies = works.filter(w => !w.free && SALE_SLUG[w.id]).map(w => ({
     key: w.id, icon: w.icon, title: w.name, tagline: w.tagline, desc: w.desc,
     stack: SALE_STACK[w.id] || '', slug: SALE_SLUG[w.id] || '', accent: SALE_ACCENT[w.id] || '',
   }));

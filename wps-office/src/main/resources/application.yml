@@ -1,0 +1,35 @@
+server:
+  port: 8400
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+
+spring:
+  application:
+    name: wps-office
+
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/wps_db?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: ""
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 5000
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    show-sql: false
+
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+
+logging:
+  level:
+    root: info
+    com.wps: info

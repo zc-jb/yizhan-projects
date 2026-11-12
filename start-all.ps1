@@ -13,7 +13,7 @@ $Mysqld = Join-Path $MysqlHome 'bin\mysqld.exe'
 $Mysql = Join-Path $MysqlHome 'bin\mysql.exe'
 $Ini = Join-Path $MysqlHome 'my.ini'
 $DataDir = Join-Path $Runtime 'mysql-data'
-$Java = Join-Path $Runtime 'jdk-17.0.20.1+1-jre\bin\java.exe'
+$Java = Join-Path $Runtime 'tools\jdk-17.0.20.1+1\bin\java.exe'
 $JavaBin = Split-Path -Parent $Java
 # 把便携 JRE 放进 PATH，博客站「在线体验」用 java 启动应用时才能找到 java
 $env:Path = "$JavaBin;" + $env:Path
@@ -85,7 +85,7 @@ if (Test-Port 3306) {
 }
 
 Write-Host '[DB] Ensure databases ...'
-& $Mysql -uroot -h 127.0.0.1 -P 3306 -e "CREATE DATABASE IF NOT EXISTS tech_blog_test DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE IF NOT EXISTS tech_blog DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE IF NOT EXISTS hotel_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE IF NOT EXISTS library_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE IF NOT EXISTS campus_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE IF NOT EXISTS canteen_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+& $Mysql -uroot -h 127.0.0.1 -P 3306 -e "CREATE DATABASE IF NOT EXISTS tech_blog_test DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE IF NOT EXISTS tech_blog DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE IF NOT EXISTS hotel_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE IF NOT EXISTS library_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE IF NOT EXISTS campus_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE IF NOT EXISTS canteen_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE IF NOT EXISTS office_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; CREATE DATABASE IF NOT EXISTS wps_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 if ($LASTEXITCODE -ne 0) { throw 'Create database failed' }
 
 Write-Host '=== 2. tech-blog (http://127.0.0.1:3100) ==='
@@ -173,6 +173,34 @@ if (Test-Port 8200) {
 }
 Set-AppRunning 'canteen-system-v1-9d254d' 8200 '已在本机 8200 端口运行（admin / 123456）'
 
+Write-Host '=== 8. office-system (http://127.0.0.1:8300) ==='
+if (Test-Port 8300) {
+  Write-Host '[SKIP] office-system already running'
+} else {
+  $jar = Join-Path $Root 'office-system\target\office-system-1.0.0.jar'
+  $p = Start-Process -FilePath $Java -ArgumentList '-jar', "`"$jar`"", "--logging.file.name=`"$(Join-Path $Logs 'office-system.log')`"" `
+        -WorkingDirectory (Join-Path $Root 'office-system') `
+        -RedirectStandardOutput (Join-Path $Logs 'office.out.log') `
+        -RedirectStandardError (Join-Path $Logs 'office.err.log') `
+        -WindowStyle Hidden -PassThru
+  Save-Pid 'office-system' $p
+  Wait-Port 8300 90 'office-system' | Out-Null
+}
+
+Write-Host '=== 9. wps-office (http://127.0.0.1:8400) ==='
+if (Test-Port 8400) {
+  Write-Host '[SKIP] wps-office already running'
+} else {
+  $jar = Join-Path $Root 'wps-office\target\wps-office-1.0.0.jar'
+  $p = Start-Process -FilePath $Java -ArgumentList '-jar', "`"$jar`"", "--logging.file.name=`"$(Join-Path $Logs 'wps-office.log')`"" `
+        -WorkingDirectory (Join-Path $Root 'wps-office') `
+        -RedirectStandardOutput (Join-Path $Logs 'wps.out.log') `
+        -RedirectStandardError (Join-Path $Logs 'wps.err.log') `
+        -WindowStyle Hidden -PassThru
+  Save-Pid 'wps-office' $p
+  Wait-Port 8400 90 'wps-office' | Out-Null
+}
+
 Write-Host ''
 Write-Host 'All done:'
 Write-Host '  tech-blog      http://127.0.0.1:3100'
@@ -181,6 +209,8 @@ Write-Host '  ai-poster-app  http://127.0.0.1:5173'
 Write-Host '  library-system http://127.0.0.1:8090   (admin / 123456)'
 Write-Host '  campus-system  http://127.0.0.1:8100   (admin / 123456)'
 Write-Host '  canteen-system http://127.0.0.1:8200   (admin / 123456)'
+Write-Host '  office-system  http://127.0.0.1:8300   (admin / 123456)'
+Write-Host '  wps-office     http://127.0.0.1:8400   (admin / 123456)'
 Write-Host '  library demo   http://127.0.0.1:3100/apps/library-system-v1-68b3d2/'
 Write-Host ''
 Write-Host 'Works (local, all served by this script):'
@@ -190,4 +220,5 @@ Write-Host '  hotel admin    http://127.0.0.1:8080/   (admin / 123456)'
 Write-Host '  library admin  http://127.0.0.1:8090/   (admin / 123456)'
 Write-Host '  campus admin   http://127.0.0.1:8100/   (admin / 123456)'
 Write-Host '  canteen order  http://127.0.0.1:8200/   (admin / 123456)'
+Write-Host '  office desk    http://127.0.0.1:8300/   (admin / 123456)'
 Write-Host "Logs: $Logs"

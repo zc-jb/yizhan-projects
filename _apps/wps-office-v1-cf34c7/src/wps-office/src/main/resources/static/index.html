@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WPS 表格仿真 · 多表 · 匹配 · 统计</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='88'>📊</text></svg>">
+<link rel="stylesheet" href="styles.css?v=20261112a">
+</head>
+<body>
+<div id="app" v-cloak>
+
+  <!-- ================= 登录 ================= -->
+  <div class="login" v-if="!token">
+    <span class="lg-blob a"></span><span class="lg-blob b"></span>
+    <div class="lg-card">
+      <div class="lg-brand">
+        <div class="lg-logo">W</div>
+        <h1>WPS 表格<span>仿真</span></h1>
+        <p>多工作表 · 数据匹配 · 按月统计 · 函数一键使用</p>
+      </div>
+      <form class="lg-form" @submit.prevent="login">
+        <label>账号</label>
+        <input v-model.trim="loginForm.username" placeholder="请输入账号" autocomplete="username">
+        <label>密码</label>
+        <input v-model="loginForm.password" type="password" placeholder="请输入密码" autocomplete="current-password">
+        <p class="lg-err" v-if="loginErr">{{ loginErr }}</p>
+        <button class="btn-primary lg-btn" :disabled="loading">{{ loading ? '登录中…' : '登 录' }}</button>
+        <p class="lg-hint">演示账号：admin / 123456</p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= 首页 ================= -->
+  <div class="home" v-else-if="page === 'home'">
+    <header class="home-nav">
+      <div class="hn-brand">
+        <span class="hn-logo">W</span>
+        <div><b>WPS 表格</b><em>Simulation · Vue3 + Spring Boot 3 + MySQL</em></div>
+      </div>
+      <div class="hn-right">
+        <span class="hn-date">{{ todayText }}</span>
+        <span class="hn-user">{{ user ? user.nick : 'admin' }}</span>
+        <button class="hn-out" @click="logout">退出</button>
+      </div>
+    </header>
+
+    <section class="home-hero">
+      <div class="hh-copy">
+        <span class="hh-badge">多表管理 · 数据匹配 · 按月统计 · 函数一键使用</span>
+        <h1>像用 WPS 一样<br><span>处理你的表格数据</span></h1>
+        <p>多工作表管理、VLOOKUP 跨表匹配、1—12 月自动统计。选中区域后点击函数即可完成计算并写回表格。</p>
+        <div class="hh-acts">
+          <button class="btn-primary" @click="newWorkbook">＋ 新建空白表格</button>
+          <button class="btn-ghost" @click="openDemo">📊 打开示例数据</button>
+        </div>
+      </div>
+      <div class="hh-card">
+        <div class="hhc-head"><span>示例工作簿</span><b>销售数据分析</b></div>
+        <ul>
+          <li><span>📄</span>销售明细<em>42 条订单</em></li>
+          <li><span>👥</span>客户档案<em>10 个客户</em></li>
+          <li><span>📦</span>产品价格表<em>7 个产品</em></li>
+          <li><span class="sym">Σ</span>月度统计<em>一键生成</em></li>
+        </ul>
+        <button class="hhc-btn" @click="openDemo">打开并体验 →</button>
+      </div>
+    </section>
+
+    <section class="home-files">
+      <div class="hf-head"><b>我的表格</b><span>{{ workbooks.length }} 个工作簿</span></div>
+      <div class="file-grid" v-if="workbooks.length">
+        <article class="file-card" v-for="w in workbooks" :key="w.id">
+          <div class="fc-ico">📗</div>
+          <div class="fc-main">
+            <b>{{ w.name }}</b>
+            <em>{{ w.sheetCount }} 个工作表 · 更新于 {{ dt(w.updatedAt) }}</em>
+          </div>
+          <div class="fc-acts">
+            <button class="fc-open" @click="openWorkbook(w.id)">打开</button>
+            <button class="fc-del" @click="askDeleteWorkbook(w)">删除</button>
+          </div>
+        </article>
+      </div>
+      <p class="empty" v-else>还没有工作簿，点击上方「新建空白表格」或「打开示例数据」开始。</p>
+    </section>
+  </div>
+
+  <!-- ================= 编辑器 ================= -->
+  <div class="editor" v-else-if="wb">
+    <!-- 标题栏 -->
+    <div class="titlebar">
+      <div class="tb-left">
+        <span class="tb-logo">W</span>
+        <b class="tb-name">{{ wb.name }}</b>
+        <span class="tb-state" :class="{ dirty: dirty }">
+          {{ saving ? '保存中…' : (dirty ? '未保存' : (lastSaved ? '已保存 ' + lastSaved : '已保存')) }}
+        </span>
+      </div>
+      <div class="tb-right">
+        <button class="tb-btn" @click="saveNow()" :disabled="saving">💾 保存</button>
+        <button class="tb-btn" @click="goHome">📁 文件</button>
+        <span class="tb-user">{{ user ? user.nick : '' }}</span>
+        <button class="tb-out" @click="logout">退出</button>
+      </div>
+    </div>
+
+    <!-- 功能区 -->
+    <div class="ribbon">
+      <div class="ribbon-tabs">
+        <button v-for="t in tabs" :key="t.k" :class="{ on: ribbonTab === t.k }" @click="ribbonTab = t.k">{{ t.name }}</button>
+      </div>
+
+      <div class="ribbon-body">
+        <!-- 开始 -->
+        <template v-if="ribbonTab === 'home'">
+          <div class="rb-group">
+            <div class="rb-row">
+              <button class="rb-btn" @click="copySel">📋 复制</button>
+              <button class="rb-btn" @click="pasteSel">📌 粘贴</button>
+            </div>
+            <span class="rb-label">剪贴板</span>
+          </div>
+          <div class="rb-group">
+            <div class="rb-row">
+              <button class="rb-ico" :class="{ on: isBold() }" @click="toggleFmt('b')"><b>B</b></button>
+              <button class="rb-ico" @click="toggleFmt('i')"><i>I</i></button>
+              <button class="rb-ico" @click="toggleFmt('u')"><u>U</u></button>
+            </div>
+            <div class="rb-row">
+              <label class="color-pick">字色<input type="color" v-model="fontColor" @change="applyFontColor"></label>
+              <label class="color-pick">填充<input type="color" v-model="fillColor" @change="applyFill"></label>
+            </div>
+            <span class="rb-label">字体</span>
+          </div>
+          <div class="rb-group">
+            <div class="rb-row">
+              <button class="rb-ico" @click="setAlign('left')" title="左对齐">⬅</button>
+              <button class="rb-ico" @click="setAlign('center')" title="居中">↔</button>
+              <button class="rb-ico" @click="setAlign('right')" title="右对齐">➡</button>
+            </div>
+            <span class="rb-label">对齐</span>
+          </div>
+          <div class="rb-group">
+            <div class="rb-row">
+              <select class="rb-select" v-model="numFmtSel" @change="applyNumFmt">
+                <option v-for="n in numFormats" :key="n.v" :value="n.v">{{ n.t }}</option>
+              </select>
+            </div>
+            <div class="rb-row">
+              <button class="rb-btn sm" @click="numFmtSel = 'currency'; applyNumFmt()">¥</button>
+              <button class="rb-btn sm" @click="numFmtSel = 'percent'; applyNumFmt()">%</button>
+              <button class="rb-btn sm" @click="numFmtSel = 'num2'; applyNumFmt()">.00</button>
+            </div>
+            <span class="rb-label">数字格式</span>
+          </div>
+          <div class="rb-group">
+            <div class="rb-row">
+              <button class="rb-btn" @click="insertRow">插入行</button>
+              <button class="rb-btn" @click="insertCol">插入列</button>
+            </div>
+            <div class="rb-row">
+              <button class="rb-btn" @click="deleteRow">删除行</button>
+              <button class="rb-btn" @click="deleteCol">删除列</button>
+            </div>
+            <span class="rb-label">单元格</span>
+          </div>
+          <div class="rb-group">
+            <div class="rb-row">
+              <button class="rb-btn" @click="autoSum">Σ 自动求和</button>
+              <button class="rb-btn" @click="clearContent">清除内容</button>
+            </div>
+            <span class="rb-label">编辑</span>
+          </div>
+        </template>
+
+        <!-- 插入 -->
+        <template v-if="ribbonTab === 'insert'">
+          <div class="rb-group">
+            <div class="rb-row">
+              <button class="rb-btn" @click="insertRow">＋ 插入行</button>
+              <button class="rb-btn" @click="insertCol">＋ 插入列</button>
+              <button class="rb-btn" @click="openSheetModal('add')">＋ 工作表</button>
+            </div>
+            <span class="rb-label">插入</span>
+          </div>
+          <div class="rb-group">
+            <div class="rb-row">
+              <button class="rb-btn" @click="quickMonth">📊 按月统计图</button>
+              <button class="rb-btn" @click="openDrawer('month')">📅 月度汇总表</button>
+            </div>
+            <span class="rb-label">图表与汇总</span>
+          </div>
+        </template>
+
+        <!-- 公式 -->
+        <template v-if="ribbonTab === 'formula'">
+          <div class="rb-group">
+            <div class="rb-row">
+              <button class="fn-chip strong" @click="openDrawer('func')">🧭 函数向导</button>
+              <button class="fn-chip" @click="quickVlookup">🔎 VLOOKUP 一键匹配</button>
+              <button class="fn-chip" @click="quickMonth">📅 按月统计</button>
+            </div>
+            <span class="rb-label">一键使用</span>
+          </div>
+          <div class="rb-group">
+            <div class="rb-row">
+              <button class="fn-chip" v-for="k in ['VLOOKUP','SUMIF','COUNTIF','IF','ROUND','TEXT']" :key="k" @click="openDrawer('func'); chooseFunc(k)">{{ k }}</button>
+            </div>
+            <span class="rb-label">常用函数</span>
+          </div>
+          <div class="rb-group">
+            <div class="rb-row">
+              <button class="rb-btn" @click="autoSum">Σ 自动求和</button>
+            </div>
+            <span class="rb-label">计算</span>
+          </div>
+        </template>
+
+        <!-- 数据 -->
+        <template v-if="ribbonTab === 'data'">
+          <div class="rb-group">
+            <div class="rb-row">
+              <button class="rb-btn" @click="sortSel('asc')">↑ 升序排序</button>
+              <button class="rb-btn" @click="sortSel('desc')">↓ 降序排序</button>
+              <button class="rb-btn" @click="removeDup">去重</button>
+            </div>
+            <span class="rb-label">排序与筛选</span>
+          </div>
+          <div class="rb-group">
+            <div class="rb-row">
+              <button class="fn-chip strong" @click="quickVlookup">🔎 VLOOKUP 一键匹配</button>
+              <button class="fn-chip" @click="openDrawer('func'); chooseFunc('SUMIFS')">Σ 多条件求和</button>
+            </div>
+            <span class="rb-label">数据工具</span>
+          </div>
+          <div class="rb-group">
+            <div class="rb-row">
+              <button class="rb-btn" @click="quickMonth">📅 按月统计</button>
+            </div>
+            <span class="rb-label">统计</span>
+          </div>
+        </template>
+
+        <!-- 视图 -->
+        <template v-if="ribbonTab === 'view'">
+          <div class="rb-group">
+            <div class="rb-row">
+              <button class="rb-btn" :class="{ on: showGrid }" @click="showGrid = !showGrid">▦ 网格线</button>
+              <button class="rb-btn" :class="{ on: showFormulas }" @click="showFormulas = !showFormulas">ƒ 显示公式</button>
+            </div>
+            <span class="rb-label">显示</span>
+          </div>
+          <div class="rb-group">
+            <div class="rb-row">
+              <button class="rb-btn" @click="clearFormat">清除格式</button>
+              <button class="rb-btn" @click="selectAll">全选区域</button>
+            </div>
+            <span class="rb-label">视图工具</span>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <!-- 公式栏 -->
+    <div class="fbar">
+      <div class="namebox">{{ cellAddr }}</div>
+      <span class="fx">fx</span>
+      <input class="finput" v-model="formulaText" placeholder="输入内容或公式，如 =SUM(G2:G43)、=VLOOKUP(C2,客户档案!A2:D11,2,FALSE)" @keyup.enter="commitFormulaBar">
+      <span class="fsize">选区 {{ selSize }}</span>
+    </div>
+
+    <!-- 工作区 -->
+    <div class="workarea">
+      <div class="gridwrap" :class="{ 'no-grid': !showGrid }" ref="gridwrap" tabindex="0" @keydown="onGridKey">
+        <table class="grid">
+          <thead>
+            <tr>
+              <th class="corner"></th>
+              <th v-for="(cl, i) in colLabels" :key="cl" class="colhead">{{ cl }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="rl in rowLabels" :key="rl">
+              <th class="rowhead">{{ rl }}</th>
+              <td v-for="(cl, ci) in colLabels" :key="ci"
+                  :class="{ active: isActive(rl - 1, ci), sel: inSel(rl - 1, ci) }"
+                  @mousedown="onCellDown(rl - 1, ci, $event)"
+                  @mouseenter="onCellEnter(rl - 1, ci)"
+                  @dblclick="startEdit(rl - 1, ci)">
+                <input v-if="editing && editing.r === rl - 1 && editing.c === ci"
+                       class="cell-input" v-model="editInput" @mousedown.stop
+                       @keydown.enter.prevent="commitEdit('down')"
+                       @keydown.tab.prevent="commitEdit('right')"
+                       @keydown.esc.prevent="cancelEdit"
+                       @blur="commitEdit()">
+                <span v-else class="cell-val" :style="cellStyle(rl - 1, ci)">{{ displayOf(rl - 1, ci) }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 函数 / 统计 抽屉 -->
+      <aside class="drawer" v-if="drawer">
+        <div class="drawer-head">
+          <div class="drawer-tabs">
+            <button :class="{ on: drawerTab === 'func' }" @click="drawerTab = 'func'">函数一键使用</button>
+            <button :class="{ on: drawerTab === 'month' }" @click="drawerTab = 'month'; previewMonth()">按月统计</button>
+          </div>
+          <button class="drawer-x" @click="drawer = false">✕</button>
+        </div>
+
+        <div class="drawer-body">
+          <div class="cur-sel">
+            <span>当前选区</span>
+            <b>{{ selRef }}</b>
+          </div>
+
+          <template v-if="drawerTab === 'func'">
+            <div class="fg" v-for="g in funcGroups" :key="g.group">
+              <span class="fg-name">{{ g.group }}</span>
+              <div class="fg-items">
+                <button v-for="f in g.items" :key="f.k" class="fn-card" :class="{ on: funcPick === f.k }" @click="chooseFunc(f.k)">
+                  <i>{{ f.icon }}</i>
+                  <b>{{ f.label }}</b>
+                  <em>{{ f.short }}</em>
+                </button>
+              </div>
+            </div>
+
+            <div class="fw-form" v-if="curFunc">
+              <div class="fw-title">
+                <b>{{ curFunc.label }}</b>
+                <span>{{ curFunc.desc }}</span>
+              </div>
+
+              <label class="fw-field" v-for="fld in curFunc.fields" :key="fld.k">
+                <span>{{ fld.label }}</span>
+                <select v-if="fld.type === 'select'" v-model="funcParams[fld.k]">
+                  <option v-for="o in fld.opts" :key="o.v" :value="o.v">{{ o.t }}</option>
+                </select>
+                <div class="fw-input" v-else>
+                  <input v-model="funcParams[fld.k]" :placeholder="fld.ph">
+                  <button v-if="fld.type === 'range' || fld.type === 'cell'"
+                          class="pick-btn" :class="{ on: picking === fld.k }" @click="startPick(fld.k)">框选</button>
+                </div>
+              </label>
+
+              <label class="fw-field">
+                <span>结果写入</span>
+                <div class="fw-input">
+                  <input v-model="outCell" placeholder="如 J2">
+                  <button class="pick-btn" :class="{ on: picking === '__out' }" @click="startPick('__out')">点选</button>
+                </div>
+              </label>
+
+              <div class="fw-actions">
+                <button class="btn-ghost" @click="runPreview">预览结果</button>
+                <button class="btn-primary" :disabled="!preview || !preview.ok" @click="applyWizard">写入表格</button>
+              </div>
+
+              <div class="fw-preview" v-if="preview">
+                <p class="pv-err" v-if="!preview.ok">⚠ {{ preview.error }}</p>
+                <template v-else>
+                  <p class="pv-sum">{{ preview.summary }}</p>
+                  <code class="pv-formula">{{ preview.formula }}</code>
+                  <table class="pv-table">
+                    <thead><tr><th>写入位置</th><th>源数据</th><th>计算结果</th></tr></thead>
+                    <tbody>
+                      <tr v-for="(row, i) in preview.rows" :key="i">
+                        <td>{{ row.cell }}</td>
+                        <td>{{ row.input }}</td>
+                        <td class="pv-val">{{ row.value }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </template>
+              </div>
+
+              <p class="drawer-tip">提示：点击「框选」后在左侧表格中拖选区域，参数会自动填入；写入后公式可直接在公式栏查看。</p>
+            </div>
+          </template>
+
+          <template v-else>
+            <div class="fw-form">
+              <div class="fw-title">
+                <b>按月统计</b>
+                <span>选择日期列与数值列，自动汇总 1—12 月，并生成「月度统计」工作表。</span>
+              </div>
+
+              <label class="fw-field">
+                <span>日期列</span>
+                <div class="fw-input">
+                  <input v-model="month.dateRange" placeholder="如 销售明细!A2:A43">
+                  <button class="pick-btn" :class="{ on: picking === 'monthDate' }" @click="startPick('monthDate')">框选</button>
+                </div>
+              </label>
+
+              <label class="fw-field">
+                <span>数值列（可选）</span>
+                <div class="fw-input">
+                  <input v-model="month.valueRange" placeholder="如 销售明细!G2:G43">
+                  <button class="pick-btn" :class="{ on: picking === 'monthValue' }" @click="startPick('monthValue')">框选</button>
+                </div>
+              </label>
+
+              <label class="fw-field">
+                <span>统计方式</span>
+                <select v-model="month.agg" @change="previewMonth">
+                  <option value="sum">求和</option>
+                  <option value="count">计数</option>
+                  <option value="avg">平均</option>
+                  <option value="max">最大值</option>
+                </select>
+              </label>
+
+              <div class="fw-actions">
+                <button class="btn-ghost" @click="previewMonth">预览统计</button>
+                <button class="btn-primary" :disabled="!monthPreview || !monthPreview.ok" @click="applyMonth">生成统计表</button>
+              </div>
+
+              <div class="fw-preview" v-if="monthPreview">
+                <p class="pv-err" v-if="!monthPreview.ok">⚠ {{ monthPreview.error }}</p>
+                <template v-else>
+                  <p class="pv-sum">{{ monthPreview.year }} 年 · {{ monthPreview.totalCount }} 条有效记录 · 合计 {{ monthPreview.grand }}</p>
+                  <div class="month-list">
+                    <div class="month-row" v-for="row in monthPreview.rows" :key="row.m">
+                      <span class="m-name">{{ row.m }}月</span>
+                      <div class="m-bar"><i :style="{ width: monthBar(row.total) }"></i></div>
+                      <span class="m-val">{{ row.total }}</span>
+                    </div>
+                  </div>
+                </template>
+              </div>
+
+              <p class="drawer-tip">提示：日期支持 2026-01-15、2026/1/15、2026年1月15日 等格式；无效日期会自动跳过。</p>
+            </div>
+          </template>
+        </div>
+      </aside>
+    </div>
+
+    <!-- 工作表标签 -->
+    <div class="tabsbar">
+      <button class="tab-add" @click="openSheetModal('add')" title="新增工作表">＋</button>
+      <div class="tab" v-for="s in wb.sheets" :key="s.id"
+           :class="{ on: s.id === activeSheetId }"
+           @click="switchSheet(s.id)" @dblclick="openSheetModal('rename')">
+        <span>{{ s.name }}</span>
+        <button v-if="s.id === activeSheetId" class="tab-x" @click.stop="askDeleteSheet" title="删除工作表">✕</button>
+      </div>
+      <span class="tab-hint">双击标签可重命名 · 数据自动保存</span>
+    </div>
+
+    <!-- 状态栏 -->
+    <div class="statusbar">
+      <span class="sb-ready">{{ dirty ? '编辑中…' : '就绪' }}</span>
+      <span class="sb-stats" v-if="selStats.count">
+        平均值 {{ selStats.avg.toFixed(2) }} · 计数 {{ selStats.count }} · 求和 {{ selStats.sum.toFixed(2) }}
+      </span>
+      <span class="sb-right">共 {{ wb.sheets.length }} 个工作表 · {{ selSize }}</span>
+    </div>
+  </div>
+
+  <!-- 工作表弹窗 -->
+  <div class="modal" v-if="sheetModal.on" @click.self="sheetModal.on = false">
+    <div class="modal-card">
+      <h3>{{ sheetModal.mode === 'add' ? '新增工作表' : '重命名工作表' }}</h3>
+      <input class="sheet-modal-input" v-model="sheetModal.value" @keyup.enter="confirmSheetModal" placeholder="请输入工作表名称">
+      <div class="modal-acts">
+        <button class="btn-ghost" @click="sheetModal.on = false">取消</button>
+        <button class="btn-primary" @click="confirmSheetModal">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 确认弹窗 -->
+  <div class="modal" v-if="confirmBox.on" @click.self="confirmBox.on = false">
+    <div class="modal-card">
+      <h3>{{ confirmBox.title }}</h3>
+      <p class="modal-text">{{ confirmBox.text }}</p>
+      <div class="modal-acts">
+        <button class="btn-ghost" @click="confirmBox.on = false">取消</button>
+        <button class="btn-danger" @click="runConfirm">确定删除</button>
+      </div>
+    </div>
+  </div>
+
+  <transition name="fade">
+    <div class="toast" v-if="toastShow">{{ toastMsg }}</div>
+  </transition>
+</div>
+
+<script src="vendor/vue.global.prod.js"></script>
+<script src="js/engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
