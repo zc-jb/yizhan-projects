@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>WPS 表格仿真 · 多表 · 匹配 · 统计</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='88'>📊</text></svg>">
-<link rel="stylesheet" href="styles.css?v=20261112i">
+<link rel="stylesheet" href="styles.css?v=20261112l">
 </head>
 <body>
 <div id="app" v-cloak>
@@ -15,49 +15,65 @@
     <header class="home-nav">
       <div class="hn-brand">
         <span class="hn-logo">W</span>
-        <div><b>WPS 表格</b></div>
+        <div><b>WPS 表格</b><em>轻量表格工作台</em></div>
       </div>
+      <nav class="hn-menu">
+        <span class="on">工作台</span>
+        <span>多表管理</span>
+        <span>函数引擎</span>
+        <span>月度统计</span>
+      </nav>
       <div class="hn-right">
         <span class="hn-date">{{ todayText }}</span>
         <span class="hn-user">访客</span>
       </div>
     </header>
 
-    <section class="home-hero">
-      <div class="hh-copy">
-        <div class="hh-marquee">
-          <div class="mq-viewport">
-            <div class="mq-track">
-              <span class="mq-item">工作虽重要　❗️也要保持劳逸结合</span>
-              <span class="mq-item">工作虽重要　❗️也要保持劳逸结合</span>
-            </div>
-          </div>
-        </div>
-        <h1>像用 WPS 一样<br><span>处理你的表格数据</span></h1>
-        <p>多工作表管理、VLOOKUP 跨表匹配、1—12 月自动统计。选中区域后点击函数即可完成计算并写回表格。</p>
-        <div class="hh-acts">
-          <button class="btn-primary" @click="newWorkbook">＋ 新建空白表格</button>
-          <button class="btn-ghost" @click="openDemo">📊 打开示例数据</button>
+    <div class="notice-bar">
+      <span class="nb-tag">公告</span>
+      <div class="mq-viewport">
+        <div class="mq-track">
+          <span class="mq-item">工作虽重要　也要保持劳逸结合哟　⚠️本产品自研 请勿外泄　谢谢！！！</span>
+          <span class="mq-item">工作虽重要　也要保持劳逸结合哟　⚠️本产品自研 请勿外泄　谢谢！！！</span>
         </div>
       </div>
-      <div class="hh-card">
-        <div class="hhc-head"><span>示例工作簿</span><b>销售数据分析</b></div>
-        <ul>
-          <li><span>📄</span>销售明细<em>42 条订单</em></li>
-          <li><span>👥</span>客户档案<em>10 个客户</em></li>
-          <li><span>📦</span>产品价格表<em>7 个产品</em></li>
-          <li><span class="sym">Σ</span>月度统计<em>一键生成</em></li>
-        </ul>
-        <button class="hhc-btn" @click="openDemo">立即使用 →</button>
+    </div>
+
+    <section class="hero">
+      <span class="hero-badge">本地运行 · 免登录 · 数据不出本机</span>
+      <h1>像用 WPS 一样<br><span>处理你的表格数据</span></h1>
+      <p>多工作表管理、VLOOKUP 跨表匹配、按月统计、函数一键写入。选中区域即可完成计算，无需安装任何表格软件。</p>
+      <div class="hero-acts" v-if="entriesEnabled">
+        <button class="btn-primary hero-btn" @click="newWorkbook">＋ 新建空白表格</button>
+        <button class="btn-ghost hero-btn2" @click="openDemo">打开示例数据</button>
+      </div>
+      <div class="hero-stats">
+        <div><b>39</b><span>内置函数</span></div>
+        <div><b>多表</b><span>跨表引用</span></div>
+        <div><b>12 月</b><span>自动汇总</span></div>
+        <div><b>3 天</b><span>误删可恢复</span></div>
       </div>
     </section>
 
-    <section class="home-files">
-      <div class="hf-head">
-        <b>我的表格</b>
-        <span>{{ workbooks.length }} 个工作簿</span>
-        <button class="hf-clear" v-if="workbooks.length" @click="clearAllWorkbooks">🧹 一键清理</button>
-        <button class="hf-trash" @click="openTrash" title="回收站：删除的记录保留 3 天">🗑️ 回收站<i v-if="trash.length">{{ trash.length }}</i></button>
+    <section class="feature-strip">
+      <article class="feature-card" v-for="f in features" :key="f.t">
+        <span class="fc-ic">{{ f.i }}</span>
+        <b>{{ f.t }}</b>
+        <p>{{ f.d }}</p>
+      </article>
+    </section>
+
+    <section class="files-panel">
+      <div class="fp-head">
+        <div class="fp-title">
+          <b>我的表格</b>
+          <span>{{ workbooks.length }} 个工作簿</span>
+        </div>
+        <div class="fp-acts">
+          <button class="hf-new" @click="newWorkbook" title="新建空白工作簿">＋ 新建表格</button>
+          <button class="hf-clear" v-if="workbooks.length" @click="clearAllWorkbooks">一键清理</button>
+          <button class="hf-trash" @click="openTrash" title="回收站：删除的记录保留 3 天">回收站<i v-if="trash.length">{{ trash.length }}</i></button>
+        </div>
       </div>
       <div class="file-grid" v-if="workbooks.length">
         <article class="file-card" v-for="w in workbooks" :key="w.id">
@@ -72,8 +88,17 @@
           </div>
         </article>
       </div>
-      <p class="empty" v-else>还没有工作簿，点击上方「新建空白表格」或「打开示例数据」开始。</p>
+      <div class="empty-panel" v-else>
+        <span class="ep-ic">▦</span>
+        <b>还没有工作簿</b>
+        <p>新建空白表格开始录入，数据自动保存在本机。</p>
+        <div class="ep-acts">
+          <button class="btn-primary" @click="newWorkbook">＋ 新建空白表格</button>
+        </div>
+      </div>
     </section>
+
+    <footer class="home-foot">WPS 表格仿真系统 · 本地离线版 · 自研产品 请勿外泄</footer>
   </div>
 
   <!-- ================= 编辑器 ================= -->
@@ -155,6 +180,10 @@
               <button class="rb-btn" @click="deleteRow">删除行</button>
               <button class="rb-btn" @click="deleteCol">删除列</button>
             </div>
+            <div class="rb-row">
+              <button class="rb-btn" @click="mergeCells">合并单元格</button>
+              <button class="rb-btn" @click="unmergeCells">取消合并</button>
+            </div>
             <span class="rb-label">单元格</span>
           </div>
           <div class="rb-group">
@@ -213,8 +242,8 @@
         <template v-if="ribbonTab === 'data'">
           <div class="rb-group">
             <div class="rb-row">
-              <button class="rb-btn" @click="sortSel('asc')">↑ 升序排序</button>
-              <button class="rb-btn" @click="sortSel('desc')">↓ 降序排序</button>
+              <button class="rb-btn" @click="openSort('asc')">↑ 升序排序</button>
+              <button class="rb-btn" @click="openSort('desc')">↓ 降序排序</button>
               <button class="rb-btn" @click="removeDup">去重</button>
             </div>
             <span class="rb-label">排序与筛选</span>
@@ -279,19 +308,23 @@
           <tbody>
             <tr v-for="rl in rowLabels" :key="rl">
               <th class="rowhead">{{ rl }}</th>
-              <td v-for="(cl, ci) in colLabels" :key="ci"
-                  :class="{ active: isActive(rl - 1, ci), sel: inSel(rl - 1, ci) }"
-                  @mousedown="onCellDown(rl - 1, ci, $event)"
-                  @mouseenter="onCellEnter(rl - 1, ci)"
-                  @dblclick="startEdit(rl - 1, ci)">
-                <input v-if="editing && editing.r === rl - 1 && editing.c === ci"
-                       class="cell-input" v-model="editInput" @mousedown.stop
-                       @keydown.enter.prevent="commitEdit('down')"
-                       @keydown.tab.prevent="commitEdit('right')"
-                       @keydown.esc.prevent="cancelEdit"
-                       @blur="commitEdit()">
-                <span v-else class="cell-val" :style="cellStyle(rl - 1, ci)">{{ displayOf(rl - 1, ci) }}</span>
-              </td>
+              <template v-for="(cl, ci) in colLabels" :key="ci">
+                <td v-if="!isCovered(rl - 1, ci)"
+                    :rowspan="spanAt(rl - 1, ci).rs"
+                    :colspan="spanAt(rl - 1, ci).cs"
+                    :class="{ active: isActive(rl - 1, ci), sel: inSel(rl - 1, ci) }"
+                    @mousedown="onCellDown(rl - 1, ci, $event)"
+                    @mouseenter="onCellEnter(rl - 1, ci)"
+                    @dblclick="startEdit(rl - 1, ci)">
+                  <input v-if="editing && editing.r === rl - 1 && editing.c === ci"
+                         class="cell-input" v-model="editInput" @mousedown.stop
+                         @keydown.enter.prevent="commitEdit('down')"
+                         @keydown.tab.prevent="commitEdit('right')"
+                         @keydown.esc.prevent="cancelEdit"
+                         @blur="commitEdit()">
+                  <span v-else class="cell-val" :style="cellStyle(rl - 1, ci)">{{ displayOf(rl - 1, ci) }}</span>
+                </td>
+              </template>
             </tr>
           </tbody>
         </table>
@@ -480,6 +513,28 @@
     </div>
   </div>
 
+  <!-- 排序弹窗 -->
+  <div class="modal" v-if="sortModal.on" @click.self="sortModal.on = false">
+    <div class="modal-card sort-card">
+      <h3>{{ sortModal.dir === 'asc' ? '升序排序' : '降序排序' }}</h3>
+      <p class="modal-text">排序区域：{{ sortRangeText }}</p>
+      <label class="sort-field">
+        <span>关键字列</span>
+        <select v-model.number="sortModal.col">
+          <option v-for="o in sortColOptions" :key="o.c" :value="o.c">{{ o.label }}</option>
+        </select>
+      </label>
+      <label class="sort-check">
+        <input type="checkbox" v-model="sortModal.hasHeader">
+        <span>首行为标题行（不参与排序）</span>
+      </label>
+      <div class="modal-acts">
+        <button class="btn-ghost" @click="sortModal.on = false">取消</button>
+        <button class="btn-primary" @click="applySort">{{ sortModal.dir === 'asc' ? '升序排列' : '降序排列' }}</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 工作表弹窗 -->
   <div class="modal" v-if="sheetModal.on" @click.self="sheetModal.on = false">
     <div class="modal-card">
@@ -500,6 +555,18 @@
       <div class="modal-acts">
         <button class="btn-ghost" @click="confirmBox.on = false">取消</button>
         <button class="btn-danger" @click="runConfirm">确定删除</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 久坐提醒（2 小时，仅一次） -->
+  <div class="modal" v-if="restTip" @click.self="restTip = false">
+    <div class="modal-card rest-card">
+      <div class="rest-ic">🕑</div>
+      <h3>温馨提示</h3>
+      <p class="modal-text">你已连续使用电脑 2 小时啦，起来活动一下、远眺放松眼睛吧～劳逸结合，效率更高哟！</p>
+      <div class="modal-acts">
+        <button class="btn-primary" @click="restTip = false">知道了</button>
       </div>
     </div>
   </div>
@@ -535,7 +602,7 @@
 </div>
 
 <script src="vendor/vue.global.prod.js"></script>
-<script src="js/engine.js?v=20261112d"></script>
-<script src="app.js?v=20261112i"></script>
+<script src="js/engine.js?v=20261112f"></script>
+<script src="app.js?v=20261112m"></script>
 </body>
 </html>

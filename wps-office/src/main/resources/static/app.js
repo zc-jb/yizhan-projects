@@ -68,6 +68,17 @@ createApp({
 
       sheetModal: { on: false, mode: 'add', value: '' },
       confirmBox: { on: false, title: '', text: '', action: null },
+      sortModal: { on: false, dir: 'asc', col: 0, hasHeader: true },
+      undoStack: [],
+      restTip: false,
+      /* 首页入口开关：false 暂时关闭「新建空白表格 / 打开示例数据」 */
+      entriesEnabled: false,
+      features: [
+        { i: '📑', t: '多工作表管理', d: '一个工作簿内自由新建、重命名、切换工作表，支持跨表引用。' },
+        { i: '🔗', t: 'VLOOKUP 跨表匹配', d: '选中两表区域，一键补全客户等级等字段，结果自动新建工作表。' },
+        { i: '📅', t: '按月统计', d: '按日期列自动汇总 1—12 月金额、笔数与占比，一键生成统计表。' },
+        { i: '📥', t: '导入导出', d: 'CSV 导入为新工作表，随时导出当前表，数据保存在本机数据库。' }
+      ],
       trash: [],
       trashOpen: false,
 
@@ -95,6 +106,22 @@ createApp({
     rowLabels() {
       const n = this.sheet ? this.sheet.rows : 0;
       return Array.from({ length: n }, (_, i) => i + 1);
+    },
+    sortColOptions() {
+      if (!this.sheet) return [];
+      const r1 = Math.min(this.sel.r1, this.sel.r2);
+      const c1 = Math.min(this.sel.c1, this.sel.c2), c2 = Math.max(this.sel.c1, this.sel.c2);
+      const out = [];
+      for (let c = c1; c <= c2; c++) {
+        const h = String(this.rawAt(r1, c) == null ? '' : this.rawAt(r1, c)).trim();
+        out.push({ c: c, label: E.colLetter(c) + ' 列' + (h ? ' · ' + h : '') });
+      }
+      return out;
+    },
+    sortRangeText() {
+      const r1 = Math.min(this.sel.r1, this.sel.r2), r2 = Math.max(this.sel.r1, this.sel.r2);
+      const c1 = Math.min(this.sel.c1, this.sel.c2), c2 = Math.max(this.sel.c1, this.sel.c2);
+      return E.rcToAddr(r1, c1) + ':' + E.rcToAddr(r2, c2) + '（共 ' + (r2 - r1 + 1) + ' 行）';
     },
     cellAddr() {
       return E.rcToAddr(this.active.r, this.active.c);
@@ -157,7 +184,8 @@ createApp({
       return '暂未识别到同名列：可在「返回列」点选查找区域中的目标列';
     },
     writesToSheet() {
-      return ['VLOOKUP', 'ROUND', 'MONTH', 'TEXT'].indexOf(this.funcPick) >= 0;
+      const f = this.curFunc;
+      return !!(f && (f.perRow || f.k === 'VLOOKUP'));
     },
     todayText() {
       const d = new Date();
@@ -177,12 +205,15 @@ createApp({
   mounted() {
     document.addEventListener('mouseup', this.endDrag);
     window.addEventListener('keydown', this.onWindowKey);
+    /* 连续使用电脑 2 小时，仅提醒一次 */
+    this.restTimer = setTimeout(() => { this.restTip = true; }, 2 * 60 * 60 * 1000);
     this.init();
   },
 
   beforeUnmount() {
     document.removeEventListener('mouseup', this.endDrag);
     window.removeEventListener('keydown', this.onWindowKey);
+    clearTimeout(this.restTimer);
   },
 
   methods: {
@@ -274,17 +305,30 @@ createApp({
           body: JSON.stringify({ name: '新建工作簿' })
         });
         await this.openWorkbook(d.id, { blank: true });
+        await this.saveNow(true);
       } catch (e) { this.toast(e.message); }
     },
 
-    async openDemo() {
-      try {
-        const d = await this.api('/api/workbooks', {
-          method: 'POST',
-          body: JSON.stringify({ name: '示例：销售数据分析' })
-        });
-        await this.openWorkbook(d.id, { blank: false, rename: '示例：销售数据分析' });
-      } catch (e) { this.toast(e.message); }
+    openDemo() {
+      const demo = E.buildDemoWorkbook();
+      this.wb = {
+        id: null,
+        name: '示例：销售数据分析',
+        sheets: demo.sheets.map(s => this.normalizeSheet(s))
+      };
+      this.activeSheetId = this.wb.sheets[0].id;
+      this.page = 'editor';
+      this.active = { r: 0, c: 0 };
+      this.sel = { r1: 0, c1: 0, r2: 0, c2: 0 };
+      this.drawer = false;
+      this.preview = null;
+      this.monthPreview = null;
+      this.dirty = true;
+      this.lastSaved = '';
+      this.recalc();
+      this.syncFormula();
+      this.$nextTick(() => this.focusGrid());
+      this.toast('示例数据已载入（未写入「我的表格」，需要保存时请按 Ctrl+S）');
     },
 
     askDeleteWorkbook(w) {
@@ -337,12 +381,8 @@ createApp({
         let sheets = Array.isArray(data.sheets) ? data.sheets : [];
         let seed = false;
         if (!sheets.length) {
-          if (opt.blank) {
-            sheets = [E.blankSheet('Sheet1')];
-          } else {
-            sheets = E.buildDemoWorkbook().sheets;
-            seed = true;
-          }
+          /* 空白工作簿重开后仍是空白表，不再自动灌入示例数据 */
+          sheets = [E.blankSheet('Sheet1')];
         }
         this.wb = {
           id: d.id,
@@ -366,8 +406,10 @@ createApp({
     },
 
     normalizeSheet(s) {
-      const rows = Math.max(20, parseInt(s.rows, 10) || 60);
-      const cols = Math.max(8, parseInt(s.cols, 10) || 16);
+      const srcRows = Array.isArray(s.data) ? s.data.length : 0;
+      const srcCols = Array.isArray(s.data) ? s.data.reduce((m, r) => Math.max(m, (r || []).length), 0) : 0;
+      const rows = Math.max(80, parseInt(s.rows, 10) || 0, srcRows + 20);
+      const cols = Math.max(16, parseInt(s.cols, 10) || 0, srcCols + 2);
       const data = [];
       for (let r = 0; r < rows; r++) {
         const src = (s.data && s.data[r]) || [];
@@ -381,7 +423,8 @@ createApp({
         rows: rows,
         cols: cols,
         data: data,
-        fmts: s.fmts && typeof s.fmts === 'object' ? s.fmts : {}
+        fmts: s.fmts && typeof s.fmts === 'object' ? s.fmts : {},
+        merges: Array.isArray(s.merges) ? s.merges : []
       };
     },
 
@@ -389,19 +432,28 @@ createApp({
       if (!this.wb || this.saving) return;
       this.saving = true;
       try {
+        const payload = JSON.stringify({
+          name: this.wb.name,
+          data: { sheets: this.wb.sheets },
+          sheetCount: this.wb.sheets.length
+        });
+        if (!this.wb.id) {
+          const d = await this.api('/api/workbooks', {
+            method: 'POST',
+            body: JSON.stringify({ name: this.wb.name })
+          });
+          this.wb.id = d.id;
+        }
         await this.api('/api/workbooks/' + this.wb.id, {
           method: 'PUT',
-          body: JSON.stringify({
-            name: this.wb.name,
-            data: { sheets: this.wb.sheets },
-            sheetCount: this.wb.sheets.length
-          })
+          body: payload
         });
+        if (this.page === 'editor') await this.loadWorkbooks().catch(() => {});
         this.dirty = false;
         const d = new Date();
         const p = n => String(n).padStart(2, '0');
         this.lastSaved = p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
-        if (!silent) this.toast('已保存到 MySQL');
+        if (!silent) this.toast('已保存到本机数据库');
       } catch (e) {
         this.toast('保存失败：' + e.message);
       } finally {
@@ -412,11 +464,13 @@ createApp({
     markDirty() {
       this.dirty = true;
       clearTimeout(this.saveTimer);
+      /* 未落库的临时示例不自动保存，避免污染「我的表格」 */
+      if (!this.wb || !this.wb.id) return;
       this.saveTimer = setTimeout(() => this.saveNow(true), 1800);
     },
 
     async goHome() {
-      if (this.wb && this.dirty) await this.saveNow(true);
+      if (this.wb && this.wb.id && this.dirty) await this.saveNow(true);
       this.page = 'home';
       this.wb = null;
       try { await this.loadWorkbooks(); } catch (e) { /* ignore */ }
@@ -553,7 +607,8 @@ createApp({
 
     setRaw(r, c, v) {
       const sh = this.sheet;
-      if (!sh || r < 0 || c < 0 || r >= sh.rows || c >= sh.cols) return;
+      if (!sh || r < 0 || c < 0) return;
+      this.ensureCapacity(r, c);
       let val = v == null ? '' : v;
       if (typeof val === 'string') {
         const t = val.trim();
@@ -563,6 +618,113 @@ createApp({
       }
       if (!sh.data[r]) sh.data[r] = new Array(sh.cols).fill('');
       sh.data[r][c] = val;
+    },
+
+    /* 行/列容量按需扩展，避免超过 60 行后数据被丢弃 */
+    ensureCapacity(r, c) {
+      const sh = this.sheet;
+      if (!sh) return;
+      if (r >= sh.rows) {
+        const add = r + 20 - sh.rows;
+        for (let i = 0; i < add; i++) sh.data.push(new Array(sh.cols).fill(''));
+        sh.rows += add;
+      }
+      if (c >= sh.cols) {
+        const add = c + 4 - sh.cols;
+        sh.data.forEach(row => { for (let i = 0; i < add; i++) row.push(''); });
+        sh.cols += add;
+      }
+    },
+
+    /* ---------------- 合并单元格 ---------------- */
+    mergeOf(r, c) {
+      const list = (this.sheet && this.sheet.merges) || [];
+      for (const m of list) {
+        if (r >= m.r1 && r <= m.r2 && c >= m.c1 && c <= m.c2) return m;
+      }
+      return null;
+    },
+
+    isCovered(r, c) {
+      const m = this.mergeOf(r, c);
+      return !!(m && (m.r1 !== r || m.c1 !== c));
+    },
+
+    spanAt(r, c) {
+      const m = this.mergeOf(r, c);
+      if (!m || m.r1 !== r || m.c1 !== c) return { rs: 1, cs: 1 };
+      return { rs: m.r2 - m.r1 + 1, cs: m.c2 - m.c1 + 1 };
+    },
+
+    mergeCells() {
+      const sh = this.sheet;
+      if (!sh) return;
+      const r1 = Math.min(this.sel.r1, this.sel.r2), r2 = Math.max(this.sel.r1, this.sel.r2);
+      const c1 = Math.min(this.sel.c1, this.sel.c2), c2 = Math.max(this.sel.c1, this.sel.c2);
+      if (r1 === r2 && c1 === c2) { this.toast('请先选择要合并的多个单元格'); return; }
+      this.pushUndo();
+      sh.merges = (sh.merges || []).filter(m => m.r2 < r1 || m.r1 > r2 || m.c2 < c1 || m.c1 > c2);
+      for (let r = r1; r <= r2; r++) {
+        for (let c = c1; c <= c2; c++) {
+          if (r !== r1 || c !== c1) this.setRaw(r, c, '');
+        }
+      }
+      sh.merges.push({ r1, c1, r2, c2 });
+      this.recalc();
+      this.markDirty();
+      this.toast('已合并 ' + E.rcToAddr(r1, c1) + ':' + E.rcToAddr(r2, c2));
+    },
+
+    unmergeCells() {
+      const sh = this.sheet;
+      if (!sh || !(sh.merges || []).length) { this.toast('当前没有合并的单元格'); return; }
+      const r1 = Math.min(this.sel.r1, this.sel.r2), r2 = Math.max(this.sel.r1, this.sel.r2);
+      const c1 = Math.min(this.sel.c1, this.sel.c2), c2 = Math.max(this.sel.c1, this.sel.c2);
+      const before = sh.merges.length;
+      this.pushUndo();
+      sh.merges = sh.merges.filter(m => m.r2 < r1 || m.r1 > r2 || m.c2 < c1 || m.c1 > c2);
+      if (sh.merges.length === before) { this.undoStack.pop(); this.toast('选区内没有合并的单元格'); return; }
+      this.markDirty();
+      this.toast('已取消 ' + (before - sh.merges.length) + ' 处合并');
+    },
+
+    dropMerges(r1, c1, r2, c2) {
+      const sh = this.sheet;
+      if (!sh || !(sh.merges || []).length) return;
+      sh.merges = sh.merges.filter(m => m.r2 < r1 || m.r1 > r2 || m.c2 < c1 || m.c1 > c2);
+    },
+
+    /* ---------------- 撤销 ---------------- */
+    pushUndo() {
+      if (!this.wb) return;
+      const snap = JSON.stringify({
+        sheets: this.wb.sheets,
+        activeSheetId: this.activeSheetId,
+        active: this.active
+      });
+      this.undoStack.push(snap);
+      if (this.undoStack.length > 20) this.undoStack.shift();
+    },
+
+    undo() {
+      const snap = this.undoStack.pop();
+      if (!snap) { this.toast('没有可撤销的操作'); return; }
+      try {
+        const s = JSON.parse(snap);
+        this.wb.sheets = s.sheets.map(x => this.normalizeSheet(x));
+        this.activeSheetId = this.wb.sheets.some(x => x.id === s.activeSheetId)
+          ? s.activeSheetId : this.wb.sheets[0].id;
+        this.active = s.active || { r: 0, c: 0 };
+        this.sel = { r1: this.active.r, c1: this.active.c, r2: this.active.r, c2: this.active.c };
+        this.recalc();
+        this.syncFormula();
+        this.drawer = false;
+        this.preview = null;
+        this.markDirty();
+        this.toast('已撤销上一步操作');
+      } catch (e) {
+        this.toast('撤销失败：' + e.message);
+      }
     },
 
     displayOf(r, c) {
@@ -711,6 +873,11 @@ createApp({
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's' && this.page === 'editor') {
         e.preventDefault();
         this.saveNow();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && this.page === 'editor' && !this.editing) {
+        e.preventDefault();
+        this.undo();
       }
     },
 
@@ -720,6 +887,7 @@ createApp({
       if (e.ctrlKey || e.metaKey) {
         if (k.toLowerCase() === 'c') { e.preventDefault(); this.copySel(); }
         else if (k.toLowerCase() === 'v') { e.preventDefault(); this.pasteSel(); }
+        else if (k.toLowerCase() === 'z') { e.preventDefault(); this.undo(); }
         else if (k.toLowerCase() === 'a') { e.preventDefault(); this.selectAll(); }
         return;
       }
@@ -764,11 +932,12 @@ createApp({
 
     pasteSel() {
       if (!this.clip) { this.toast('剪贴板为空，请先复制'); return; }
+      this.pushUndo();
       const { r, c } = this.active;
       this.clip.forEach((row, i) => row.forEach((v, j) => this.setRaw(r + i, c + j, v)));
       this.recalc();
       this.markDirty();
-      this.toast('已粘贴 ' + this.clip.length + ' 行');
+      this.toast('已粘贴 ' + this.clip.length + ' 行（Ctrl+Z 可撤销）');
     },
 
     /* ---------------- 行列 / 工作表 ---------------- */
@@ -778,8 +947,10 @@ createApp({
 
     insertRow() {
       const r = Math.min(this.sel.r1, this.sel.r2);
+      this.pushUndo();
       this.sheet.data.splice(r, 0, this.blankRow());
-      this.sheet.data.pop();
+      this.sheet.rows = this.sheet.data.length;
+      this.dropMerges(r, 0, this.sheet.rows - 1, this.sheet.cols - 1);
       this.recalc();
       this.markDirty();
       this.toast('已在第 ' + (r + 1) + ' 行前插入一行');
@@ -787,8 +958,10 @@ createApp({
 
     deleteRow() {
       const r1 = Math.min(this.sel.r1, this.sel.r2), r2 = Math.max(this.sel.r1, this.sel.r2);
+      this.pushUndo();
       this.sheet.data.splice(r1, r2 - r1 + 1);
       while (this.sheet.data.length < this.sheet.rows) this.sheet.data.push(this.blankRow());
+      this.dropMerges(r1, 0, r2, this.sheet.cols - 1);
       this.recalc();
       this.markDirty();
       this.toast('已删除 ' + (r2 - r1 + 1) + ' 行');
@@ -796,10 +969,12 @@ createApp({
 
     insertCol() {
       const c = Math.min(this.sel.c1, this.sel.c2);
+      this.pushUndo();
       this.sheet.data.forEach(row => {
         row.splice(c, 0, '');
         row.length = this.sheet.cols;
       });
+      this.dropMerges(0, c, this.sheet.rows - 1, this.sheet.cols - 1);
       this.recalc();
       this.markDirty();
       this.toast('已在第 ' + E.colLetter(c) + ' 列前插入一列');
@@ -807,10 +982,12 @@ createApp({
 
     deleteCol() {
       const c1 = Math.min(this.sel.c1, this.sel.c2), c2 = Math.max(this.sel.c1, this.sel.c2);
+      this.pushUndo();
       this.sheet.data.forEach(row => {
         row.splice(c1, c2 - c1 + 1);
         while (row.length < this.sheet.cols) row.push('');
       });
+      this.dropMerges(0, c1, this.sheet.rows - 1, c2);
       this.recalc();
       this.markDirty();
       this.toast('已删除 ' + (c2 - c1 + 1) + ' 列');
@@ -947,24 +1124,50 @@ createApp({
       this.toast('已插入自动求和公式');
     },
 
-    sortSel(dir) {
+    openSort(dir) {
       const r1 = Math.min(this.sel.r1, this.sel.r2), r2 = Math.max(this.sel.r1, this.sel.r2);
-      const c1 = Math.min(this.sel.c1, this.sel.c2);
+      const c1 = Math.min(this.sel.c1, this.sel.c2), c2 = Math.max(this.sel.c1, this.sel.c2);
       if (r2 - r1 < 1) { this.toast('请先选择一个包含多行的区域'); return; }
+      const head = String(this.rawAt(r1, c1) || '').trim();
+      const defCol = Math.min(Math.max(this.active.c, c1), c2);
+      this.sortModal = {
+        on: true,
+        dir: dir,
+        col: defCol,
+        hasHeader: !!head && !/^-?\d+(\.\d+)?$/.test(head)
+      };
+    },
+
+    applySort() {
+      const m = this.sortModal;
+      const r1 = Math.min(this.sel.r1, this.sel.r2), r2 = Math.max(this.sel.r1, this.sel.r2);
+      const c1 = Math.min(this.sel.c1, this.sel.c2), c2 = Math.max(this.sel.c1, this.sel.c2);
+      const start = (m.hasHeader && r2 > r1) ? r1 + 1 : r1;
+      if (r2 - start < 1) { this.toast('可排序的数据行不足'); return; }
+      const col = Math.min(Math.max(Number(m.col), c1), c2);
+      const dir = m.dir;
+      const isEmpty = v => v === '' || v == null;
+      this.pushUndo();
       const rows = [];
-      for (let r = r1; r <= r2; r++) rows.push({ row: this.sheet.data[r], key: this.sheet.data[r][c1] });
+      for (let r = start; r <= r2; r++) rows.push({ row: this.sheet.data[r], key: this.sheet.data[r][col] });
       rows.sort((a, b) => {
-        const x = a.key, y = b.key;
-        const nx = parseFloat(String(x).replace(/,/g, '')), ny = parseFloat(String(y).replace(/,/g, ''));
+        const ea = isEmpty(a.key), eb = isEmpty(b.key);
+        if (ea && eb) return 0;
+        if (ea) return 1;
+        if (eb) return -1;
+        const nx = parseFloat(String(a.key).replace(/,/g, ''));
+        const ny = parseFloat(String(b.key).replace(/,/g, ''));
         let cmp;
         if (!isNaN(nx) && !isNaN(ny)) cmp = nx - ny;
-        else cmp = String(x).localeCompare(String(y), 'zh-CN');
+        else cmp = String(a.key).localeCompare(String(b.key), 'zh-CN');
         return dir === 'asc' ? cmp : -cmp;
       });
-      rows.forEach((o, i) => { this.sheet.data[r1 + i] = o.row; });
+      rows.forEach((o, i) => { this.sheet.data[start + i] = o.row; });
+      this.dropMerges(start, c1, r2, c2);
+      m.on = false;
       this.recalc();
       this.markDirty();
-      this.toast('已按 ' + E.colLetter(c1) + ' 列' + (dir === 'asc' ? '升序' : '降序') + '排序');
+      this.toast('已按 ' + E.colLetter(col) + ' 列' + (dir === 'asc' ? '升序' : '降序') + '排序');
     },
 
     removeDup() {
@@ -1062,6 +1265,19 @@ createApp({
       if (/^-?\d+(\.\d+)?$/.test(v)) return v;
       if (/^[A-Za-z0-9_\u4e00-\u9fa5]+\$?[A-Z]{1,3}\$?\d+(:\$?[A-Z]{1,3}\$?\d+)?$/.test(v)) return v;
       return '"' + v.replace(/"/g, '""') + '"';
+    },
+
+    /* 按函数库模板拼公式：{key} 原样填入，{t:key} 转文本字面量，{r} 为逐行引用 */
+    fillTpl(tpl, p, rRef) {
+      p = p || {};
+      return String(tpl).replace(/\{(t:)?([A-Za-z0-9_]+)\}/g, (m, isText, key) => {
+        if (key === 'r') return rRef || '';
+        let v = p[key];
+        if (v == null) v = '';
+        const s = String(v).trim();
+        if (isText) return this.lit(s);
+        return s;
+      });
     },
 
     runPreview() {
@@ -1234,6 +1450,41 @@ createApp({
         };
       }
 
+      const lib = this.flatFuncs.find(f => f.k === k);
+      if (lib && lib.tpl) {
+        if (lib.perRow) {
+          const rng = this.resolveRef(p.range);
+          if (!rng) return err('请选择或填写数据区域');
+          const cnt = rng.r2 - rng.r1 + 1;
+          const formulas = [], rows = [];
+          for (let i = 0; i < cnt; i++) {
+            const ref = this.refOf(rng, rng.r1 + i);
+            const f = this.fillTpl(lib.tpl, p, ref);
+            formulas.push(f);
+            rows.push({
+              cell: i + 1,
+              input: this.displayAt(rng.sheetName, rng.r1 + i, rng.c1),
+              value: E.formatValue(E.evalFormula(f, this.wb, cur))
+            });
+          }
+          return {
+            ok: true, mode: 'sheet', formulas: formulas, count: cnt,
+            rows: rows.slice(0, 8),
+            summary: '将新建「计算结果」工作表，整理 ' + cnt + ' 行 ' + k + ' 结果',
+            formula: '=' + formulas[0]
+          };
+        }
+        const f = this.fillTpl(lib.tpl, p, null);
+        const v = E.evalFormula(f, this.wb, cur);
+        return {
+          ok: true,
+          formulas: [f], count: 1,
+          rows: [{ cell: outAddr, input: f, value: E.formatValue(v) }],
+          summary: '将在「' + cur.name + '」' + outAddr + ' 写入 ' + k + ' 公式，结果 ' + E.formatValue(v),
+          formula: '=' + f
+        };
+      }
+
       return err('该函数暂不支持预览');
     },
 
@@ -1281,6 +1532,13 @@ createApp({
         headB = this.displayAt(table.sheetName, table.r1 - 1, table.c1 + col - 1) || '结果';
         for (let i = 0; i < n; i++) inputs.push(this.valueAt(lookup.sheetName, lookup.r1 + i, lookup.c1));
         mk = a => 'VLOOKUP(' + a + ',' + p.table.trim() + ',' + col + ',' + (exact ? 'FALSE' : 'TRUE') + ')';
+      } else if (this.curFunc && this.curFunc.tpl && this.curFunc.perRow) {
+        const rng = this.resolveRef(p.range);
+        if (!rng) return;
+        headA = this.displayAt(rng.sheetName, rng.r1 - 1, rng.c1) || '源数据';
+        headB = this.curFunc.label;
+        for (let i = 0; i < n; i++) inputs.push(this.valueAt(rng.sheetName, rng.r1 + i, rng.c1));
+        mk = a => this.fillTpl(this.curFunc.tpl, p, a);
       } else {
         const rng = this.resolveRef(p.range);
         if (!rng) return;

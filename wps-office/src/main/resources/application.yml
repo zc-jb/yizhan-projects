@@ -31,3 +31,5 @@ logging:
   level:
     root: info
     com.wps: info
+  file:
+    name: ${user.home}/.wps-office/app.log

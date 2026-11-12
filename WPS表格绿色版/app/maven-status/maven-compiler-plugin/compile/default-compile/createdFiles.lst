@@ -1,0 +1,14 @@
+com\wps\config\WebConfig.class
+com\wps\service\AuthService.class
+com\wps\security\ApiException.class
+com\wps\security\AuthInterceptor.class
+com\wps\web\AuthController.class
+com\wps\config\BrowserOpener.class
+com\wps\web\HealthController.class
+com\wps\WpsApplication.class
+com\wps\security\TokenStore.class
+com\wps\service\WorkbookService.class
+com\wps\repo\WorkbookRepository.class
+com\wps\web\WorkbookController.class
+com\wps\web\GlobalExceptionHandler.class
+com\wps\entity\Workbook.class

@@ -669,7 +669,7 @@
       group: '查找匹配',
       items: [
         {
-          k: 'VLOOKUP', label: 'VLOOKUP', icon: '🔎', short: '跨表匹配数据', group: '查找匹配',
+          k: 'VLOOKUP', label: 'VLOOKUP', icon: '🔎', short: '跨表匹配数据', group: '查找匹配', perRow: true,
           desc: '在查找区域的首列匹配目标值，返回该行指定列的内容，常用于两张表的数据匹配。',
           fields: [
             { k: 'lookup', label: '查找值区域', type: 'range', ph: '如 销售明细!C2:C43' },
@@ -738,19 +738,24 @@
     {
       group: '基础统计',
       items: [
-        { k: 'SUM', label: 'SUM', icon: '∑', short: '区域求和', group: '基础统计', desc: '对选定区域的所有数值求和。', fields: [{ k: 'range', label: '数据区域', type: 'range', ph: '如 销售明细!G2:G43' }] },
-        { k: 'AVERAGE', label: 'AVERAGE', icon: '⌀', short: '区域平均', group: '基础统计', desc: '计算选定区域的平均值。', fields: [{ k: 'range', label: '数据区域', type: 'range', ph: '如 销售明细!F2:F43' }] },
-        { k: 'MAX', label: 'MAX', icon: '↑', short: '最大值', group: '基础统计', desc: '返回区域中的最大值。', fields: [{ k: 'range', label: '数据区域', type: 'range', ph: '如 销售明细!G2:G43' }] },
-        { k: 'MIN', label: 'MIN', icon: '↓', short: '最小值', group: '基础统计', desc: '返回区域中的最小值。', fields: [{ k: 'range', label: '数据区域', type: 'range', ph: '如 销售明细!G2:G43' }] },
-        { k: 'COUNT', label: 'COUNT', icon: '123', short: '数值计数', group: '基础统计', desc: '统计区域中数值单元格的数量。', fields: [{ k: 'range', label: '数据区域', type: 'range', ph: '如 销售明细!E2:E43' }] }
+        { k: 'SUM', label: 'SUM', icon: '∑', short: '区域求和', group: '基础统计', desc: '对选定区域的所有数值求和，忽略文本与空白。', fields: [{ k: 'range', label: '数据区域', type: 'range', ph: '如 销售明细!G2:G43' }] },
+        { k: 'AVERAGE', label: 'AVERAGE', icon: '⌀', short: '区域平均', group: '基础统计', desc: '计算选定区域的平均值，只统计数值单元格。', fields: [{ k: 'range', label: '数据区域', type: 'range', ph: '如 销售明细!F2:F43' }] },
+        { k: 'MAX', label: 'MAX', icon: '↑', short: '最大值', group: '基础统计', desc: '返回区域中的最大值，可用于找最高金额、最高单价。', fields: [{ k: 'range', label: '数据区域', type: 'range', ph: '如 销售明细!G2:G43' }] },
+        { k: 'MIN', label: 'MIN', icon: '↓', short: '最小值', group: '基础统计', desc: '返回区域中的最小值，可用于找最低金额、最低单价。', fields: [{ k: 'range', label: '数据区域', type: 'range', ph: '如 销售明细!G2:G43' }] },
+        { k: 'COUNT', label: 'COUNT', icon: '123', short: '数值计数', group: '基础统计', desc: '统计区域中数值单元格的数量，文本与空白不计入。', fields: [{ k: 'range', label: '数据区域', type: 'range', ph: '如 销售明细!E2:E43' }] },
+        {
+          k: 'COUNTA', label: 'COUNTA', icon: '№', short: '非空计数', group: '基础统计', tpl: 'COUNTA({range})',
+          desc: '统计区域中所有非空单元格数量，文本、数字都计入，常用于统计填写条数。',
+          fields: [{ k: 'range', label: '数据区域', type: 'range', ph: '如 销售明细!C2:C43' }]
+        }
       ]
     },
     {
-      group: '逻辑与文本',
+      group: '条件判断',
       items: [
         {
-          k: 'IF', label: 'IF', icon: '⚖️', short: '条件判断', group: '逻辑与文本',
-          desc: '条件成立返回一个值，不成立返回另一个值。',
+          k: 'IF', label: 'IF', icon: '⚖️', short: '条件判断', group: '条件判断',
+          desc: '条件成立返回一个值，不成立返回另一个值，可整列批量判断大小单。',
           fields: [
             { k: 'cond', label: '条件表达式', type: 'text', ph: '如 E2>=5' },
             { k: 'yes', label: '成立时返回', type: 'text', ph: '如 大单' },
@@ -758,34 +763,209 @@
           ]
         },
         {
-          k: 'ROUND', label: 'ROUND', icon: '≈', short: '四舍五入', group: '逻辑与文本',
-          desc: '按指定小数位四舍五入，可对整列批量处理。',
+          k: 'IFERROR', label: 'IFERROR', icon: '🛟', short: '错误兜底', group: '条件判断', tpl: 'IFERROR({expr},{t:value})',
+          desc: '公式出错（如查找不到、除零）时显示替代内容，常用于 VLOOKUP 匹配失败时显示「未匹配」。',
+          fields: [
+            { k: 'expr', label: '被检查的公式', type: 'text', ph: '如 VLOOKUP(C2,客户档案!A2:D11,2,FALSE)' },
+            { k: 'value', label: '出错时显示', type: 'text', ph: '如 未匹配', def: '未匹配' }
+          ]
+        },
+        {
+          k: 'AND', label: 'AND', icon: '✅', short: '同时满足', group: '条件判断', tpl: 'AND({cond1},{cond2})',
+          desc: '两个条件同时成立时返回 TRUE，否则返回 FALSE。',
+          fields: [
+            { k: 'cond1', label: '条件 1', type: 'text', ph: '如 E2>=5' },
+            { k: 'cond2', label: '条件 2', type: 'text', ph: '如 G2>=1000' }
+          ]
+        },
+        {
+          k: 'OR', label: 'OR', icon: '🔀', short: '任一满足', group: '条件判断', tpl: 'OR({cond1},{cond2})',
+          desc: '两个条件中任意一个成立即返回 TRUE，否则返回 FALSE。',
+          fields: [
+            { k: 'cond1', label: '条件 1', type: 'text', ph: '如 H2="华东"' },
+            { k: 'cond2', label: '条件 2', type: 'text', ph: '如 H2="华南"' }
+          ]
+        },
+        {
+          k: 'NOT', label: 'NOT', icon: '🚫', short: '条件取反', group: '条件判断', tpl: 'NOT({cond})',
+          desc: '把条件结果取反：TRUE 变 FALSE，FALSE 变 TRUE。',
+          fields: [
+            { k: 'cond', label: '条件表达式', type: 'text', ph: '如 H2="华东"' }
+          ]
+        }
+      ]
+    },
+    {
+      group: '数学与取整',
+      items: [
+        {
+          k: 'ROUND', label: 'ROUND', icon: '≈', short: '四舍五入', group: '数学与取整', perRow: true,
+          desc: '按指定小数位四舍五入，可对整列批量处理金额、单价。',
           fields: [
             { k: 'range', label: '数值单元格 / 区域', type: 'range', ph: '如 销售明细!G2:G43' },
             { k: 'digits', label: '保留小数位', type: 'number', ph: '2', def: '2' }
           ]
         },
         {
-          k: 'MONTH', label: 'MONTH', icon: '📅', short: '提取月份', group: '逻辑与文本',
-          desc: '从日期中提取月份数字，可整列批量填充。',
+          k: 'ROUNDUP', label: 'ROUNDUP', icon: '⬆️', short: '向上取整', group: '数学与取整', perRow: true, tpl: 'ROUNDUP({r},{digits})',
+          desc: '无论小数大小都向上进位，例如把重量、工时不足一位的按一位计算。',
+          fields: [
+            { k: 'range', label: '数值单元格 / 区域', type: 'range', ph: '如 销售明细!G2:G43' },
+            { k: 'digits', label: '保留小数位', type: 'number', ph: '0', def: '2' }
+          ]
+        },
+        {
+          k: 'ROUNDDOWN', label: 'ROUNDDOWN', icon: '⬇️', short: '向下取整', group: '数学与取整', perRow: true, tpl: 'ROUNDDOWN({r},{digits})',
+          desc: '无论小数大小都舍去，例如计算可兑换的整数数量。',
+          fields: [
+            { k: 'range', label: '数值单元格 / 区域', type: 'range', ph: '如 销售明细!G2:G43' },
+            { k: 'digits', label: '保留小数位', type: 'number', ph: '0', def: '2' }
+          ]
+        },
+        {
+          k: 'ABS', label: 'ABS', icon: '±', short: '绝对值', group: '数学与取整', perRow: true, tpl: 'ABS({r})',
+          desc: '返回数值的绝对值，负数转正数，常用于计算差值、亏损额。',
+          fields: [
+            { k: 'range', label: '数值单元格 / 区域', type: 'range', ph: '如 销售明细!G2:G43' }
+          ]
+        },
+        {
+          k: 'INT', label: 'INT', icon: '🔢', short: '取整数部分', group: '数学与取整', perRow: true, tpl: 'INT({r})',
+          desc: '直接去掉小数部分取整数，不进行四舍五入。',
+          fields: [
+            { k: 'range', label: '数值单元格 / 区域', type: 'range', ph: '如 销售明细!G2:G43' }
+          ]
+        },
+        {
+          k: 'MOD', label: 'MOD', icon: '➗', short: '求余数', group: '数学与取整', perRow: true, tpl: 'MOD({r},{n1})',
+          desc: '返回两数相除的余数，常用于判断奇偶、按组编号、循环分组。',
+          fields: [
+            { k: 'range', label: '被除数单元格 / 区域', type: 'range', ph: '如 销售明细!E2:E43' },
+            { k: 'n1', label: '除数', type: 'number', ph: '2', def: '2' }
+          ]
+        }
+      ]
+    },
+    {
+      group: '文本处理',
+      items: [
+        {
+          k: 'LEFT', label: 'LEFT', icon: '◀', short: '截取左侧', group: '文本处理', perRow: true, tpl: 'LEFT({r},{n1})',
+          desc: '从左侧开始截取指定个数的字符，例如提取编号前 4 位。',
+          fields: [
+            { k: 'range', label: '文本单元格 / 区域', type: 'range', ph: '如 销售明细!B2:B43' },
+            { k: 'n1', label: '截取字符数', type: 'number', ph: '4', def: '4' }
+          ]
+        },
+        {
+          k: 'RIGHT', label: 'RIGHT', icon: '▶', short: '截取右侧', group: '文本处理', perRow: true, tpl: 'RIGHT({r},{n1})',
+          desc: '从右侧开始截取指定个数的字符，例如提取编号后 3 位。',
+          fields: [
+            { k: 'range', label: '文本单元格 / 区域', type: 'range', ph: '如 销售明细!B2:B43' },
+            { k: 'n1', label: '截取字符数', type: 'number', ph: '3', def: '3' }
+          ]
+        },
+        {
+          k: 'MID', label: 'MID', icon: '✂️', short: '中间截取', group: '文本处理', perRow: true, tpl: 'MID({r},{start},{n1})',
+          desc: '从指定位置开始截取指定长度的字符，例如从订单号中提取年份。',
+          fields: [
+            { k: 'range', label: '文本单元格 / 区域', type: 'range', ph: '如 销售明细!B2:B43' },
+            { k: 'start', label: '起始位置', type: 'number', ph: '4', def: '1' },
+            { k: 'n1', label: '截取字符数', type: 'number', ph: '4', def: '4' }
+          ]
+        },
+        {
+          k: 'LEN', label: 'LEN', icon: '📏', short: '字符长度', group: '文本处理', perRow: true, tpl: 'LEN({r})',
+          desc: '统计文本的字符个数，可用于检查编号、手机号长度是否规范。',
+          fields: [
+            { k: 'range', label: '文本单元格 / 区域', type: 'range', ph: '如 客户档案!A2:A11' }
+          ]
+        },
+        {
+          k: 'TRIM', label: 'TRIM', icon: '🧹', short: '去除多余空格', group: '文本处理', perRow: true, tpl: 'TRIM({r})',
+          desc: '删除文本首尾空格并把中间连续空格压缩为一个，常用于清洗导入数据。',
+          fields: [
+            { k: 'range', label: '文本单元格 / 区域', type: 'range', ph: '如 销售明细!C2:C43' }
+          ]
+        },
+        {
+          k: 'UPPER', label: 'UPPER', icon: '🔠', short: '转大写', group: '文本处理', perRow: true, tpl: 'UPPER({r})',
+          desc: '把英文文本全部转为大写字母。',
+          fields: [
+            { k: 'range', label: '文本单元格 / 区域', type: 'range', ph: '如 客户档案!A2:A11' }
+          ]
+        },
+        {
+          k: 'LOWER', label: 'LOWER', icon: '🔡', short: '转小写', group: '文本处理', perRow: true, tpl: 'LOWER({r})',
+          desc: '把英文文本全部转为小写字母。',
+          fields: [
+            { k: 'range', label: '文本单元格 / 区域', type: 'range', ph: '如 客户档案!A2:A11' }
+          ]
+        },
+        {
+          k: 'CONCAT', label: 'CONCAT', icon: '🔗', short: '合并文本', group: '文本处理',
+          desc: '把区域内的文本按分隔符合并成一串，可自定义分隔符。',
+          fields: [
+            { k: 'range', label: '数据区域', type: 'range', ph: '如 客户档案!A2:A11' },
+            { k: 'sep', label: '分隔符', type: 'text', ph: '如 、', def: '、' }
+          ]
+        },
+        {
+          k: 'TEXTJOIN', label: 'TEXTJOIN', icon: '🧵', short: '带分隔符合并', group: '文本处理', tpl: 'TEXTJOIN({t:sep},{ignore},{range})',
+          desc: '按指定分隔符合并区域文本，并可选择是否忽略空白单元格。',
+          fields: [
+            { k: 'range', label: '数据区域', type: 'range', ph: '如 销售明细!C2:C43' },
+            { k: 'sep', label: '分隔符', type: 'text', ph: '如 ，', def: '，' },
+            {
+              k: 'ignore', label: '忽略空白', type: 'select', def: 'TRUE',
+              opts: [{ v: 'TRUE', t: '忽略空白单元格' }, { v: 'FALSE', t: '保留空白位置' }]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      group: '日期与时间',
+      items: [
+        {
+          k: 'MONTH', label: 'MONTH', icon: '📅', short: '提取月份', group: '日期与时间', perRow: true,
+          desc: '从日期中提取月份数字（1—12），可整列批量填充，便于按月汇总。',
           fields: [
             { k: 'range', label: '日期单元格 / 区域', type: 'range', ph: '如 销售明细!A2:A43' }
           ]
         },
         {
-          k: 'TEXT', label: 'TEXT', icon: '🔤', short: '格式转换', group: '逻辑与文本',
-          desc: '把日期或数字转成指定格式的文本，如 yyyy-mm。',
+          k: 'YEAR', label: 'YEAR', icon: '🗓️', short: '提取年份', group: '日期与时间', perRow: true, tpl: 'YEAR({r})',
+          desc: '从日期中提取四位年份，例如 2026。',
+          fields: [
+            { k: 'range', label: '日期单元格 / 区域', type: 'range', ph: '如 销售明细!A2:A43' }
+          ]
+        },
+        {
+          k: 'DAY', label: 'DAY', icon: '📆', short: '提取日', group: '日期与时间', perRow: true, tpl: 'DAY({r})',
+          desc: '从日期中提取当月第几天（1—31）。',
+          fields: [
+            { k: 'range', label: '日期单元格 / 区域', type: 'range', ph: '如 销售明细!A2:A43' }
+          ]
+        },
+        {
+          k: 'TODAY', label: 'TODAY', icon: '⏰', short: '今天日期', group: '日期与时间', tpl: 'TODAY()',
+          desc: '返回系统当前日期，结果写入单元格后每次打开都会自动更新。',
+          fields: []
+        },
+        {
+          k: 'TEXT', label: 'TEXT', icon: '🔤', short: '日期格式化', group: '日期与时间', perRow: true,
+          desc: '把日期或数字转成指定格式的文本，如 yyyy-mm、yyyy年mm月。',
           fields: [
             { k: 'range', label: '单元格 / 区域', type: 'range', ph: '如 销售明细!A2:A43' },
             { k: 'fmt', label: '格式代码', type: 'text', ph: '如 yyyy-mm', def: 'yyyy-mm' }
           ]
         },
         {
-          k: 'CONCAT', label: 'CONCAT', icon: '🔗', short: '合并文本', group: '逻辑与文本',
-          desc: '把区域内的文本合并成一串，可自定义分隔符。',
+          k: 'VALUE', label: 'VALUE', icon: '🔢', short: '文本转数字', group: '日期与时间', perRow: true, tpl: 'VALUE({r})',
+          desc: '把看起来像数字的文本转成真正的数值，便于继续参与求和计算。',
           fields: [
-            { k: 'range', label: '数据区域', type: 'range', ph: '如 客户档案!A2:A11' },
-            { k: 'sep', label: '分隔符', type: 'text', ph: '如 、', def: '、' }
+            { k: 'range', label: '文本单元格 / 区域', type: 'range', ph: '如 销售明细!E2:E43' }
           ]
         }
       ]
@@ -934,10 +1114,11 @@
     return {
       id: id || 's_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
       name: name,
-      rows: 60,
+      rows: 100,
       cols: 16,
-      data: blankMatrix(60, 16),
-      fmts: {}
+      data: blankMatrix(100, 16),
+      fmts: {},
+      merges: []
     };
   }
 
